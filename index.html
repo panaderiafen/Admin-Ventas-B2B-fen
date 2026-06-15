@@ -192,19 +192,20 @@ input[type="date"] { padding: 10px 12px; }
   <div class="card">
     <div class="card-title">🧾 Facturación</div>
     <label>Cliente</label>
-    <select id="facCliente" onchange="buscarPedidosPendientes()">
+    <select id="facCliente">
       <option value="">— Todos los clientes —</option>
     </select>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
       <div>
         <label>Desde</label>
-        <input type="date" id="facDesde" onchange="buscarPedidosPendientes()"/>
+        <input type="date" id="facDesde"/>
       </div>
       <div>
         <label>Hasta</label>
-        <input type="date" id="facHasta" onchange="buscarPedidosPendientes()"/>
+        <input type="date" id="facHasta"/>
       </div>
     </div>
+    <button class="btn btn-primary btn-full" style="margin-top:12px" onclick="buscarPedidosPendientes()">🔍 Buscar</button>
   </div>
 
   <div class="card">
@@ -967,7 +968,7 @@ async function buscarPedidosPendientes() {
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid #f0f0f0;">
         <input type="checkbox" id="chk-${i}" onchange="actualizarSeleccionFac()" style="width:18px;height:18px;"/>
         <label for="chk-${i}" style="flex:1;cursor:pointer;margin:0;">
-          <div style="font-size:13px;font-weight:600;">${p.cliente} — ${p.fecha}</div>
+          <div style="font-size:13px;font-weight:600;">N° ${p.nOrden} · ${p.cliente} — ${p.fecha}</div>
           <div style="font-size:12px;color:#888;">Total: $${parseInt(p.total||0).toLocaleString('es-CL')}</div>
         </label>
       </div>
