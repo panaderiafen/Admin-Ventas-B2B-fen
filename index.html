@@ -1022,7 +1022,7 @@ function renderListaPagos(lista) {
   // Agrupar por folio
   const porFolio = {};
   lista.forEach(r => {
-    const f = r.folio || 'Sin folio';
+    const f = r.folioSII || r.folio || 'Sin folio';
     if (!porFolio[f]) porFolio[f] = { folio: f, cliente: r.cliente, rows: [], total: 0, estadoPago: r.estadoPago };
     porFolio[f].rows.push(r);
     porFolio[f].total += parseInt(r.total||0);
