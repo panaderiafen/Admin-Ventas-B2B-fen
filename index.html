@@ -790,7 +790,7 @@ function agregarLineaProducto() {
       <option value="">— Producto —</option>
       ${productos.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('')}
     </select>
-    <input type="number" class="inp-cantidad" placeholder="0" min="0" oninput="calcularTotales()" style="text-align:center;"/>
+    <input type="number" class="inp-cantidad" placeholder="0" min="0" step="0.1" oninput="calcularTotales()" style="text-align:center;"/>
     <input type="number" class="inp-precio" placeholder="$0" min="0" oninput="calcularTotales()" style="text-align:right;"/>
     ${id > 1 ? `<button class="btn-remove" onclick="document.getElementById('linea-${id}').remove();calcularTotales()">×</button>` : '<span></span>'}
   `;
@@ -810,9 +810,9 @@ function actualizarPrecioLinea(linea) {
 function calcularTotales() {
   let totalNeto = 0;
   document.querySelectorAll('.linea-producto').forEach(linea => {
-    const cant = parseInt(linea.querySelector('.inp-cantidad').value) || 0;
+    const cant = parseFloat(linea.querySelector('.inp-cantidad').value) || 0;
     const precio = parseInt(linea.querySelector('.inp-precio').value) || 0;
-    totalNeto += cant * precio;
+    totalNeto += Math.round(cant * precio);
   });
   const iva = Math.round(totalNeto * 0.19);
   const total = totalNeto + iva;
@@ -840,7 +840,7 @@ async function guardarPedido() {
   const lineas = [];
   document.querySelectorAll('.linea-producto').forEach(linea => {
     const prod = linea.querySelector('.sel-producto').value;
-    const cant = parseInt(linea.querySelector('.inp-cantidad').value) || 0;
+    const cant = parseFloat(linea.querySelector('.inp-cantidad').value) || 0;
     const precio = parseInt(linea.querySelector('.inp-precio').value) || 0;
     if (prod && cant > 0) lineas.push({ producto: prod, cantidad: cant, precioNeto: precio, netoTotal: cant * precio });
   });
@@ -922,8 +922,11 @@ async function generarOrdenCompra(pedido) {
     (cli.direccion ? `${cli.direccion}` : '');
 
   // Box detalle
-  const fechaObj = new Date(pedido.fecha + 'T12:00:00');
-  const fechaFormateada = fechaObj.toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' });
+  // Construir fecha evitando Invalid Date
+  const partesFecha = pedido.fecha ? pedido.fecha.split('-') : [];
+  const fechaFormateada = partesFecha.length === 3
+    ? `${parseInt(partesFecha[2])} de ${ ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][parseInt(partesFecha[1])-1] } de ${partesFecha[0]}`
+    : pedido.fecha || '';
   document.getElementById('ordenDetalleBox').innerHTML =
     `<strong>Fecha:</strong> ${fechaFormateada}<br/>` +
     `<strong>Estado:</strong> ${pedido.estadoPago}<br/>` +
