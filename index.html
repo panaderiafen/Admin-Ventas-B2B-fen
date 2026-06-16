@@ -329,6 +329,18 @@ input.precio-especial { color: #1D9E75; font-weight: 700; border-color: #1D9E75;
 
 <!-- ═══════════════════════════════════════ MODALES ═══ -->
 
+<!-- Detalle orden -->
+<div id="modal-detalle" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title" id="det-title">📋 Detalle de orden</div>
+    <div id="det-content"></div>
+    <div class="modal-btns">
+      <button class="btn btn-success" style="flex:1;" onclick="pdfDesdeDetalle()">🖨️ Generar PDF</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-detalle')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Folio SII -->
 <div id="modal-folio" class="modal-overlay">
   <div class="modal">
@@ -482,12 +494,14 @@ async function syncAll() {
   if (!GS) { document.getElementById('config-banner').classList.remove('hidden'); return; }
   showToast('Sincronizando...','loading');
   try {
-    const [cl,pr,pc,or] = await Promise.all([
+    const [cl,pr,pc,or,det] = await Promise.all([
       gsCall('getClientes'), gsCall('getProductos'),
-      gsCall('getPrecios'),  gsCall('getOrdenes')
+      gsCall('getPrecios'),  gsCall('getOrdenes'),
+      gsCall('getDetalles')
     ]);
     DB.clientes=cl||[]; DB.productos=pr||[];
     DB.precios=pc||[];   DB.ordenes=or||[];
+    DB.detalles=det||[];
     populateSelects();
     renderAll();
     document.getElementById('sync-status').textContent =
@@ -828,18 +842,74 @@ function renderOrdenes(){
       </div>
       <div class="orden-card-meta">👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; 📅 ${fechaCorta(o['Fecha'])}</div>
       <div class="row-actions">
+        <button class="btn btn-secondary btn-sm" onclick="abrirDetalle('${o['N° Orden']}')">📋 Ver detalle</button>
         <button class="btn btn-secondary btn-sm" onclick="abrirEditar('${o['N° Orden']}')">✏️ Editar</button>
         <button class="btn btn-danger btn-sm" onclick="abrirDel('${o['N° Orden']}')">🗑️ Eliminar</button>
-        <button class="btn btn-sm" style="background:#f0f6ff;color:#003a79;border:1px solid #bed4f0;" onclick="reimprimirOrden('${o['N° Orden']}')">🖨️ PDF</button>
       </div>
     </div>`).join('');
 }
 
-function reimprimirOrden(nOrden){
+let _detOrden = null;
+
+function abrirDetalle(nOrden){
   const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(nOrden));
   if(!o){showToast('Orden no encontrada','err');return;}
+  _detOrden=nOrden;
+  const lineas=DB.detalles.filter(d=>String(d['N° Orden'])===String(nOrden));
+  const cli=DB.clientes.find(c=>norm(c['Nombre'])===norm(o['Cliente']));
+
+  document.getElementById('det-title').textContent='📋 Orden N° '+nOrden+' — '+o['Cliente'];
+
+  if(!lineas.length){
+    document.getElementById('det-content').innerHTML=
+      '<div class="hint" style="text-align:center;padding:20px;">Sin líneas de detalle. Sincroniza primero.</div>';
+    openModal('modal-detalle');
+    return;
+  }
+
+  const rows=lineas.map(l=>`<tr>
+    <td>${l['Producto']||'—'}</td>
+    <td style="text-align:center;">${l['Cantidad']||0}</td>
+    <td style="text-align:right;">${fmtCLP(l['Precio Neto Unit.']||0)}</td>
+    <td style="text-align:right;">${fmtCLP(l['Neto Total']||0)}</td>
+  </tr>`).join('');
+
+  document.getElementById('det-content').innerHTML=`
+    <div class="info-box" style="margin-bottom:12px;">
+      <div class="oi-row"><span class="oi-label">Cliente</span><span class="oi-value">${o['Cliente']||'—'}</span></div>
+      <div class="oi-row"><span class="oi-label">RUT</span><span class="oi-value">${cli?.['RUT']||'—'}</span></div>
+      <div class="oi-row"><span class="oi-label">Fecha</span><span class="oi-value">${fechaES(o['Fecha'])}</span></div>
+      <div class="oi-row"><span class="oi-label">Estado</span><span class="oi-value">${estadoBadge(o['Estado Pago'])}</span></div>
+      ${o['Folio SII']&&o['Folio SII']!=='Pendiente'?'<div class="oi-row"><span class="oi-label">Folio SII</span><span class="oi-value">'+o['Folio SII']+'</span></div>':''}
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Producto</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Neto Unit.</th><th style="text-align:right;">Neto Total</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="resumen-box" style="margin-top:10px;">
+      <div class="resumen-row"><span>Neto</span><span>${fmtCLP(o['Total Neto'])}</span></div>
+      <div class="resumen-row"><span>IVA 19%</span><span>${fmtCLP(o['IVA'])}</span></div>
+      <div class="resumen-row total"><span>Total</span><span>${fmtCLP(o['Total'])}</span></div>
+    </div>`;
+  openModal('modal-detalle');
+}
+
+function pdfDesdeDetalle(){
+  const nOrden=_detOrden;
+  const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(nOrden));
+  const lineas=DB.detalles.filter(d=>String(d['N° Orden'])===String(nOrden));
+  if(!o||!lineas.length){showToast('Sin datos para generar PDF','err');return;}
   const cliData=DB.clientes.find(c=>norm(c['Nombre'])===norm(o['Cliente']));
-  showToast('Las líneas de producto no están en Resumen. Genera el PDF desde nueva orden.','err',4000);
+  const lineasFmt=lineas.map(l=>({
+    producto:l['Producto'],
+    cantidad:l['Cantidad'],
+    precioUnit:l['Precio Neto Unit.']
+  }));
+  const sub=lineas.reduce((s,l)=>s+(Number(l['Neto Total'])||0),0);
+  closeModal('modal-detalle');
+  generarPDFOrden(nOrden,o['Fecha'],cliData,lineasFmt,sub,'');
 }
 
 // ─── EDITAR ORDEN ────────────────────────
@@ -1071,35 +1141,46 @@ function calcMulti(){
   if(!sel.length){wrap.classList.add('hidden');return;}
   wrap.classList.remove('hidden');
 
-  // Agrupar productos de todas las órdenes seleccionadas
-  // Como solo tenemos el Resumen Facturas (sin línea a línea),
-  // mostramos las órdenes con sus totales y la suma
-  let subTotal=0;
-  const ordenesHTML=sel.map(o=>{
-    const sn=Number(o['Total Neto'])||0;
-    subTotal+=sn;
-    return`<tr>
-      <td>${o['N° Orden']}</td>
-      <td>${fechaCorta(o['Fecha'])}</td>
-      <td>${o['Cliente']||'—'}</td>
-      <td style="text-align:right;">${fmtCLP(o['Total Neto'])}</td>
-      <td style="text-align:right;">${fmtCLP(o['IVA'])}</td>
-      <td style="text-align:right;font-weight:700;">${fmtCLP(o['Total'])}</td>
-    </tr>`;
-  }).join('');
+  // Agrupar productos desde DB.detalles
+  const prodMap={};
+  sel.forEach(o=>{
+    const lineas=DB.detalles.filter(d=>String(d['N° Orden'])===String(o['N° Orden']));
+    lineas.forEach(l=>{
+      const key=norm(l['Producto']);
+      if(!prodMap[key]){prodMap[key]={nombre:l['Producto'],cantidad:0,precioUnit:Number(l['Precio Neto Unit.'])||0,netoTotal:0};}
+      prodMap[key].cantidad+=Number(l['Cantidad'])||0;
+      prodMap[key].netoTotal+=Number(l['Neto Total'])||0;
+    });
+  });
+  const prods=Object.values(prodMap);
+  const sub=prods.length>0
+    ? prods.reduce((s,p)=>s+p.netoTotal,0)
+    : sel.reduce((s,o)=>s+(Number(o['Total Neto'])||0),0);
+  const nOrdenesStr=sel.map(o=>'N° '+o['N° Orden']).join(', ');
 
-  document.getElementById('m-res-detalle').innerHTML=`
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>N° Orden</th><th>Fecha</th><th>Cliente</th><th style="text-align:right;">Neto</th><th style="text-align:right;">IVA</th><th style="text-align:right;">Total</th></tr></thead>
-        <tbody>${ordenesHTML}</tbody>
-      </table>
-    </div>`;
-  document.getElementById('m-neto').textContent=fmtCLP(subTotal);
-  document.getElementById('m-iva').textContent=fmtCLP(subTotal*0.19);
-  document.getElementById('m-tot').textContent=fmtCLP(subTotal*1.19);
+  let detalleHTML='';
+  if(prods.length>0){
+    const filas=prods.map(p=>`<tr>
+      <td>${p.nombre}</td>
+      <td style="text-align:center;">${p.cantidad}</td>
+      <td style="text-align:right;">${fmtCLP(p.precioUnit)}</td>
+      <td style="text-align:right;">${fmtCLP(Math.round(p.netoTotal))}</td>
+    </tr>`).join('');
+    detalleHTML=`<div style="font-size:11px;font-weight:700;color:#555;margin-bottom:8px;">ÓRDENES INCLUIDAS: ${nOrdenesStr}</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Producto</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Neto Unit.</th><th style="text-align:right;">Neto Total</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table></div>`;
+  } else {
+    detalleHTML=`<div style="font-size:11px;color:#888;margin-bottom:8px;">ÓRDENES: ${nOrdenesStr}</div>
+    <p class="hint">Sincroniza para ver el detalle de productos agrupados.</p>`;
+  }
+
+  document.getElementById('m-res-detalle').innerHTML=detalleHTML;
+  document.getElementById('m-neto').textContent=fmtCLP(sub);
+  document.getElementById('m-iva').textContent=fmtCLP(sub*0.19);
+  document.getElementById('m-tot').textContent=fmtCLP(sub*1.19);
 }
-
 async function asignarFolioMulti(){
   const folio=document.getElementById('m-folio').value.trim();
   if(!folio){showToast('Ingresa el folio SII','err');return;}
@@ -1212,10 +1293,13 @@ ${folio?'<div class="folio-badge">Folio SII: '+folio+'</div>':''}
   <div class="ro-label">N\xba de \xf3rdenes incluidas en esta factura</div>
   <div class="ro-val">${nOrdenesStr}</div>
 </div>
-<table>
-  <thead><tr><th>N\xb0 Orden</th><th>Fecha</th><th style="text-align:right;">Neto</th><th style="text-align:right;">IVA</th><th style="text-align:right;">Total</th></tr></thead>
+${usaDetalles?`<table>
+  <thead><tr><th>Producto</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Neto Unit.</th><th style="text-align:right;">Neto Total</th></tr></thead>
   <tbody>${ordenRows}</tbody>
-</table>
+</table>`:`<table>
+  <thead><tr><th>N\xb0 Orden</th><th style="text-align:center;">—</th><th style="text-align:right;">—</th><th style="text-align:right;">Neto Total</th></tr></thead>
+  <tbody>${ordenRows}</tbody>
+</table>`}
 <div class="totales">
   <div class="tot-row"><span>Total Neto</span><span>${fmtCLP(subTotal)}</span></div>
   <div class="tot-row"><span>IVA 19%</span><span>${fmtCLP(Math.round(subTotal*0.19))}</span></div>
