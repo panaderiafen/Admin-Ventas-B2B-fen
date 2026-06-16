@@ -627,64 +627,55 @@ function onEditCliChange(){recalcLineas('ed-lineas','ed-cli');}
 
 function recalcLineas(lId,cId){
   const cNom=document.getElementById(cId).value;
-  document.querySelectorAll(`#${lId} .linea-producto`).forEach(row=>{
+  document.querySelectorAll('#'+lId+' .linea-producto').forEach(row=>{
     const sel=row.querySelector('select');
     if(!sel||!sel.value)return;
-    const inp=row.querySelectorAll('input[type=number]');
+    const base=row.querySelector('.linea-base');
+    const cli=row.querySelector('.linea-cli');
     const info=getPrecio(cNom,sel.value);
     const prod=DB.productos.find(p=>norm(p['Nombre'])===norm(sel.value));
-    if(inp[0])inp[0].value=prod?prod['Precio Base']:'';
-    if(inp[1]){inp[1].value=info.precio; inp[1].className=info.especial?'precio-especial':'';}
+    if(base)base.value=prod?prod['Precio Base']:'';
+    if(cli){cli.value=info.precio; cli.style.color=info.especial?'#1D9E75':'#222';}
   });
-  calcRes(lId, lId==='oc-lineas'?'oc-neto':'ed-neto',
-               lId==='oc-lineas'?'oc-iva':'ed-iva',
-               lId==='oc-lineas'?'oc-tot':'ed-tot');
+  const cb=lId==='oc-lineas';
+  calcRes(lId,cb?'oc-neto':'ed-neto',cb?'oc-iva':'ed-iva',cb?'oc-tot':'ed-tot');
 }
 
 function addLinea(cId){
-  const cNom=document.getElementById(cId==='oc-lineas'?'oc-cliente':'ed-cli').value;
   const wrap=document.getElementById(cId);
   const div=document.createElement('div');
   div.className='linea-producto';
   const cb=cId==='oc-lineas';
-  div.innerHTML=`
-    <select onchange="onProdSel(this,'${cId}')">${prodOpts('')}</select>
-    <input type="number" placeholder="Cant." min="1" oninput="${cb?'calcRes(\'oc-lineas\',\'oc-neto\',\'oc-iva\',\'oc-tot\')':'calcRes(\'ed-lineas\',\'ed-neto\',\'ed-iva\',\'ed-tot\')'}"/>
-    <input type="number" placeholder="Base" readonly style="background:#f8f9fa;color:#999;"/>
-    <input type="number" placeholder="Cliente" oninput="${cb?'calcRes(\'oc-lineas\',\'oc-neto\',\'oc-iva\',\'oc-tot\')':'calcRes(\'ed-lineas\',\'ed-neto\',\'ed-iva\',\'ed-tot\')'}"/>
-    <button class="btn-remove" onclick="this.parentElement.remove();${cb?'calcRes(\'oc-lineas\',\'oc-neto\',\'oc-iva\',\'oc-tot\')':'calcRes(\'ed-lineas\',\'ed-neto\',\'ed-iva\',\'ed-tot\')'}">×</button>`;
+  const fn=cb?"calcRes('oc-lineas','oc-neto','oc-iva','oc-tot')"
+              :"calcRes('ed-lineas','ed-neto','ed-iva','ed-tot')";
+  div.innerHTML=
+    '<select onchange="onProdSel(this,\''+cId+'\')">'+prodOpts('')+'</select>'+
+    '<input type="number" class="linea-cant" placeholder="Cant." min="1" step="1" style="text-align:center;" oninput="'+fn+'"/>'+
+    '<input type="number" class="linea-base" placeholder="Base" readonly tabindex="-1" style="background:#f8f9fa;color:#aaa;cursor:default;"/>'+
+    '<input type="number" class="linea-cli" placeholder="Precio" oninput="'+fn+'"/>'+
+    '<button class="btn-remove" onclick="this.parentElement.remove();'+fn+'">×</button>';
   wrap.appendChild(div);
 }
 
 function onProdSel(sel,cId){
   const cNom=document.getElementById(cId==='oc-lineas'?'oc-cliente':'ed-cli').value;
   const row=sel.closest('.linea-producto');
-  const inp=row.querySelectorAll('input[type=number]');
+  const baseEl=row.querySelector('.linea-base');
+  const cliEl=row.querySelector('.linea-cli');
   const prod=DB.productos.find(p=>norm(p['Nombre'])===norm(sel.value));
   const info=getPrecio(cNom,sel.value);
-  if(inp[0])inp[0].value=prod?prod['Precio Base']:'';
-  if(inp[1]){inp[1].value=info.precio; inp[1].className=info.especial?'precio-especial':'';}
+  if(baseEl)baseEl.value=prod?prod['Precio Base']:'';
+  if(cliEl){cliEl.value=info.precio; cliEl.style.color=info.especial?'#1D9E75':'#222';}
   const cb=cId==='oc-lineas';
   calcRes(cId,cb?'oc-neto':'ed-neto',cb?'oc-iva':'ed-iva',cb?'oc-tot':'ed-tot');
 }
 
 function calcRes(lId,nId,iId,tId){
   let sub=0;
-  document.querySelectorAll(`#${lId} .linea-producto`).forEach(row=>{
-    const inp=row.querySelectorAll('input[type=number]');
-    const qty=parseFloat(inp[0]?.value)||0;
-    const precio=parseFloat(inp[2]?.value)||parseFloat(inp[1]?.value)||0; // precio cliente primero
-    // Nota: inp[0]=base(readonly), inp[1]=cliente en el grid: cant, base, cliente
-    // Realmente: inp array: cant(idx0), base(idx1 readonly), cliente(idx2)
-    sub+=qty*precio;
-  });
-  // Fix: reread correctly
-  sub=0;
-  document.querySelectorAll(`#${lId} .linea-producto`).forEach(row=>{
-    const inputs=row.querySelectorAll('input[type=number]');
-    const cant=parseFloat(inputs[0]?.value)||0;
-    const pCli=parseFloat(inputs[2]?.value)||0;
-    const pBase=parseFloat(inputs[1]?.value)||0;
+  document.querySelectorAll('#'+lId+' .linea-producto').forEach(row=>{
+    const cant=parseFloat(row.querySelector('.linea-cant')?.value)||0;
+    const pCli=parseFloat(row.querySelector('.linea-cli')?.value)||0;
+    const pBase=parseFloat(row.querySelector('.linea-base')?.value)||0;
     sub+=cant*(pCli||pBase);
   });
   document.getElementById(nId).textContent=fmtCLP(sub);
@@ -694,14 +685,12 @@ function calcRes(lId,nId,iId,tId){
 
 function getLineas(cId){
   const lineas=[];
-  document.querySelectorAll(`#${cId} .linea-producto`).forEach(row=>{
+  document.querySelectorAll('#'+cId+' .linea-producto').forEach(row=>{
     const sel=row.querySelector('select');
-    const inp=row.querySelectorAll('input[type=number]');
-    const prod=sel?.value;
-    const cant=parseFloat(inp[0]?.value)||0;
-    const pCli=parseFloat(inp[2]?.value)||0;
-    const pBase=parseFloat(inp[1]?.value)||0;
-    if(prod&&cant>0)lineas.push({producto:prod,cantidad:cant,precioUnit:pCli||pBase});
+    const cant=parseFloat(row.querySelector('.linea-cant')?.value)||0;
+    const pCli=parseFloat(row.querySelector('.linea-cli')?.value)||0;
+    const pBase=parseFloat(row.querySelector('.linea-base')?.value)||0;
+    if(sel?.value&&cant>0)lineas.push({producto:sel.value,cantidad:cant,precioUnit:pCli||pBase});
   });
   return lineas;
 }
