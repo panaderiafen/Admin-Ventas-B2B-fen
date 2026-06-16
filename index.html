@@ -8,374 +8,334 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; min-height: 100vh; }
 
-.header { background: #003a79; color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-.header-left h1 { font-size: 16px; font-weight: 600; }
-.header-left p { font-size: 11px; opacity: 0.7; }
-.sync-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; }
-.sync-btn:hover { background: rgba(255,255,255,0.25); }
+.header { background: #003a79; color: white; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.header h1 { font-size: 15px; font-weight: 700; }
+.header p { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+.sync-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 
-.nav { background: white; border-bottom: 1px solid #e0e0e0; display: flex; overflow-x: auto; position: sticky; top: 62px; z-index: 99; }
-.nav-btn { padding: 12px 16px; font-size: 13px; font-weight: 600; color: #666; white-space: nowrap; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; background: none; border-left: none; border-right: none; border-top: none; }
+.nav { background: white; border-bottom: 1px solid #e0e0e0; display: flex; overflow-x: auto; position: sticky; top: 58px; z-index: 99; }
+.nav-btn { padding: 11px 14px; font-size: 12px; font-weight: 600; color: #666; white-space: nowrap; cursor: pointer; border-bottom: 2px solid transparent; background: none; border-left: none; border-right: none; border-top: none; transition: all 0.15s; }
 .nav-btn.active { color: #003a79; border-bottom-color: #003a79; }
-.nav-btn:hover { background: #f5f5f5; }
 
-/* CONFIG BANNER */
-.config-banner { background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px; padding: 14px 16px; margin: 16px; font-size: 13px; }
-.config-banner strong { color: #856404; }
-.config-banner input { margin-top: 8px; }
-
-.section { display: none; max-width: 640px; margin: 0 auto; padding: 20px 16px 60px; }
+.section { display: none; max-width: 640px; margin: 0 auto; padding: 16px 14px 60px; }
 .section.active { display: block; }
 
-.card { background: white; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 20px; margin-bottom: 16px; }
-.card-title { font-size: 15px; font-weight: 700; color: #003a79; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.card { background: white; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 18px; margin-bottom: 14px; }
+.card-title { font-size: 14px; font-weight: 700; color: #003a79; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
 
-label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; margin-top: 12px; }
+label { display: block; font-size: 11px; font-weight: 700; color: #555; margin-bottom: 4px; margin-top: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
 label:first-child { margin-top: 0; }
 input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; color: #222; background: white; outline: none; transition: border-color 0.2s; appearance: none; -webkit-appearance: none; }
 input:focus, select:focus, textarea:focus { border-color: #003a79; }
-textarea { resize: none; min-height: 60px; }
+textarea { resize: vertical; min-height: 56px; }
+input[type="date"] { padding: 10px 12px; }
+input[type="checkbox"] { width: auto; appearance: auto; -webkit-appearance: auto; }
 
-.btn { padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+.btn { padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
 .btn-primary { background: #003a79; color: white; }
 .btn-primary:hover { background: #002a59; }
-.btn-primary:disabled { background: #aaa; cursor: not-allowed; }
 .btn-secondary { background: white; color: #003a79; border: 1.5px solid #003a79; }
 .btn-danger { background: white; color: #e74c3c; border: 1.5px solid #e74c3c; }
-.btn-full { width: 100%; padding: 14px; font-size: 15px; }
-.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-success { background: #1D9E75; color: white; }
+.btn-full { width: 100%; padding: 13px; font-size: 14px; justify-content: center; }
+.btn-sm { padding: 6px 11px; font-size: 12px; }
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th { background: #f8f9fa; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; border-bottom: 1px solid #e0e0e0; }
-td { padding: 10px 12px; border-bottom: 0.5px solid #f0f0f0; color: #333; vertical-align: middle; }
+th { background: #f8f9fa; padding: 9px 10px; text-align: left; font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; border-bottom: 1px solid #e0e0e0; }
+td { padding: 9px 10px; border-bottom: 0.5px solid #f0f0f0; color: #333; vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
 .table-wrap { overflow-x: auto; margin-top: 8px; }
 
-.linea-producto { display: grid; grid-template-columns: 1fr 70px 90px 90px 32px; gap: 6px; margin-bottom: 8px; align-items: center; }
-.linea-producto select, .linea-producto input { margin: 0; }
-.linea-precio-base { font-size: 11px; color: #888; margin-top: 2px; }
-.btn-remove { background: none; border: none; color: #e74c3c; font-size: 20px; cursor: pointer; padding: 0; width: 32px; text-align: center; line-height: 1; }
+/* LINEAS PRODUCTO */
+.linea-header { display: grid; grid-template-columns: 1fr 65px 85px 85px 30px; gap: 5px; margin-bottom: 4px; }
+.linea-header span { font-size: 10px; font-weight: 700; color: #999; text-transform: uppercase; }
+.linea-producto { display: grid; grid-template-columns: 1fr 65px 85px 85px 30px; gap: 5px; margin-bottom: 6px; align-items: center; }
+.linea-producto select, .linea-producto input { margin: 0; padding: 8px 10px; font-size: 13px; }
+.btn-remove { background: none; border: none; color: #e74c3c; font-size: 18px; cursor: pointer; padding: 0; width: 30px; text-align: center; }
 
-.resumen-box { background: #f8f9fa; border-radius: 8px; padding: 14px; margin-top: 12px; }
-.resumen-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: #555; }
-.resumen-row.total { font-size: 15px; font-weight: 700; color: #003a79; border-top: 1px solid #ddd; margin-top: 6px; padding-top: 8px; }
+.resumen-box { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-top: 10px; }
+.resumen-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; color: #555; }
+.resumen-row.total { font-size: 15px; font-weight: 700; color: #003a79; border-top: 1px solid #ddd; margin-top: 5px; padding-top: 7px; }
 
-.toggle-group { display: flex; gap: 8px; margin-top: 4px; }
-.toggle-btn { flex: 1; padding: 10px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 13px; font-weight: 600; color: #555; background: white; cursor: pointer; text-align: center; transition: all 0.15s; }
-.toggle-btn.selected { border-color: #003a79; background: #e8f0fb; color: #003a79; }
-
-.badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
 .badge-pendiente { background: #fff3cd; color: #856404; }
 .badge-pagado { background: #d4edda; color: #155724; }
 .badge-vencido { background: #f8d7da; color: #721c24; }
 .badge-facturado { background: #d1ecf1; color: #0c5460; }
 
-.search-box { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-.search-box input { flex: 1; min-width: 140px; }
-
-.hint { font-size: 12px; color: #888; margin-top: 6px; }
+.hint { font-size: 12px; color: #888; margin-top: 5px; }
+.hint.ok { color: #1D9E75; font-weight: 600; }
 .hint.error { color: #e74c3c; }
-.hint.ok { color: #1D9E75; }
 
 /* TOAST */
-.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #003a79; color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 600; z-index: 500; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; min-width: 200px; justify-content: center; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #003a79; color: white; padding: 11px 22px; border-radius: 30px; font-size: 13px; font-weight: 600; z-index: 9999; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap; }
 .toast.show { opacity: 1; }
 .toast.success { background: #1D9E75; }
-.toast.error-toast { background: #e74c3c; }
-.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+.toast.err { background: #e74c3c; }
+.spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.35); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* MODAL */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; align-items: center; justify-content: center; padding: 14px; }
 .modal-overlay.open { display: flex; }
-.modal { background: white; border-radius: 16px; padding: 24px; width: 100%; max-width: 540px; max-height: 92vh; overflow-y: auto; }
-.modal-title { font-size: 16px; font-weight: 700; color: #003a79; margin-bottom: 16px; }
-.modal-btns { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.modal { background: white; border-radius: 16px; padding: 22px; width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; }
+.modal-title { font-size: 15px; font-weight: 700; color: #003a79; margin-bottom: 14px; }
+.modal-btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 
-/* INFO BOX ORDEN */
-.orden-info-box { background: #f0f6ff; border: 1px solid #bed4f0; border-radius: 10px; padding: 14px; margin-bottom: 14px; font-size: 13px; }
+/* INFO BOX */
+.info-box { background: #f0f6ff; border: 1px solid #bed4f0; border-radius: 10px; padding: 12px; margin-bottom: 12px; font-size: 13px; }
 .oi-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 0.5px solid #d5e4f5; }
 .oi-row:last-child { border-bottom: none; }
 .oi-label { color: #555; font-weight: 600; }
-.oi-value { color: #003a79; font-weight: 700; text-align: right; max-width: 60%; }
-
-/* PRECIO ESPECIAL */
-.precio-especial { color: #1D9E75; font-weight: 700; }
-.precio-base-tachado { text-decoration: line-through; color: #aaa; font-size: 11px; }
+.oi-value { color: #003a79; font-weight: 700; text-align: right; max-width: 58%; }
 
 /* INNER TABS */
-.inner-tabs { display: flex; gap: 0; border-bottom: 1px solid #e0e0e0; margin-bottom: 16px; overflow-x: auto; }
-.inner-tab { padding: 10px 16px; font-size: 13px; font-weight: 600; color: #888; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; background: none; border-left: none; border-right: none; border-top: none; white-space: nowrap; }
+.inner-tabs { display: flex; border-bottom: 1px solid #e0e0e0; margin-bottom: 14px; overflow-x: auto; gap: 0; }
+.inner-tab { padding: 9px 14px; font-size: 12px; font-weight: 700; color: #888; cursor: pointer; border-bottom: 2px solid transparent; background: none; border-left: none; border-right: none; border-top: none; white-space: nowrap; transition: all 0.15s; }
 .inner-tab.active { color: #003a79; border-bottom-color: #003a79; }
 
-.check-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid #f0f0f0; }
+.orden-card { border: 0.5px solid #e0e0e0; border-radius: 10px; padding: 13px; margin-bottom: 9px; }
+.orden-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+.orden-card-meta { font-size: 12px; color: #666; line-height: 1.7; }
+.row-actions { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+
+.check-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid #f0f0f0; }
 .check-row:last-child { border-bottom: none; }
-.check-row input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; appearance: auto; -webkit-appearance: auto; }
-.check-row label { margin: 0; font-size: 13px; cursor: pointer; flex: 1; }
+.check-row label { margin: 0; font-size: 13px; cursor: pointer; flex: 1; font-weight: normal; text-transform: none; letter-spacing: 0; }
 
-.row-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
-.empty { text-align: center; padding: 30px; color: #bbb; font-size: 13px; }
+.search-box { display: flex; gap: 8px; margin-bottom: 14px; }
+.search-box input { flex: 1; }
+
+.empty { text-align: center; padding: 28px; color: #bbb; font-size: 13px; }
 .hidden { display: none !important; }
-input[type="date"] { padding: 10px 12px; }
-.divider { border: none; border-top: 1px solid #e0e0e0; margin: 16px 0; }
+.divider { border: none; border-top: 1px solid #e0e0e0; margin: 14px 0; }
 
-/* ORDEN CARD */
-.orden-card { border: 0.5px solid #e0e0e0; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
-.orden-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-.orden-card-meta { font-size: 12px; color: #666; line-height: 1.8; }
+/* CONFIG BANNER */
+.config-banner { background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px; padding: 14px; margin: 14px; }
+.config-banner strong { color: #856404; }
 
-/* MULTI FACTURA */
-.mf-card { background: #f0f6ff; border: 1px solid #bed4f0; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
-.mf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+/* PRECIO ESPECIAL */
+input.precio-especial { color: #1D9E75; font-weight: 700; border-color: #1D9E75; }
 </style>
 </head>
 <body>
 
-<div id="toast" class="toast">
-  <div class="spinner" id="toastSpinner"></div>
-  <span id="toastMsg">Procesando...</span>
-</div>
+<div id="toast" class="toast"><div class="spinner" id="tSpin"></div><span id="tMsg"></span></div>
 
-<!-- HEADER -->
 <div class="header">
-  <div class="header-left">
+  <div>
     <h1>🍞 Admin Ventas B2B — Fën</h1>
-    <p id="sync-status">Configurando conexión...</p>
+    <p id="sync-status">Cargando...</p>
   </div>
   <button class="sync-btn" onclick="syncAll()">⟳ Sincronizar</button>
 </div>
 
-<!-- NAV -->
 <div class="nav">
-  <button class="nav-btn active" onclick="showSection('ordenes',this)">📋 Órdenes</button>
-  <button class="nav-btn" onclick="showSection('facturacion',this)">🧾 Facturación</button>
-  <button class="nav-btn" onclick="showSection('pagos',this)">💳 Pagos</button>
-  <button class="nav-btn" onclick="showSection('clientes',this)">👥 Clientes</button>
-  <button class="nav-btn" onclick="showSection('productos',this)">📦 Productos</button>
-  <button class="nav-btn" onclick="showSection('config',this)">⚙️ Config</button>
+  <button class="nav-btn active" onclick="showSec('ordenes',this)">📋 Órdenes</button>
+  <button class="nav-btn" onclick="showSec('facturacion',this)">🧾 Facturación</button>
+  <button class="nav-btn" onclick="showSec('pagos',this)">💳 Pagos</button>
+  <button class="nav-btn" onclick="showSec('clientes',this)">👥 Clientes</button>
+  <button class="nav-btn" onclick="showSec('productos',this)">📦 Productos</button>
+  <button class="nav-btn" onclick="showSec('precios',this)">🏷️ Precios</button>
+  <button class="nav-btn" onclick="showSec('config',this)">⚙️ Config</button>
 </div>
 
-<!-- CONFIG INICIAL -->
 <div id="config-banner" class="config-banner hidden">
-  <strong>⚙️ Primero: conecta tu Google Sheets</strong>
-  <p style="margin-top:4px;color:#666;">Pega la URL de tu Web App de Apps Script para activar la sincronización.</p>
-  <label>URL del Web App</label>
-  <input type="text" id="banner-url" placeholder="https://script.google.com/macros/s/XXXXXXX/exec"/>
-  <button class="btn btn-primary" style="margin-top:10px;width:100%;" onclick="guardarUrlBanner()">Conectar</button>
+  <strong>⚙️ Conecta tu Google Sheets primero</strong>
+  <label style="margin-top:8px;">URL del Web App</label>
+  <input type="text" id="banner-url" placeholder="https://script.google.com/macros/s/.../exec"/>
+  <button class="btn btn-primary btn-full" style="margin-top:10px;" onclick="guardarUrlBanner()">Conectar</button>
 </div>
 
-<!-- ============================================================ -->
-<!-- SECCIÓN: ÓRDENES -->
-<!-- ============================================================ -->
+<!-- ═══════════════════════════════════════ ÓRDENES ═══ -->
 <div id="sec-ordenes" class="section active">
   <div class="inner-tabs">
-    <button class="inner-tab active" onclick="showInnerTab('ordenes','nueva',this)">+ Nueva orden</button>
-    <button class="inner-tab" onclick="showInnerTab('ordenes','lista',this)">Lista de órdenes</button>
+    <button class="inner-tab active" onclick="showTab('ord','nueva',this)">+ Nueva orden</button>
+    <button class="inner-tab" onclick="showTab('ord','lista',this)">Lista de órdenes</button>
   </div>
 
-  <div id="ordenes-nueva">
+  <div id="ord-nueva">
     <div class="card">
       <div class="card-title">📋 Nueva Orden de Compra</div>
-      <label>Cliente</label>
-      <select id="oc-cliente" onchange="onClienteChange()">
-        <option value="">Seleccionar cliente...</option>
-      </select>
 
       <label>Fecha de entrega</label>
       <input type="date" id="oc-fecha"/>
 
-      <label>Condición de pago</label>
-      <div class="toggle-group">
-        <button class="toggle-btn selected" onclick="selToggle(this,'oc-pago','Contado')">Contado</button>
-        <button class="toggle-btn" onclick="selToggle(this,'oc-pago','30 días')">30 días</button>
-        <button class="toggle-btn" onclick="selToggle(this,'oc-pago','60 días')">60 días</button>
-      </div>
-      <input type="hidden" id="oc-pago" value="Contado"/>
+      <label>Cliente</label>
+      <select id="oc-cliente" onchange="onCliChange()">
+        <option value="">Seleccionar cliente...</option>
+      </select>
 
       <hr class="divider"/>
-      <div style="font-size:13px;font-weight:700;color:#003a79;margin-bottom:8px;">Productos</div>
-      <div style="display:grid;grid-template-columns:1fr 70px 90px 90px 32px;gap:6px;margin-bottom:4px;">
-        <span style="font-size:10px;font-weight:700;color:#999;">PRODUCTO</span>
-        <span style="font-size:10px;font-weight:700;color:#999;">CANT.</span>
-        <span style="font-size:10px;font-weight:700;color:#999;">P.BASE</span>
-        <span style="font-size:10px;font-weight:700;color:#999;">P.CLIENTE</span>
-        <span></span>
+      <div class="linea-header">
+        <span>Producto</span><span>Cant.</span><span>P. Base</span><span>P. Cliente</span><span></span>
       </div>
       <div id="oc-lineas"></div>
-      <button class="btn btn-secondary btn-sm" onclick="addLinea()" style="margin-top:4px;">+ Agregar producto</button>
+      <button class="btn btn-secondary btn-sm" onclick="addLinea('oc-lineas')">+ Agregar producto</button>
 
-      <div class="resumen-box" style="margin-top:12px;">
-        <div class="resumen-row"><span>Subtotal neto</span><span id="oc-subtotal">$0</span></div>
+      <div class="resumen-box" style="margin-top:10px;">
+        <div class="resumen-row"><span>Neto</span><span id="oc-neto">$0</span></div>
         <div class="resumen-row"><span>IVA 19%</span><span id="oc-iva">$0</span></div>
-        <div class="resumen-row total"><span>Total</span><span id="oc-total">$0</span></div>
+        <div class="resumen-row total"><span>Total</span><span id="oc-tot">$0</span></div>
       </div>
 
-      <label>Notas / observaciones</label>
-      <textarea id="oc-notas" placeholder="Instrucciones especiales..."></textarea>
+      <label>Notas</label>
+      <textarea id="oc-notas" placeholder="Observaciones..."></textarea>
 
-      <button class="btn btn-primary btn-full" style="margin-top:16px;" onclick="generarOrden()">Generar Orden de Compra</button>
+      <button class="btn btn-primary btn-full" style="margin-top:14px;" onclick="generarOrden()">Generar Orden de Compra</button>
     </div>
   </div>
 
-  <div id="ordenes-lista" class="hidden">
+  <div id="ord-lista" class="hidden">
     <div class="card">
-      <div class="card-title">📋 Órdenes de compra</div>
+      <div class="card-title">📋 Órdenes</div>
       <div class="search-box">
-        <input type="text" id="ord-search" placeholder="Buscar por cliente o N° orden..." oninput="renderOrdenes()"/>
+        <input type="text" id="ord-q" placeholder="Buscar cliente o N° orden..." oninput="renderOrdenes()"/>
       </div>
-      <div id="ordenes-list"></div>
+      <div id="ord-list"></div>
     </div>
   </div>
 </div>
 
-<!-- ============================================================ -->
-<!-- SECCIÓN: FACTURACIÓN -->
-<!-- ============================================================ -->
+<!-- ═══════════════════════════════════════ FACTURACIÓN ═══ -->
 <div id="sec-facturacion" class="section">
   <div class="inner-tabs">
-    <button class="inner-tab active" onclick="showInnerTab('fact','pendientes',this)">Pendientes</button>
-    <button class="inner-tab" onclick="showInnerTab('fact','emitidas',this)">Emitidas</button>
-    <button class="inner-tab" onclick="showInnerTab('fact','multi',this)">Factura múltiple</button>
+    <button class="inner-tab active" onclick="showTab('fact','pend',this)">Pendientes</button>
+    <button class="inner-tab" onclick="showTab('fact','emit',this)">Emitidas</button>
+    <button class="inner-tab" onclick="showTab('fact','multi',this)">Factura múltiple</button>
   </div>
 
-  <div id="fact-pendientes">
-    <div class="card">
-      <div class="card-title">🧾 Pendientes de facturar</div>
-      <div id="fact-pend-list"></div>
-    </div>
+  <div id="fact-pend">
+    <div class="card"><div class="card-title">🧾 Pendientes de facturar</div><div id="fp-list"></div></div>
   </div>
 
-  <div id="fact-emitidas" class="hidden">
-    <div class="card">
-      <div class="card-title">✅ Facturas emitidas</div>
-      <div id="fact-emit-list"></div>
-    </div>
+  <div id="fact-emit" class="hidden">
+    <div class="card"><div class="card-title">✅ Facturas emitidas</div><div id="fe-list"></div></div>
   </div>
 
   <div id="fact-multi" class="hidden">
     <div class="card">
       <div class="card-title">📦 Factura múltiple</div>
-      <p style="font-size:13px;color:#666;margin-bottom:14px;">Agrupa órdenes de un cliente para emitir una sola factura SII.</p>
+      <p style="font-size:12px;color:#666;margin-bottom:12px;">Agrupa órdenes de un cliente para una sola factura SII.</p>
 
       <label>Cliente</label>
-      <select id="multi-cli" onchange="cargarMulti()">
-        <option value="">Seleccionar cliente...</option>
-      </select>
+      <select id="m-cli" onchange="cargarMulti()"><option value="">Seleccionar...</option></select>
 
-      <div id="multi-fechas" class="hidden" style="margin-top:10px;">
-        <label>Filtrar por rango de fechas</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <div><label style="font-size:11px;">Desde</label><input type="date" id="multi-desde" oninput="renderMulti()"/></div>
-          <div><label style="font-size:11px;">Hasta</label><input type="date" id="multi-hasta" oninput="renderMulti()"/></div>
-        </div>
+      <div id="m-fechas" class="hidden" style="margin-top:10px;">
+        <label>Desde</label><input type="date" id="m-desde" oninput="renderMulti()"/>
+        <label>Hasta</label><input type="date" id="m-hasta" oninput="renderMulti()"/>
       </div>
 
-      <div id="multi-lista-wrap" class="hidden" style="margin-top:14px;">
-        <div style="font-size:13px;font-weight:700;color:#003a79;margin-bottom:8px;">Selecciona las órdenes</div>
-        <div id="multi-lista"></div>
+      <div id="m-lista-wrap" class="hidden" style="margin-top:12px;">
+        <div style="font-size:12px;font-weight:700;color:#003a79;margin-bottom:8px;">Selecciona órdenes</div>
+        <div id="m-lista"></div>
       </div>
 
-      <div id="multi-resumen-wrap" class="hidden">
+      <div id="m-res-wrap" class="hidden">
         <hr class="divider"/>
-        <div style="font-size:13px;font-weight:700;color:#003a79;margin-bottom:8px;">Resumen</div>
-        <div id="multi-detalle"></div>
+        <div style="font-size:12px;font-weight:700;color:#003a79;margin-bottom:8px;">Resumen agrupado por producto</div>
+        <div id="m-res-detalle"></div>
         <div class="resumen-box" style="margin-top:10px;">
-          <div class="resumen-row"><span>Subtotal neto</span><span id="multi-sub">$0</span></div>
-          <div class="resumen-row"><span>IVA 19%</span><span id="multi-iva">$0</span></div>
-          <div class="resumen-row total"><span>Total</span><span id="multi-tot">$0</span></div>
+          <div class="resumen-row"><span>Neto total</span><span id="m-neto">$0</span></div>
+          <div class="resumen-row"><span>IVA 19%</span><span id="m-iva">$0</span></div>
+          <div class="resumen-row total"><span>Total factura</span><span id="m-tot">$0</span></div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:14px;">
-          <button class="btn btn-secondary" style="flex:1;" onclick="descargarMulti()">⬇ Descargar resumen</button>
-          <button class="btn btn-primary" style="flex:1;" onclick="emitirMulti()">Emitir en SII</button>
+        <label>Asignar Folio SII a estas órdenes</label>
+        <input type="text" id="m-folio" placeholder="Ej: 002910"/>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn btn-success" style="flex:1;" onclick="descargarMultiPDF()">⬇ Descargar PDF</button>
+          <button class="btn btn-primary" style="flex:1;" onclick="asignarFolioMulti()">🧾 Asignar folio</button>
         </div>
-        <p class="hint" style="margin-top:8px;">Este resumen no genera un nuevo documento en el sistema.</p>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ============================================================ -->
-<!-- SECCIÓN: PAGOS -->
-<!-- ============================================================ -->
+<!-- ═══════════════════════════════════════ PAGOS ═══ -->
 <div id="sec-pagos" class="section">
   <div class="card">
-    <div class="card-title">💳 Pagos registrados</div>
+    <div class="card-title">💳 Pagos</div>
     <div class="search-box">
-      <input type="text" id="pago-search" placeholder="Buscar por Folio SII, N° orden o cliente..." oninput="renderPagos()"/>
+      <input type="text" id="pg-q" placeholder="Folio SII, N° orden o cliente..." oninput="renderPagos()"/>
     </div>
-    <div id="pagos-list"></div>
+    <div id="pg-list"></div>
   </div>
   <div class="card">
     <div class="card-title">➕ Registrar pago</div>
-    <label>Buscar orden (Folio SII o N° orden)</label>
-    <input type="text" id="pago-buscar" placeholder="Ej: 2902 o 18" oninput="buscarOrdenPago()"/>
-    <div id="pago-resultado" class="hint"></div>
-    <input type="hidden" id="pago-orden-key"/>
-    <label>Monto pagado</label>
-    <input type="number" id="pago-monto" placeholder="0"/>
+    <label>Buscar por Folio SII o N° orden</label>
+    <input type="text" id="pg-buscar" placeholder="Ej: 2902 o 18" oninput="buscarOrdenPago()"/>
+    <div id="pg-res" class="hint"></div>
+    <input type="hidden" id="pg-key"/>
     <label>Fecha de pago</label>
-    <input type="date" id="pago-fecha"/>
+    <input type="date" id="pg-fecha"/>
     <label>Estado</label>
-    <select id="pago-estado">
+    <select id="pg-estado">
+      <option value="PENDIENTE">PENDIENTE</option>
       <option value="PAGADO EN MES">PAGADO EN MES</option>
+      <option value="PAGADO EN MES VENCIDO">PAGADO EN MES VENCIDO</option>
       <option value="PAGADO">PAGADO</option>
     </select>
-    <label>Comprobante / referencia</label>
-    <input type="text" id="pago-ref" placeholder="N° operación, cheque, etc."/>
-    <button class="btn btn-primary btn-full" style="margin-top:16px;" onclick="registrarPago()">Registrar pago</button>
+    <label>Referencia / comprobante</label>
+    <input type="text" id="pg-ref" placeholder="N° operación, cheque..."/>
+    <button class="btn btn-primary btn-full" style="margin-top:14px;" onclick="registrarPago()">Registrar pago</button>
   </div>
 </div>
 
-<!-- ============================================================ -->
-<!-- SECCIÓN: CLIENTES -->
-<!-- ============================================================ -->
+<!-- ═══════════════════════════════════════ CLIENTES ═══ -->
 <div id="sec-clientes" class="section">
   <div class="card">
     <div class="card-title">👥 Clientes</div>
-    <div id="clientes-list"></div>
+    <button class="btn btn-primary btn-sm" onclick="openModal('modal-cli')" style="margin-bottom:12px;">+ Nuevo cliente</button>
+    <div class="search-box"><input type="text" id="cli-q" placeholder="Buscar..." oninput="renderClientes()"/></div>
+    <div id="cli-list"></div>
   </div>
 </div>
 
-<!-- ============================================================ -->
-<!-- SECCIÓN: PRODUCTOS -->
-<!-- ============================================================ -->
+<!-- ═══════════════════════════════════════ PRODUCTOS ═══ -->
 <div id="sec-productos" class="section">
   <div class="card">
-    <div class="card-title">📦 Catálogo de productos</div>
-    <div id="productos-list"></div>
+    <div class="card-title">📦 Productos</div>
+    <button class="btn btn-primary btn-sm" onclick="openModal('modal-prod')" style="margin-bottom:12px;">+ Nuevo producto</button>
+    <div id="prod-list"></div>
   </div>
 </div>
 
-<!-- ============================================================ -->
-<!-- SECCIÓN: CONFIG -->
-<!-- ============================================================ -->
+<!-- ═══════════════════════════════════════ PRECIOS ═══ -->
+<div id="sec-precios" class="section">
+  <div class="card">
+    <div class="card-title">🏷️ Lista de precios por cliente</div>
+    <p style="font-size:12px;color:#666;margin-bottom:12px;">Precios especiales que sobreescriben el precio base para cada cliente.</p>
+    <button class="btn btn-primary btn-sm" onclick="openModal('modal-precio')" style="margin-bottom:12px;">+ Agregar precio especial</button>
+    <div class="search-box"><input type="text" id="pr-q" placeholder="Buscar cliente o producto..." oninput="renderPrecios()"/></div>
+    <div id="pr-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ CONFIG ═══ -->
 <div id="sec-config" class="section">
   <div class="card">
     <div class="card-title">⚙️ Configuración</div>
     <label>URL del Web App (Google Apps Script)</label>
-    <input type="text" id="config-url" placeholder="https://script.google.com/macros/s/XXXXXXX/exec"/>
-    <p class="hint" style="margin-top:6px;">Copia esta URL desde: Apps Script → Implementar → Implementaciones → Web App → URL</p>
-    <button class="btn btn-primary" style="margin-top:12px;" onclick="guardarConfig()">Guardar y conectar</button>
+    <input type="text" id="cfg-url" placeholder="https://script.google.com/macros/s/.../exec"/>
+    <p class="hint">Apps Script → Implementar → Web App → URL</p>
+    <button class="btn btn-primary" style="margin-top:10px;" onclick="guardarCfg()">Guardar y conectar</button>
     <hr class="divider"/>
-    <p style="font-size:13px;color:#666;">ID de tu Sheets: <strong>1iZA6467dXZ1EWi8P3TzKfFTwodmcbeZiaJAUhsAsLUc</strong></p>
-    <p class="hint" style="margin-top:4px;">Este ID ya está configurado en el Apps Script.</p>
+    <p style="font-size:12px;color:#666;">ID Sheets: <strong>1iZA6467dXZ1EWi8P3TzKfFTwodmcbeZiaJAUhsAsLUc</strong></p>
   </div>
 </div>
 
-<!-- ============================================================ -->
-<!-- MODALES -->
-<!-- ============================================================ -->
+<!-- ═══════════════════════════════════════ MODALES ═══ -->
 
-<!-- Asignar Folio -->
+<!-- Folio SII -->
 <div id="modal-folio" class="modal-overlay">
   <div class="modal">
     <div class="modal-title">🧾 Asignar Folio SII</div>
-    <input type="hidden" id="folio-orden-key"/>
-    <div class="orden-info-box" id="folio-info"></div>
+    <input type="hidden" id="fol-key"/>
+    <div class="info-box" id="fol-info"></div>
     <label>Folio SII</label>
-    <input type="text" id="folio-num" placeholder="Ej: 002905"/>
-    <label>Fecha de emisión</label>
-    <input type="date" id="folio-fecha"/>
+    <input type="text" id="fol-num" placeholder="Ej: 002905"/>
+    <label>Fecha emisión</label>
+    <input type="date" id="fol-fecha"/>
     <div class="modal-btns">
       <button class="btn btn-primary" style="flex:1;" onclick="guardarFolio()">Guardar folio</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-folio')">Cancelar</button>
@@ -383,23 +343,23 @@ input[type="date"] { padding: 10px 12px; }
   </div>
 </div>
 
-<!-- Registrar Pago desde facturación -->
+<!-- Pago modal -->
 <div id="modal-pago" class="modal-overlay">
   <div class="modal">
     <div class="modal-title">💳 Registrar pago</div>
-    <input type="hidden" id="mpago-key"/>
-    <div class="orden-info-box" id="mpago-info"></div>
-    <label>Monto pagado</label>
-    <input type="number" id="mpago-monto"/>
+    <input type="hidden" id="mp-key"/>
+    <div class="info-box" id="mp-info"></div>
     <label>Fecha de pago</label>
-    <input type="date" id="mpago-fecha"/>
+    <input type="date" id="mp-fecha"/>
     <label>Estado</label>
-    <select id="mpago-estado">
-      <option value="PAGADO EN MES">PAGADO EN MES</option>
+    <select id="mp-estado">
+      <option value="PENDIENTE">PENDIENTE</option>
+      <option value="PAGADO EN MES" selected>PAGADO EN MES</option>
+      <option value="PAGADO EN MES VENCIDO">PAGADO EN MES VENCIDO</option>
       <option value="PAGADO">PAGADO</option>
     </select>
-    <label>Comprobante</label>
-    <input type="text" id="mpago-ref" placeholder="N° operación, cheque..."/>
+    <label>Referencia</label>
+    <input type="text" id="mp-ref" placeholder="N° operación..."/>
     <div class="modal-btns">
       <button class="btn btn-primary" style="flex:1;" onclick="guardarPagoModal()">Registrar</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-pago')">Cancelar</button>
@@ -407,775 +367,953 @@ input[type="date"] { padding: 10px 12px; }
   </div>
 </div>
 
-<!-- Editar Orden -->
-<div id="modal-editar" class="modal-overlay">
+<!-- Editar orden -->
+<div id="modal-edit" class="modal-overlay">
   <div class="modal">
     <div class="modal-title">✏️ Editar orden</div>
-    <input type="hidden" id="edit-key"/>
+    <input type="hidden" id="ed-key"/>
+    <label>Fecha</label><input type="date" id="ed-fecha"/>
     <label>Cliente</label>
-    <select id="edit-cli" onchange="onEditClienteChange()">
-      <option value="">Seleccionar...</option>
-    </select>
-    <label>Fecha de entrega</label>
-    <input type="date" id="edit-fecha"/>
-    <label>Condición de pago</label>
-    <select id="edit-pago">
-      <option>Contado</option><option>30 días</option><option>60 días</option>
-    </select>
+    <select id="ed-cli" onchange="onEditCliChange()"><option value="">Seleccionar...</option></select>
     <hr class="divider"/>
-    <div style="font-size:13px;font-weight:700;color:#003a79;margin-bottom:8px;">Productos</div>
-    <div id="edit-lineas"></div>
-    <button class="btn btn-secondary btn-sm" onclick="addLineaEdit()">+ Agregar producto</button>
-    <div class="resumen-box" style="margin-top:12px;">
-      <div class="resumen-row"><span>Subtotal neto</span><span id="edit-sub">$0</span></div>
-      <div class="resumen-row"><span>IVA 19%</span><span id="edit-iva">$0</span></div>
-      <div class="resumen-row total"><span>Total</span><span id="edit-tot">$0</span></div>
+    <div class="linea-header">
+      <span>Producto</span><span>Cant.</span><span>P. Base</span><span>P. Cliente</span><span></span>
     </div>
-    <label>Notas</label>
-    <textarea id="edit-notas"></textarea>
+    <div id="ed-lineas"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addLinea('ed-lineas')">+ Agregar</button>
+    <div class="resumen-box" style="margin-top:10px;">
+      <div class="resumen-row"><span>Neto</span><span id="ed-neto">$0</span></div>
+      <div class="resumen-row"><span>IVA</span><span id="ed-iva">$0</span></div>
+      <div class="resumen-row total"><span>Total</span><span id="ed-tot">$0</span></div>
+    </div>
+    <label>Notas</label><textarea id="ed-notas"></textarea>
     <div class="modal-btns">
-      <button class="btn btn-primary" style="flex:1;" onclick="guardarEdicion()">Guardar cambios</button>
-      <button class="btn btn-secondary" onclick="closeModal('modal-editar')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1;" onclick="guardarEdicion()">Guardar</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit')">Cancelar</button>
     </div>
   </div>
 </div>
 
-<!-- Confirmar Eliminar -->
-<div id="modal-eliminar" class="modal-overlay">
+<!-- Confirmar eliminar -->
+<div id="modal-del" class="modal-overlay">
   <div class="modal">
     <div class="modal-title">🗑️ Eliminar orden</div>
-    <p style="font-size:14px;color:#555;margin-bottom:16px;">¿Eliminar la orden <strong id="eliminar-num"></strong>? Esta acción también la eliminará de Google Sheets.</p>
+    <p style="font-size:14px;color:#555;margin-bottom:14px;">¿Eliminar la orden <strong id="del-num"></strong> de Google Sheets? No se puede deshacer.</p>
     <div class="modal-btns">
-      <button class="btn btn-danger" style="flex:1;" onclick="confirmarEliminar()">Sí, eliminar</button>
-      <button class="btn btn-secondary" onclick="closeModal('modal-eliminar')">Cancelar</button>
+      <button class="btn btn-danger" style="flex:1;" onclick="confirmarDel()">Sí, eliminar</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-del')">Cancelar</button>
     </div>
   </div>
 </div>
 
-<!-- ============================================================ -->
-<!-- JAVASCRIPT -->
-<!-- ============================================================ -->
-<script>
-// ─────────────────────────────────────────
-// ESTADO
-// ─────────────────────────────────────────
-let GS_URL = localStorage.getItem('fen_gs_url') || '';
-let DB = {
-  clientes: [],   // {Nombre, RUT, 'Razón Social', Giro, Dirección, Correo, Teléfono, Contacto}
-  productos: [],  // {Nombre, 'Precio Base', Categoría}
-  precios: [],    // {Cliente, Producto, Precio}
-  ordenes: []     // {N° Orden, Fecha, Cliente, 'Total Neto', IVA, Total, 'Estado Pago', 'Fecha Pago', 'Folio SII', Observación}
-};
-let _folioKey = null, _pagoKey = null, _editKey = null, _elimKey = null;
+<!-- Nuevo cliente -->
+<div id="modal-cli" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">👥 Nuevo cliente</div>
+    <label>Nombre</label><input type="text" id="nc-nom"/>
+    <label>RUT</label><input type="text" id="nc-rut" placeholder="77.123.456-K"/>
+    <label>Razón Social</label><input type="text" id="nc-rs"/>
+    <label>Giro</label><input type="text" id="nc-giro"/>
+    <label>Dirección</label><input type="text" id="nc-dir"/>
+    <label>Correo</label><input type="email" id="nc-email"/>
+    <label>Teléfono</label><input type="tel" id="nc-tel"/>
+    <label>Contacto</label><input type="text" id="nc-contacto"/>
+    <div class="modal-btns">
+      <button class="btn btn-primary" style="flex:1;" onclick="guardarCliente()">Guardar en Sheets</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-cli')">Cancelar</button>
+    </div>
+  </div>
+</div>
 
-// ─────────────────────────────────────────
-// GOOGLE SHEETS API
-// ─────────────────────────────────────────
-async function gsCall(action, body = {}) {
-  if (!GS_URL) throw new Error('URL no configurada');
-  const url = GS_URL + '?action=' + action;
-  const res = await fetch(url, {
-    method: 'POST',
-    body: JSON.stringify({ action, ...body }),
-    headers: { 'Content-Type': 'text/plain' }  // evita CORS preflight
+<!-- Nuevo producto -->
+<div id="modal-prod" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">📦 Nuevo producto</div>
+    <label>Nombre</label><input type="text" id="np-nom"/>
+    <label>Precio Base</label><input type="number" id="np-precio" placeholder="0"/>
+    <label>Categoría</label><input type="text" id="np-cat" placeholder="PANADERÍA, BOLLERÍA..."/>
+    <div class="modal-btns">
+      <button class="btn btn-primary" style="flex:1;" onclick="guardarProducto()">Guardar en Sheets</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-prod')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Precio especial -->
+<div id="modal-precio" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">🏷️ Precio especial por cliente</div>
+    <label>Cliente</label>
+    <select id="npe-cli"><option value="">Seleccionar...</option></select>
+    <label>Producto</label>
+    <select id="npe-prod"><option value="">Seleccionar...</option></select>
+    <label>Precio especial</label>
+    <input type="number" id="npe-precio" placeholder="0"/>
+    <div id="npe-base" class="hint"></div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" style="flex:1;" onclick="guardarPrecio()">Guardar en Sheets</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-precio')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── ESTADO ───────────────────────────────
+let GS = localStorage.getItem('fen_gs') || '';
+let DB = { clientes:[], productos:[], precios:[], ordenes:[], detalles:[] };
+let _folKey=null, _pagoKey=null, _delKey=null;
+
+// ─── API ──────────────────────────────────
+async function gsCall(action, body={}) {
+  if (!GS) throw new Error('Sin URL configurada');
+  const res = await fetch(GS, {
+    method:'POST', body:JSON.stringify({action,...body}),
+    headers:{'Content-Type':'text/plain'}
   });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error);
-  return data;
+  const d = await res.json();
+  if (d.error) throw new Error(d.error);
+  return d;
 }
 
 async function syncAll() {
-  if (!GS_URL) { showBanner(); return; }
-  showToast('Sincronizando con Google Sheets...', 'loading');
+  if (!GS) { document.getElementById('config-banner').classList.remove('hidden'); return; }
+  showToast('Sincronizando...','loading');
   try {
-    const [clientes, productos, precios, ordenes] = await Promise.all([
-      gsCall('getClientes'),
-      gsCall('getProductos'),
-      gsCall('getPrecios'),
-      gsCall('getOrdenes')
+    const [cl,pr,pc,or] = await Promise.all([
+      gsCall('getClientes'), gsCall('getProductos'),
+      gsCall('getPrecios'),  gsCall('getOrdenes')
     ]);
-    DB.clientes  = clientes  || [];
-    DB.productos = productos || [];
-    DB.precios   = precios   || [];
-    DB.ordenes   = ordenes   || [];
+    DB.clientes=cl||[]; DB.productos=pr||[];
+    DB.precios=pc||[];   DB.ordenes=or||[];
     populateSelects();
     renderAll();
     document.getElementById('sync-status').textContent =
-      'Sincronizado · ' + DB.ordenes.length + ' órdenes · ' + DB.clientes.length + ' clientes';
-    showToast('✅ Datos actualizados', 'success');
-  } catch(e) {
-    showToast('Error: ' + e.message, 'error');
-    document.getElementById('sync-status').textContent = 'Sin conexión con Sheets';
-  }
+      'Sincronizado · '+DB.ordenes.length+' órdenes · '+DB.clientes.length+' clientes';
+    showToast('✅ Sincronizado','success');
+  } catch(e){ showToast('Error: '+e.message,'err'); }
 }
 
-// ─────────────────────────────────────────
-// PRECIOS POR CLIENTE
-// ─────────────────────────────────────────
-function getPrecioCliente(clienteNombre, productoNombre) {
-  const especial = DB.precios.find(p =>
-    p['Cliente'] && p['Producto'] &&
-    normaliza(p['Cliente']) === normaliza(clienteNombre) &&
-    normaliza(p['Producto']) === normaliza(productoNombre)
-  );
-  if (especial) return { precio: Number(especial['Precio']), especial: true };
-  const prod = DB.productos.find(p => normaliza(p['Nombre']) === normaliza(productoNombre));
-  return { precio: prod ? Number(prod['Precio Base']) : 0, especial: false };
+// ─── TOAST ───────────────────────────────
+let _tt=null;
+function showToast(msg,type='loading',dur=2600){
+  const t=document.getElementById('toast');
+  document.getElementById('tSpin').style.display=type==='loading'?'block':'none';
+  document.getElementById('tMsg').textContent=msg;
+  t.className='toast show'+(type==='success'?' success':type==='err'?' err':'');
+  if(_tt)clearTimeout(_tt);
+  if(type!=='loading') _tt=setTimeout(()=>t.className='toast',dur);
 }
 
-function normaliza(s) { return String(s || '').toLowerCase().trim(); }
-
-// ─────────────────────────────────────────
-// NAVEGACIÓN
-// ─────────────────────────────────────────
-function showSection(id, btn) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('sec-' + id).classList.add('active');
-  if (btn) btn.classList.add('active');
-  if (id === 'ordenes')     { populateSelects(); renderOrdenes(); }
-  if (id === 'facturacion') { populateSelects(); renderFact(); }
-  if (id === 'pagos')       renderPagos();
-  if (id === 'clientes')    renderClientes();
-  if (id === 'productos')   renderProductos();
-  if (id === 'config')      document.getElementById('config-url').value = GS_URL;
+// ─── NAV ─────────────────────────────────
+function showSec(id,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(id==='ordenes'){populateSelects();renderOrdenes();}
+  if(id==='facturacion'){populateSelects();renderFact();}
+  if(id==='pagos')renderPagos();
+  if(id==='clientes')renderClientes();
+  if(id==='productos')renderProductos();
+  if(id==='precios'){populateModalSelects();renderPrecios();}
+  if(id==='config')document.getElementById('cfg-url').value=GS;
 }
 
-function showInnerTab(section, tab, btn) {
-  const prefix = section === 'ordenes' ? 'ordenes' : 'fact';
-  document.querySelectorAll(`#sec-${section === 'ordenes' ? 'ordenes' : 'facturacion'} .inner-tab`)
-    .forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-
-  if (section === 'ordenes') {
-    document.getElementById('ordenes-nueva').classList.toggle('hidden', tab !== 'nueva');
-    document.getElementById('ordenes-lista').classList.toggle('hidden', tab !== 'lista');
-    if (tab === 'nueva') { populateSelects(); initNuevaOrden(); }
-    if (tab === 'lista') renderOrdenes();
+function showTab(sec,tab,btn){
+  const pre = sec==='ord'?'ord':'fact';
+  const container = sec==='ord'?'sec-ordenes':'sec-facturacion';
+  document.querySelectorAll(`#${container} .inner-tab`).forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  if(sec==='ord'){
+    document.getElementById('ord-nueva').classList.toggle('hidden',tab!=='nueva');
+    document.getElementById('ord-lista').classList.toggle('hidden',tab!=='lista');
+    if(tab==='nueva'){populateSelects();initNuevaOrden();}
+    if(tab==='lista')renderOrdenes();
   } else {
-    document.getElementById('fact-pendientes').classList.toggle('hidden', tab !== 'pendientes');
-    document.getElementById('fact-emitidas').classList.toggle('hidden', tab !== 'emitidas');
-    document.getElementById('fact-multi').classList.toggle('hidden', tab !== 'multi');
+    ['pend','emit','multi'].forEach(t=>document.getElementById('fact-'+t).classList.toggle('hidden',t!==tab));
     renderFact();
-    if (tab === 'multi') populateSelects();
+    if(tab==='multi')populateSelects();
   }
 }
 
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-document.querySelectorAll('.modal-overlay').forEach(m =>
-  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); })
-);
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(m=>
+  m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 
-// ─────────────────────────────────────────
-// TOAST
-// ─────────────────────────────────────────
-let _tt = null;
-function showToast(msg, type = 'loading', dur = 2500) {
-  const t = document.getElementById('toast');
-  document.getElementById('toastSpinner').style.display = type === 'loading' ? 'block' : 'none';
-  document.getElementById('toastMsg').textContent = msg;
-  t.className = 'toast show' + (type === 'success' ? ' success' : type === 'error' ? ' error-toast' : '');
-  if (_tt) clearTimeout(_tt);
-  if (type !== 'loading') _tt = setTimeout(() => t.className = 'toast', dur);
-}
-function hideToast() { document.getElementById('toast').className = 'toast'; }
-
-// ─────────────────────────────────────────
-// CONFIG
-// ─────────────────────────────────────────
-function guardarConfig() {
-  const url = document.getElementById('config-url').value.trim();
-  if (!url) { showToast('Pega la URL del Web App', 'error'); return; }
-  GS_URL = url;
-  localStorage.setItem('fen_gs_url', url);
+// ─── CONFIG ──────────────────────────────
+function guardarCfg(){
+  const u=document.getElementById('cfg-url').value.trim();
+  if(!u){showToast('Pega la URL','err');return;}
+  GS=u; localStorage.setItem('fen_gs',u);
   document.getElementById('config-banner').classList.add('hidden');
-  showToast('Conectando...', 'loading');
   syncAll();
 }
-function guardarUrlBanner() {
-  document.getElementById('config-url').value = document.getElementById('banner-url').value;
-  guardarConfig();
-}
-function showBanner() {
-  document.getElementById('config-banner').classList.remove('hidden');
+function guardarUrlBanner(){
+  document.getElementById('cfg-url').value=document.getElementById('banner-url').value;
+  guardarCfg();
 }
 
-// ─────────────────────────────────────────
-// POPULATE SELECTS
-// ─────────────────────────────────────────
-function populateSelects() {
-  const cliOpts = '<option value="">Seleccionar cliente...</option>' +
-    DB.clientes.map(c => `<option value="${c['Nombre']}">${c['Nombre']}</option>`).join('');
-  ['oc-cliente','edit-cli','multi-cli'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { const v = el.value; el.innerHTML = cliOpts; el.value = v; }
-  });
+// ─── HELPERS ─────────────────────────────
+function fmtCLP(n){return '$'+Math.round(n||0).toLocaleString('es-CL');}
+function norm(s){return String(s||'').toLowerCase().trim();}
+function hoy(){return new Date().toISOString().slice(0,10);}
+function fechaES(d){
+  if(!d)return'—';
+  const s=String(d).slice(0,10);
+  if(!s||s==='—')return'—';
+  const [y,m,dd]=s.split('-');
+  const M=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  return `${parseInt(dd)} de ${M[parseInt(m)-1]} de ${y}`;
 }
-
-function prodOpts(selNombre) {
-  return '<option value="">Producto...</option>' +
-    DB.productos.map(p => `<option value="${p['Nombre']}" ${p['Nombre']===selNombre?'selected':''}>${p['Nombre']} (${p['Categoría']||''})</option>`).join('');
-}
-
-// ─────────────────────────────────────────
-// FORMATEO
-// ─────────────────────────────────────────
-function fmtCLP(n) { return '$' + Math.round(n||0).toLocaleString('es-CL'); }
-function fechaES(d) {
-  if (!d) return '—';
-  const s = String(d).slice(0,10);
-  const [y,m,dd] = s.split('-');
-  const M = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function fechaCorta(d){
+  if(!d)return'—';
+  const s=String(d).slice(0,10);
+  const [y,m,dd]=s.split('-');
+  const M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   return `${parseInt(dd)} ${M[parseInt(m)-1]} ${y}`;
 }
-function hoy() { return new Date().toISOString().slice(0,10); }
-function selToggle(btn, hidId, val) {
-  btn.closest('.toggle-group').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-  document.getElementById(hidId).value = val;
+function badgeClass(e){
+  if(!e||e==='PENDIENTE')return'pendiente';
+  if(e.includes('VENCIDO'))return'vencido';
+  if(e.includes('PAGADO'))return'pagado';
+  return'facturado';
+}
+function estadoBadge(e){return`<span class="badge badge-${badgeClass(e)}">${e||'—'}</span>`;}
+
+// ─── PRECIOS ─────────────────────────────
+function getPrecio(cliNom,prodNom){
+  const esp=DB.precios.find(p=>norm(p['Cliente'])===norm(cliNom)&&norm(p['Producto'])===norm(prodNom));
+  if(esp)return{precio:Number(esp['Precio']),especial:true};
+  const pr=DB.productos.find(p=>norm(p['Nombre'])===norm(prodNom));
+  return{precio:pr?Number(pr['Precio Base']):0,especial:false};
 }
 
-// ─────────────────────────────────────────
-// NUEVA ORDEN
-// ─────────────────────────────────────────
-function initNuevaOrden() {
-  document.getElementById('oc-lineas').innerHTML = '';
-  document.getElementById('oc-notas').value = '';
-  addLinea();
-  calcResumen();
-}
-
-function onClienteChange() { recalcPreciosLineas('oc-lineas'); calcResumen(); }
-function onEditClienteChange() { recalcPreciosLineas('edit-lineas'); calcResumenEdit(); }
-
-function recalcPreciosLineas(containerId) {
-  const cliNombre = document.getElementById(
-    containerId === 'oc-lineas' ? 'oc-cliente' : 'edit-cli'
-  ).value;
-  document.querySelectorAll(`#${containerId} .linea-producto`).forEach(row => {
-    const sel = row.querySelector('select');
-    if (!sel || !sel.value) return;
-    const info = getPrecioCliente(cliNombre, sel.value);
-    const inputs = row.querySelectorAll('input[type=number]');
-    // inputs[0] = cant, inputs[1] = precio base (readonly), inputs[2] = precio cliente
-    if (inputs[2]) inputs[2].value = info.precio;
-    if (inputs[1]) {
-      const prod = DB.productos.find(p => normaliza(p['Nombre']) === normaliza(sel.value));
-      inputs[1].value = prod ? prod['Precio Base'] : '';
-    }
-    // highlight
-    if (inputs[2]) inputs[2].style.color = info.especial ? '#1D9E75' : '#222';
+// ─── SELECTS ─────────────────────────────
+function populateSelects(){
+  const cOpts='<option value="">Seleccionar cliente...</option>'+
+    DB.clientes.map(c=>`<option value="${c['Nombre']}">${c['Nombre']}</option>`).join('');
+  ['oc-cliente','ed-cli','m-cli'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return; const v=el.value; el.innerHTML=cOpts; el.value=v;
   });
 }
+function populateModalSelects(){
+  const cOpts='<option value="">Cliente...</option>'+
+    DB.clientes.map(c=>`<option value="${c['Nombre']}">${c['Nombre']}</option>`).join('');
+  const pOpts='<option value="">Producto...</option>'+
+    DB.productos.map(p=>`<option value="${p['Nombre']}">${p['Nombre']}</option>`).join('');
+  const npeC=document.getElementById('npe-cli');
+  const npeP=document.getElementById('npe-prod');
+  if(npeC)npeC.innerHTML=cOpts;
+  if(npeP)npeP.innerHTML=pOpts;
+}
+function prodOpts(sel){
+  return'<option value="">Producto...</option>'+
+    DB.productos.map(p=>`<option value="${p['Nombre']}" ${p['Nombre']===sel?'selected':''}>${p['Nombre']}</option>`).join('');
+}
 
-function addLinea(containerId = 'oc-lineas') {
-  const cliNombre = document.getElementById(
-    containerId === 'oc-lineas' ? 'oc-cliente' : 'edit-cli'
-  ).value;
-  const wrap = document.getElementById(containerId);
-  const div = document.createElement('div');
-  div.className = 'linea-producto';
-  div.innerHTML = `
-    <select onchange="onProdSelect(this,'${containerId}')">${prodOpts('')}</select>
-    <input type="number" placeholder="Cant." min="1" oninput="${containerId==='oc-lineas'?'calcResumen()':'calcResumenEdit()'}"/>
+// ─── NUEVA ORDEN ─────────────────────────
+function initNuevaOrden(){
+  document.getElementById('oc-lineas').innerHTML='';
+  document.getElementById('oc-notas').value='';
+  document.getElementById('oc-fecha').value=hoy();
+  addLinea('oc-lineas');
+  calcRes('oc-lineas','oc-neto','oc-iva','oc-tot');
+}
+
+function onCliChange(){recalcLineas('oc-lineas','oc-cliente');}
+function onEditCliChange(){recalcLineas('ed-lineas','ed-cli');}
+
+function recalcLineas(lId,cId){
+  const cNom=document.getElementById(cId).value;
+  document.querySelectorAll(`#${lId} .linea-producto`).forEach(row=>{
+    const sel=row.querySelector('select');
+    if(!sel||!sel.value)return;
+    const inp=row.querySelectorAll('input[type=number]');
+    const info=getPrecio(cNom,sel.value);
+    const prod=DB.productos.find(p=>norm(p['Nombre'])===norm(sel.value));
+    if(inp[0])inp[0].value=prod?prod['Precio Base']:'';
+    if(inp[1]){inp[1].value=info.precio; inp[1].className=info.especial?'precio-especial':'';}
+  });
+  calcRes(lId, lId==='oc-lineas'?'oc-neto':'ed-neto',
+               lId==='oc-lineas'?'oc-iva':'ed-iva',
+               lId==='oc-lineas'?'oc-tot':'ed-tot');
+}
+
+function addLinea(cId){
+  const cNom=document.getElementById(cId==='oc-lineas'?'oc-cliente':'ed-cli').value;
+  const wrap=document.getElementById(cId);
+  const div=document.createElement('div');
+  div.className='linea-producto';
+  const cb=cId==='oc-lineas';
+  div.innerHTML=`
+    <select onchange="onProdSel(this,'${cId}')">${prodOpts('')}</select>
+    <input type="number" placeholder="Cant." min="1" oninput="${cb?'calcRes(\'oc-lineas\',\'oc-neto\',\'oc-iva\',\'oc-tot\')':'calcRes(\'ed-lineas\',\'ed-neto\',\'ed-iva\',\'ed-tot\')'}"/>
     <input type="number" placeholder="Base" readonly style="background:#f8f9fa;color:#999;"/>
-    <input type="number" placeholder="Cliente" oninput="${containerId==='oc-lineas'?'calcResumen()':'calcResumenEdit()'}"/>
-    <button class="btn-remove" onclick="this.parentElement.remove();${containerId==='oc-lineas'?'calcResumen()':'calcResumenEdit()'}">×</button>
-  `;
+    <input type="number" placeholder="Cliente" oninput="${cb?'calcRes(\'oc-lineas\',\'oc-neto\',\'oc-iva\',\'oc-tot\')':'calcRes(\'ed-lineas\',\'ed-neto\',\'ed-iva\',\'ed-tot\')'}"/>
+    <button class="btn-remove" onclick="this.parentElement.remove();${cb?'calcRes(\'oc-lineas\',\'oc-neto\',\'oc-iva\',\'oc-tot\')':'calcRes(\'ed-lineas\',\'ed-neto\',\'ed-iva\',\'ed-tot\')'}">×</button>`;
   wrap.appendChild(div);
 }
 
-function addLineaEdit() { addLinea('edit-lineas'); }
-
-function onProdSelect(sel, containerId) {
-  const cliNombre = document.getElementById(
-    containerId === 'oc-lineas' ? 'oc-cliente' : 'edit-cli'
-  ).value;
-  const row = sel.closest('.linea-producto');
-  const inputs = row.querySelectorAll('input[type=number]');
-  const prod = DB.productos.find(p => normaliza(p['Nombre']) === normaliza(sel.value));
-  const info = getPrecioCliente(cliNombre, sel.value);
-  if (inputs[1]) inputs[1].value = prod ? prod['Precio Base'] : '';
-  if (inputs[2]) {
-    inputs[2].value = info.precio;
-    inputs[2].style.color = info.especial ? '#1D9E75' : '#222';
-  }
-  containerId === 'oc-lineas' ? calcResumen() : calcResumenEdit();
+function onProdSel(sel,cId){
+  const cNom=document.getElementById(cId==='oc-lineas'?'oc-cliente':'ed-cli').value;
+  const row=sel.closest('.linea-producto');
+  const inp=row.querySelectorAll('input[type=number]');
+  const prod=DB.productos.find(p=>norm(p['Nombre'])===norm(sel.value));
+  const info=getPrecio(cNom,sel.value);
+  if(inp[0])inp[0].value=prod?prod['Precio Base']:'';
+  if(inp[1]){inp[1].value=info.precio; inp[1].className=info.especial?'precio-especial':'';}
+  const cb=cId==='oc-lineas';
+  calcRes(cId,cb?'oc-neto':'ed-neto',cb?'oc-iva':'ed-iva',cb?'oc-tot':'ed-tot');
 }
 
-function calcResumen() {
-  let sub = 0;
-  document.querySelectorAll('#oc-lineas .linea-producto').forEach(row => {
-    const inputs = row.querySelectorAll('input[type=number]');
-    const qty = parseFloat(inputs[0]?.value) || 0;
-    const precio = parseFloat(inputs[2]?.value) || parseFloat(inputs[1]?.value) || 0;
-    sub += qty * precio;
+function calcRes(lId,nId,iId,tId){
+  let sub=0;
+  document.querySelectorAll(`#${lId} .linea-producto`).forEach(row=>{
+    const inp=row.querySelectorAll('input[type=number]');
+    const qty=parseFloat(inp[0]?.value)||0;
+    const precio=parseFloat(inp[2]?.value)||parseFloat(inp[1]?.value)||0; // precio cliente primero
+    // Nota: inp[0]=base(readonly), inp[1]=cliente en el grid: cant, base, cliente
+    // Realmente: inp array: cant(idx0), base(idx1 readonly), cliente(idx2)
+    sub+=qty*precio;
   });
-  document.getElementById('oc-subtotal').textContent = fmtCLP(sub);
-  document.getElementById('oc-iva').textContent = fmtCLP(sub * 0.19);
-  document.getElementById('oc-total').textContent = fmtCLP(sub * 1.19);
-}
-
-function calcResumenEdit() {
-  let sub = 0;
-  document.querySelectorAll('#edit-lineas .linea-producto').forEach(row => {
-    const inputs = row.querySelectorAll('input[type=number]');
-    const qty = parseFloat(inputs[0]?.value) || 0;
-    const precio = parseFloat(inputs[2]?.value) || parseFloat(inputs[1]?.value) || 0;
-    sub += qty * precio;
+  // Fix: reread correctly
+  sub=0;
+  document.querySelectorAll(`#${lId} .linea-producto`).forEach(row=>{
+    const inputs=row.querySelectorAll('input[type=number]');
+    const cant=parseFloat(inputs[0]?.value)||0;
+    const pCli=parseFloat(inputs[2]?.value)||0;
+    const pBase=parseFloat(inputs[1]?.value)||0;
+    sub+=cant*(pCli||pBase);
   });
-  document.getElementById('edit-sub').textContent = fmtCLP(sub);
-  document.getElementById('edit-iva').textContent = fmtCLP(sub * 0.19);
-  document.getElementById('edit-tot').textContent = fmtCLP(sub * 1.19);
+  document.getElementById(nId).textContent=fmtCLP(sub);
+  document.getElementById(iId).textContent=fmtCLP(sub*0.19);
+  document.getElementById(tId).textContent=fmtCLP(sub*1.19);
 }
 
-function getLineas(containerId) {
-  const lineas = [];
-  document.querySelectorAll(`#${containerId} .linea-producto`).forEach(row => {
-    const sel = row.querySelector('select');
-    const inputs = row.querySelectorAll('input[type=number]');
-    const prod = sel?.value;
-    const qty = parseFloat(inputs[0]?.value);
-    const precio = parseFloat(inputs[2]?.value) || parseFloat(inputs[1]?.value) || 0;
-    if (prod && qty > 0) lineas.push({ producto: prod, cantidad: qty, precioUnit: precio });
+function getLineas(cId){
+  const lineas=[];
+  document.querySelectorAll(`#${cId} .linea-producto`).forEach(row=>{
+    const sel=row.querySelector('select');
+    const inp=row.querySelectorAll('input[type=number]');
+    const prod=sel?.value;
+    const cant=parseFloat(inp[0]?.value)||0;
+    const pCli=parseFloat(inp[2]?.value)||0;
+    const pBase=parseFloat(inp[1]?.value)||0;
+    if(prod&&cant>0)lineas.push({producto:prod,cantidad:cant,precioUnit:pCli||pBase});
   });
   return lineas;
 }
 
-async function generarOrden() {
-  const cliente = document.getElementById('oc-cliente').value;
-  if (!cliente) { showToast('Selecciona un cliente', 'error'); return; }
-  const lineas = getLineas('oc-lineas');
-  if (!lineas.length) { showToast('Agrega al menos un producto', 'error'); return; }
-
-  // Calcular próximo N° orden
-  const nOrden = DB.ordenes.length > 0
-    ? Math.max(...DB.ordenes.map(o => Number(o['N° Orden']) || 0)) + 1
-    : 1;
-
-  showToast('Guardando orden en Google Sheets...', 'loading');
-  try {
-    await gsCall('addOrden', {
-      nOrden,
-      fecha: document.getElementById('oc-fecha').value || hoy(),
-      cliente,
-      lineas,
-      condPago: document.getElementById('oc-pago').value,
-      notas: document.getElementById('oc-notas').value.trim()
-    });
-    showToast('✅ Orden N°' + nOrden + ' guardada en Sheets', 'success');
+async function generarOrden(){
+  const cliente=document.getElementById('oc-cliente').value;
+  if(!cliente){showToast('Selecciona un cliente','err');return;}
+  const lineas=getLineas('oc-lineas');
+  if(!lineas.length){showToast('Agrega al menos un producto','err');return;}
+  const nOrden=DB.ordenes.length>0?Math.max(...DB.ordenes.map(o=>Number(o['N° Orden'])||0))+1:1;
+  const fecha=document.getElementById('oc-fecha').value||hoy();
+  showToast('Guardando en Google Sheets...','loading');
+  try{
+    await gsCall('addOrden',{nOrden,fecha,cliente,lineas,condPago:'',notas:document.getElementById('oc-notas').value.trim()});
+    // Generar PDF orden
+    const cliData=DB.clientes.find(c=>norm(c['Nombre'])===norm(cliente));
+    const sub=lineas.reduce((s,l)=>s+l.cantidad*l.precioUnit,0);
+    generarPDFOrden(nOrden,fecha,cliData,lineas,sub,document.getElementById('oc-notas').value);
+    showToast('✅ Orden N°'+nOrden+' guardada','success');
     await syncAll();
     initNuevaOrden();
-    document.getElementById('oc-cliente').value = '';
-    document.getElementById('oc-fecha').value = '';
-  } catch(e) {
-    showToast('Error: ' + e.message, 'error');
-  }
+    document.getElementById('oc-cliente').value='';
+  }catch(e){showToast('Error: '+e.message,'err');}
 }
 
-// ─────────────────────────────────────────
-// LISTA ÓRDENES
-// ─────────────────────────────────────────
-function renderAll() { renderOrdenes(); renderFact(); renderPagos(); renderClientes(); renderProductos(); }
+// ─── PDF ORDEN DE COMPRA ─────────────────
+function generarPDFOrden(nOrden,fecha,cliData,lineas,sub,notas){
+  const iva=Math.round(sub*0.19);
+  const total=Math.round(sub)+iva;
+  const numStr=String(nOrden).padStart(4,'0');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Orden de Compra N° ${numStr}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Montserrat',sans-serif;color:#222;background:white;padding:40px;max-width:700px;margin:auto;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;}
+  .logo-area{display:flex;align-items:center;gap:12px;}
+  .logo-circle{width:72px;height:72px;border-radius:50%;border:2px solid #003a79;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#003a79;text-align:center;line-height:1.3;padding:6px;}
+  .title-area{text-align:right;}
+  .oc-title{font-size:22px;font-weight:900;color:#003a79;letter-spacing:1px;}
+  .oc-num{font-size:18px;font-weight:700;color:#003a79;}
+  .oc-info{font-size:12px;color:#555;margin-top:4px;line-height:1.8;}
+  hr{border:none;border-top:1.5px solid #003a79;margin:20px 0;}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+  .box{border:1px solid #e0e0e0;border-radius:6px;padding:14px;}
+  .box-label{font-size:9px;font-weight:700;color:#003a79;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
+  .box-val{font-size:13px;font-weight:700;color:#222;line-height:1.7;}
+  .box-val .rs{font-weight:400;font-size:12px;}
+  table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+  thead tr{background:#003a79;color:white;}
+  th{padding:10px 12px;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;text-align:left;}
+  th:last-child,td:last-child{text-align:right;}
+  td{padding:11px 12px;font-size:13px;border-bottom:1px solid #f0f0f0;}
+  .totales{width:220px;margin-left:auto;}
+  .tot-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;}
+  .tot-total{display:flex;justify-content:space-between;font-size:17px;font-weight:900;color:#003a79;border-top:2px solid #003a79;padding-top:8px;margin-top:4px;}
+  .footer{display:flex;justify-content:space-between;font-size:10px;color:#888;margin-top:30px;border-top:1px solid #e0e0e0;padding-top:14px;}
+  .footer strong{color:#003a79;}
+  ${notas?'.notas{background:#f8f9fa;border-radius:6px;padding:12px;margin-bottom:16px;font-size:12px;}':''}
+</style>
+</head><body>
+<div class="header">
+  <div class="logo-area">
+    <div class="logo-circle">PANADERÍA<br>MASA<br>MADRE<br>· FËN ·</div>
+  </div>
+  <div class="title-area">
+    <div class="oc-title">ORDEN DE COMPRA</div>
+    <div class="oc-num">N° ${numStr}</div>
+    <div class="oc-info">Ainavillo 764, Concepción<br>+56 9 4147 3683<br>panaderiafen@gmail.com</div>
+  </div>
+</div>
+<hr/>
+<div class="two-col">
+  <div class="box">
+    <div class="box-label">Cliente</div>
+    <div class="box-val">
+      ${cliData?.['Nombre']||'—'}<br>
+      <span class="rs">${cliData?.['Razón Social']||''}</span><br>
+      <span class="rs">RUT: ${cliData?.['RUT']||'—'}</span><br>
+      <span class="rs">${cliData?.['Dirección']||''}</span>
+    </div>
+  </div>
+  <div class="box">
+    <div class="box-label">Detalle</div>
+    <div class="box-val" style="font-weight:400;font-size:13px;">
+      <strong>Fecha:</strong> ${fechaES(fecha)}<br>
+      <strong>Estado:</strong> PENDIENTE<br>
+      <strong>Folio SII:</strong> Pendiente
+    </div>
+  </div>
+</div>
+${notas?`<div class="notas"><strong>Notas:</strong> ${notas}</div>`:''}
+<table>
+  <thead><tr><th>Producto</th><th>Cant.</th><th>Neto Unit.</th><th>Neto Total</th></tr></thead>
+  <tbody>
+    ${lineas.map(l=>`<tr><td>${l.producto}</td><td>${l.cantidad}</td><td>${fmtCLP(l.precioUnit)}</td><td>${fmtCLP(l.cantidad*l.precioUnit)}</td></tr>`).join('')}
+  </tbody>
+</table>
+<div class="totales">
+  <div class="tot-row"><span>Neto</span><span>${fmtCLP(sub)}</span></div>
+  <div class="tot-row"><span>IVA (19%)</span><span>${fmtCLP(iva)}</span></div>
+  <div class="tot-total"><span>TOTAL</span><span>${fmtCLP(total)}</span></div>
+</div>
+<div class="footer">
+  <span><strong>FËN</strong> · PANADERÍA MASA MADRE · CAFETERÍA</span>
+  <span>WWW.PANADERIAFEN.CL · @PANADERIAFEN</span>
+</div>
+</body></html>`;
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),600);
+}
 
-function renderOrdenes() {
-  const wrap = document.getElementById('ordenes-list');
-  if (!wrap) return;
-  const q = (document.getElementById('ord-search')?.value || '').toLowerCase();
-  const lista = DB.ordenes.filter(o =>
-    !q || String(o['N° Orden']).includes(q) || String(o['Cliente']||'').toLowerCase().includes(q)
-  );
-  if (!lista.length) { wrap.innerHTML = '<div class="empty">Sin órdenes</div>'; return; }
-  wrap.innerHTML = lista.map(o => `
+// ─── LISTA ÓRDENES ───────────────────────
+function renderAll(){renderOrdenes();renderFact();renderPagos();renderClientes();renderProductos();renderPrecios();}
+
+function renderOrdenes(){
+  const w=document.getElementById('ord-list');
+  if(!w)return;
+  const q=norm(document.getElementById('ord-q')?.value||'');
+  const lista=DB.ordenes.filter(o=>!q||String(o['N° Orden']).includes(q)||norm(o['Cliente']||'').includes(q));
+  if(!lista.length){w.innerHTML='<div class="empty">Sin órdenes</div>';return;}
+  w.innerHTML=lista.map(o=>`
     <div class="orden-card">
-      <div class="orden-card-header">
+      <div class="orden-card-top">
         <div>
           <strong style="color:#003a79">N° ${o['N° Orden']}</strong>
-          <span class="badge badge-${estadoBadge(o['Estado Pago'])}" style="margin-left:6px;">${o['Estado Pago']||'—'}</span>
-          ${o['Folio SII'] && o['Folio SII'] !== 'Pendiente' ? `<span class="badge badge-facturado" style="margin-left:4px;">Folio ${o['Folio SII']}</span>` : ''}
+          ${estadoBadge(o['Estado Pago'])}
+          ${o['Folio SII']&&o['Folio SII']!=='Pendiente'?`<span class="badge badge-facturado">Folio ${o['Folio SII']}</span>`:''}
         </div>
         <span style="font-weight:700;color:#1D9E75">${fmtCLP(o['Total'])}</span>
       </div>
-      <div class="orden-card-meta">
-        👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; 📅 ${fechaES(o['Fecha'])}
-        ${o['Observación'] ? `<br>📝 ${o['Observación']}` : ''}
-      </div>
+      <div class="orden-card-meta">👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; 📅 ${fechaCorta(o['Fecha'])}</div>
       <div class="row-actions">
         <button class="btn btn-secondary btn-sm" onclick="abrirEditar('${o['N° Orden']}')">✏️ Editar</button>
-        <button class="btn btn-danger btn-sm" onclick="abrirEliminar('${o['N° Orden']}')">🗑️ Eliminar</button>
+        <button class="btn btn-danger btn-sm" onclick="abrirDel('${o['N° Orden']}')">🗑️ Eliminar</button>
+        <button class="btn btn-sm" style="background:#f0f6ff;color:#003a79;border:1px solid #bed4f0;" onclick="reimprimirOrden('${o['N° Orden']}')">🖨️ PDF</button>
       </div>
     </div>`).join('');
 }
 
-function estadoBadge(e) {
-  if (!e || e === 'PENDIENTE') return 'pendiente';
-  if (e === 'PAGADO' || e === 'PAGADO EN MES') return 'pagado';
-  if (e === 'VENCIDO') return 'vencido';
-  return 'facturado';
+function reimprimirOrden(nOrden){
+  const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(nOrden));
+  if(!o){showToast('Orden no encontrada','err');return;}
+  const cliData=DB.clientes.find(c=>norm(c['Nombre'])===norm(o['Cliente']));
+  showToast('Las líneas de producto no están en Resumen. Genera el PDF desde nueva orden.','err',4000);
 }
 
-// ─────────────────────────────────────────
-// EDITAR ORDEN
-// ─────────────────────────────────────────
-async function abrirEditar(nOrden) {
-  const o = DB.ordenes.find(x => String(x['N° Orden']) === String(nOrden));
-  if (!o) return;
-  _editKey = nOrden;
-  document.getElementById('edit-key').value = nOrden;
+// ─── EDITAR ORDEN ────────────────────────
+function abrirEditar(nOrden){
+  const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(nOrden));
+  if(!o)return;
+  document.getElementById('ed-key').value=nOrden;
   populateSelects();
-  document.getElementById('edit-cli').value = o['Cliente'] || '';
-  document.getElementById('edit-fecha').value = String(o['Fecha']||'').slice(0,10);
-  document.getElementById('edit-pago').value = o['Condición Pago'] || 'Contado';
-  document.getElementById('edit-notas').value = o['Observación'] || '';
-
-  // Necesitamos las líneas del Detalle Ventas — por ahora dejamos vacío para re-ingresar
-  document.getElementById('edit-lineas').innerHTML = '';
-  addLineaEdit();
-  calcResumenEdit();
-  openModal('modal-editar');
+  document.getElementById('ed-cli').value=o['Cliente']||'';
+  document.getElementById('ed-fecha').value=String(o['Fecha']||'').slice(0,10)||hoy();
+  document.getElementById('ed-notas').value=o['Observación']||'';
+  document.getElementById('ed-lineas').innerHTML='';
+  addLinea('ed-lineas');
+  calcRes('ed-lineas','ed-neto','ed-iva','ed-tot');
+  openModal('modal-edit');
 }
 
-async function guardarEdicion() {
-  const nOrden = document.getElementById('edit-key').value;
-  const cliente = document.getElementById('edit-cli').value;
-  const lineas = getLineas('edit-lineas');
-  if (!cliente || !lineas.length) { showToast('Completa cliente y productos', 'error'); return; }
-
-  showToast('Actualizando en Google Sheets...', 'loading');
-  try {
-    await gsCall('updateOrden', {
-      nOrden,
-      fecha: document.getElementById('edit-fecha').value,
-      cliente,
-      lineas,
-      condPago: document.getElementById('edit-pago').value,
-      notas: document.getElementById('edit-notas').value.trim()
-    });
-    closeModal('modal-editar');
+async function guardarEdicion(){
+  const nOrden=document.getElementById('ed-key').value;
+  const cliente=document.getElementById('ed-cli').value;
+  const lineas=getLineas('ed-lineas');
+  if(!cliente||!lineas.length){showToast('Completa datos','err');return;}
+  showToast('Actualizando en Sheets...','loading');
+  try{
+    await gsCall('updateOrden',{nOrden,fecha:document.getElementById('ed-fecha').value,cliente,lineas,condPago:'',notas:document.getElementById('ed-notas').value.trim()});
+    closeModal('modal-edit');
     await syncAll();
-    showToast('✅ Orden actualizada', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    showToast('✅ Orden actualizada','success');
+  }catch(e){showToast('Error: '+e.message,'err');}
 }
 
-// ─────────────────────────────────────────
-// ELIMINAR ORDEN
-// ─────────────────────────────────────────
-function abrirEliminar(nOrden) {
-  _elimKey = nOrden;
-  document.getElementById('eliminar-num').textContent = 'N° ' + nOrden;
-  openModal('modal-eliminar');
+// ─── ELIMINAR ────────────────────────────
+function abrirDel(nOrden){
+  _delKey=nOrden;
+  document.getElementById('del-num').textContent='N° '+nOrden;
+  openModal('modal-del');
 }
-
-async function confirmarEliminar() {
-  showToast('Eliminando de Google Sheets...', 'loading');
-  try {
-    await gsCall('deleteOrden', { nOrden: _elimKey });
-    closeModal('modal-eliminar');
+async function confirmarDel(){
+  showToast('Eliminando...','loading');
+  try{
+    await gsCall('deleteOrden',{nOrden:_delKey});
+    closeModal('modal-del');
     await syncAll();
-    showToast('🗑️ Orden eliminada', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    showToast('🗑️ Orden eliminada','success');
+  }catch(e){showToast('Error: '+e.message,'err');}
 }
 
-// ─────────────────────────────────────────
-// FACTURACIÓN
-// ─────────────────────────────────────────
-function renderFact() {
-  // Pendientes
-  const pend = DB.ordenes.filter(o => !o['Folio SII'] || o['Folio SII'] === 'Pendiente');
-  const pl = document.getElementById('fact-pend-list');
-  if (pl) pl.innerHTML = pend.length ? pend.map(o => `
+// ─── FACTURACIÓN ─────────────────────────
+function renderFact(){
+  const pend=DB.ordenes.filter(o=>!o['Folio SII']||o['Folio SII']==='Pendiente');
+  const pl=document.getElementById('fp-list');
+  if(pl)pl.innerHTML=pend.length?pend.map(o=>`
     <div class="orden-card">
-      <div class="orden-card-header">
+      <div class="orden-card-top">
         <strong style="color:#003a79">N° ${o['N° Orden']}</strong>
         <span style="font-weight:700;color:#1D9E75">${fmtCLP(o['Total'])}</span>
       </div>
-      <div class="orden-card-meta">👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; 📅 ${fechaES(o['Fecha'])}</div>
+      <div class="orden-card-meta">👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; 📅 ${fechaCorta(o['Fecha'])}<br>
+      Neto: ${fmtCLP(o['Total Neto'])} &nbsp;|&nbsp; IVA: ${fmtCLP(o['IVA'])}</div>
       <div class="row-actions">
         <button class="btn btn-primary btn-sm" onclick="abrirFolio('${o['N° Orden']}')">🧾 Asignar folio SII</button>
-        <button class="btn btn-secondary btn-sm" onclick="abrirPagoModal('${o['N° Orden']}')">💳 Registrar pago</button>
+        <button class="btn btn-secondary btn-sm" onclick="abrirPagoModal('${o['N° Orden']}')">💳 Pago</button>
       </div>
-    </div>`).join('') : '<div class="empty">Sin órdenes pendientes</div>';
+    </div>`).join(''):'<div class="empty">Sin órdenes pendientes</div>';
 
-  // Emitidas
-  const emit = DB.ordenes.filter(o => o['Folio SII'] && o['Folio SII'] !== 'Pendiente');
-  const el = document.getElementById('fact-emit-list');
-  if (el) el.innerHTML = emit.length ? emit.map(o => `
+  const emit=DB.ordenes.filter(o=>o['Folio SII']&&o['Folio SII']!=='Pendiente');
+  const el=document.getElementById('fe-list');
+  if(el)el.innerHTML=emit.length?emit.map(o=>`
     <div class="orden-card">
-      <div class="orden-card-header">
+      <div class="orden-card-top">
         <div>
           <strong style="color:#003a79">N° ${o['N° Orden']}</strong>
           <span class="badge badge-facturado" style="margin-left:6px;">Folio ${o['Folio SII']}</span>
         </div>
         <span style="font-weight:700;color:#1D9E75">${fmtCLP(o['Total'])}</span>
       </div>
-      <div class="orden-card-meta">👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; 🧾 ${fechaES(o['Fecha Pago'])}</div>
-    </div>`).join('') : '<div class="empty">Sin facturas emitidas</div>';
+      <div class="orden-card-meta">👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; ${estadoBadge(o['Estado Pago'])}</div>
+    </div>`).join(''):'<div class="empty">Sin facturas emitidas</div>';
 }
 
-// Folio SII
-function abrirFolio(nOrden) {
-  const o = DB.ordenes.find(x => String(x['N° Orden']) === String(nOrden));
-  if (!o) return;
-  _folioKey = nOrden;
-  document.getElementById('folio-orden-key').value = nOrden;
-  document.getElementById('folio-num').value = '';
-  document.getElementById('folio-fecha').value = hoy();
-  document.getElementById('folio-info').innerHTML = `
+// ─── FOLIO SII ───────────────────────────
+function abrirFolio(nOrden){
+  const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(nOrden));
+  if(!o)return;
+  _folKey=nOrden;
+  document.getElementById('fol-key').value=nOrden;
+  document.getElementById('fol-num').value='';
+  document.getElementById('fol-fecha').value=hoy();
+  // Info completa del pedido
+  document.getElementById('fol-info').innerHTML=`
     <div class="oi-row"><span class="oi-label">N° Orden</span><span class="oi-value">${o['N° Orden']}</span></div>
     <div class="oi-row"><span class="oi-label">Fecha</span><span class="oi-value">${fechaES(o['Fecha'])}</span></div>
     <div class="oi-row"><span class="oi-label">Cliente</span><span class="oi-value">${o['Cliente']||'—'}</span></div>
-    <div class="oi-row"><span class="oi-label">Total Neto</span><span class="oi-value">${fmtCLP(o['Total Neto'])}</span></div>
-    <div class="oi-row"><span class="oi-label">IVA</span><span class="oi-value">${fmtCLP(o['IVA'])}</span></div>
+    <div class="oi-row"><span class="oi-label">RUT</span><span class="oi-value">${DB.clientes.find(c=>norm(c['Nombre'])===norm(o['Cliente']))?.['RUT']||'—'}</span></div>
+    <div class="oi-row"><span class="oi-label">Neto</span><span class="oi-value">${fmtCLP(o['Total Neto'])}</span></div>
+    <div class="oi-row"><span class="oi-label">IVA 19%</span><span class="oi-value">${fmtCLP(o['IVA'])}</span></div>
     <div class="oi-row" style="font-weight:700;"><span class="oi-label" style="color:#003a79;">TOTAL</span><span class="oi-value" style="color:#003a79;">${fmtCLP(o['Total'])}</span></div>
-  `;
+    <div class="oi-row"><span class="oi-label">Estado pago</span><span class="oi-value">${estadoBadge(o['Estado Pago'])}</span></div>`;
   openModal('modal-folio');
 }
 
-async function guardarFolio() {
-  const folio = document.getElementById('folio-num').value.trim();
-  if (!folio) { showToast('Ingresa el folio SII', 'error'); return; }
-  showToast('Guardando folio en Sheets...', 'loading');
-  try {
-    await gsCall('asignarFolio', {
-      nOrden: _folioKey,
-      folioSII: folio,
-      fechaFolio: document.getElementById('folio-fecha').value
-    });
+async function guardarFolio(){
+  const folio=document.getElementById('fol-num').value.trim();
+  if(!folio){showToast('Ingresa el folio','err');return;}
+  showToast('Guardando folio en Sheets...','loading');
+  try{
+    await gsCall('asignarFolio',{nOrden:_folKey,folioSII:folio,fechaFolio:document.getElementById('fol-fecha').value});
     closeModal('modal-folio');
     await syncAll();
-    showToast('✅ Folio ' + folio + ' asignado en Sheets', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    showToast('✅ Folio '+folio+' asignado','success');
+  }catch(e){showToast('Error: '+e.message,'err');}
 }
 
-// ─────────────────────────────────────────
-// PAGOS
-// ─────────────────────────────────────────
-function renderPagos() {
-  const wrap = document.getElementById('pagos-list');
-  if (!wrap) return;
-  const q = (document.getElementById('pago-search')?.value || '').toLowerCase();
-  const lista = DB.ordenes.filter(o =>
-    o['Estado Pago'] && o['Estado Pago'] !== 'PENDIENTE' ||
-    (o['Folio SII'] && o['Folio SII'] !== 'Pendiente')
-  ).filter(o =>
-    !q ||
-    String(o['N° Orden']).includes(q) ||
-    String(o['Folio SII']||'').toLowerCase().includes(q) ||
-    String(o['Cliente']||'').toLowerCase().includes(q)
-  );
-  if (!lista.length) { wrap.innerHTML = '<div class="empty">Sin pagos registrados</div>'; return; }
-  wrap.innerHTML = '<div class="table-wrap"><table><thead><tr><th>N° Orden</th><th>Folio SII</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha Pago</th></tr></thead><tbody>' +
-    lista.map(o => `<tr>
+// ─── PAGOS ───────────────────────────────
+function renderPagos(){
+  const w=document.getElementById('pg-list');
+  if(!w)return;
+  const q=norm(document.getElementById('pg-q')?.value||'');
+  const lista=DB.ordenes.filter(o=>
+    (!q||String(o['N° Orden']).includes(q)||norm(o['Cliente']||'').includes(q)||norm(o['Folio SII']||'').includes(q))
+  ).filter(o=>o['Estado Pago']&&o['Estado Pago']!=='PENDIENTE');
+  if(!lista.length){w.innerHTML='<div class="empty">Sin pagos registrados</div>';return;}
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>N°</th><th>Folio</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha pago</th></tr></thead><tbody>'+
+    lista.map(o=>`<tr>
       <td><strong>${o['N° Orden']}</strong></td>
-      <td>${o['Folio SII'] && o['Folio SII'] !== 'Pendiente' ? o['Folio SII'] : '—'}</td>
+      <td>${o['Folio SII']&&o['Folio SII']!=='Pendiente'?o['Folio SII']:'—'}</td>
       <td>${o['Cliente']||'—'}</td>
       <td style="color:#1D9E75;font-weight:700;">${fmtCLP(o['Total'])}</td>
-      <td><span class="badge badge-${estadoBadge(o['Estado Pago'])}">${o['Estado Pago']||'—'}</span></td>
-      <td>${fechaES(o['Fecha Pago'])}</td>
-    </tr>`).join('') + '</tbody></table></div>';
+      <td>${estadoBadge(o['Estado Pago'])}</td>
+      <td>${fechaCorta(o['Fecha Pago'])}</td>
+    </tr>`).join('')+'</tbody></table></div>';
 }
 
-function buscarOrdenPago() {
-  const q = document.getElementById('pago-buscar').value.trim().toLowerCase();
-  const el = document.getElementById('pago-resultado');
-  const key = document.getElementById('pago-orden-key');
-  if (!q) { el.textContent = ''; key.value = ''; return; }
-  const found = DB.ordenes.find(o =>
-    String(o['N° Orden']).toLowerCase().includes(q) ||
-    String(o['Folio SII']||'').toLowerCase().includes(q)
-  );
-  if (found) {
-    el.className = 'hint ok';
-    el.textContent = `✅ N°${found['N° Orden']} — ${found['Cliente']} — Total: ${fmtCLP(found['Total'])}${found['Folio SII'] && found['Folio SII'] !== 'Pendiente' ? ' — Folio: '+found['Folio SII'] : ''}`;
-    key.value = found['N° Orden'];
-    document.getElementById('pago-monto').value = Math.round(found['Total']);
-  } else {
-    el.className = 'hint error';
-    el.textContent = 'No se encontró ninguna orden.';
-    key.value = '';
+function buscarOrdenPago(){
+  const q=norm(document.getElementById('pg-buscar').value);
+  const el=document.getElementById('pg-res');
+  const kEl=document.getElementById('pg-key');
+  if(!q){el.textContent='';kEl.value='';return;}
+  const found=DB.ordenes.find(o=>String(o['N° Orden']).includes(q)||norm(o['Folio SII']||'').includes(q));
+  if(found){
+    el.className='hint ok';
+    el.textContent=`✅ N°${found['N° Orden']} — ${found['Cliente']} — ${fmtCLP(found['Total'])}${found['Folio SII']&&found['Folio SII']!=='Pendiente'?' — Folio: '+found['Folio SII']:''}`;
+    kEl.value=found['N° Orden'];
+  }else{
+    el.className='hint error';
+    el.textContent='No se encontró ninguna orden.';
+    kEl.value='';
   }
 }
 
-async function registrarPago() {
-  const nOrden = document.getElementById('pago-orden-key').value;
-  if (!nOrden) { showToast('Busca y selecciona una orden primero', 'error'); return; }
-  showToast('Registrando pago en Sheets...', 'loading');
-  try {
-    await gsCall('registrarPago', {
-      nOrden,
-      fechaPago: document.getElementById('pago-fecha').value || hoy(),
-      estado: document.getElementById('pago-estado').value
-    });
+async function registrarPago(){
+  const nOrden=document.getElementById('pg-key').value;
+  if(!nOrden){showToast('Busca una orden primero','err');return;}
+  showToast('Registrando en Sheets...','loading');
+  try{
+    await gsCall('registrarPago',{nOrden,fechaPago:document.getElementById('pg-fecha').value||hoy(),estado:document.getElementById('pg-estado').value});
     await syncAll();
-    showToast('✅ Pago registrado', 'success');
-    ['pago-buscar','pago-monto','pago-ref'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('pago-orden-key').value = '';
-    document.getElementById('pago-resultado').textContent = '';
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    showToast('✅ Pago registrado','success');
+    ['pg-buscar','pg-ref'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('pg-key').value='';
+    document.getElementById('pg-res').textContent='';
+  }catch(e){showToast('Error: '+e.message,'err');}
 }
 
-function abrirPagoModal(nOrden) {
-  const o = DB.ordenes.find(x => String(x['N° Orden']) === String(nOrden));
-  if (!o) return;
-  _pagoKey = nOrden;
-  document.getElementById('mpago-key').value = nOrden;
-  document.getElementById('mpago-monto').value = Math.round(o['Total']);
-  document.getElementById('mpago-fecha').value = hoy();
-  document.getElementById('mpago-info').innerHTML = `
+function abrirPagoModal(nOrden){
+  const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(nOrden));
+  if(!o)return;
+  _pagoKey=nOrden;
+  document.getElementById('mp-key').value=nOrden;
+  document.getElementById('mp-fecha').value=hoy();
+  document.getElementById('mp-estado').value='PAGADO EN MES';
+  document.getElementById('mp-info').innerHTML=`
     <div class="oi-row"><span class="oi-label">N° Orden</span><span class="oi-value">${o['N° Orden']}</span></div>
     <div class="oi-row"><span class="oi-label">Cliente</span><span class="oi-value">${o['Cliente']||'—'}</span></div>
-    <div class="oi-row"><span class="oi-label">Total</span><span class="oi-value">${fmtCLP(o['Total'])}</span></div>
-  `;
+    <div class="oi-row"><span class="oi-label">Neto</span><span class="oi-value">${fmtCLP(o['Total Neto'])}</span></div>
+    <div class="oi-row"><span class="oi-label">IVA</span><span class="oi-value">${fmtCLP(o['IVA'])}</span></div>
+    <div class="oi-row" style="font-weight:700;"><span class="oi-label" style="color:#003a79;">Total</span><span class="oi-value" style="color:#003a79;">${fmtCLP(o['Total'])}</span></div>`;
   openModal('modal-pago');
 }
 
-async function guardarPagoModal() {
-  showToast('Registrando pago en Sheets...', 'loading');
-  try {
-    await gsCall('registrarPago', {
-      nOrden: _pagoKey,
-      fechaPago: document.getElementById('mpago-fecha').value || hoy(),
-      estado: document.getElementById('mpago-estado').value
-    });
+async function guardarPagoModal(){
+  showToast('Registrando en Sheets...','loading');
+  try{
+    await gsCall('registrarPago',{nOrden:_pagoKey,fechaPago:document.getElementById('mp-fecha').value||hoy(),estado:document.getElementById('mp-estado').value});
     closeModal('modal-pago');
     await syncAll();
-    showToast('✅ Pago registrado en Sheets', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    showToast('✅ Pago registrado','success');
+  }catch(e){showToast('Error: '+e.message,'err');}
 }
 
-// ─────────────────────────────────────────
-// FACTURA MÚLTIPLE
-// ─────────────────────────────────────────
-function cargarMulti() {
-  const cli = document.getElementById('multi-cli').value;
-  document.getElementById('multi-fechas').classList.toggle('hidden', !cli);
-  if (cli) renderMulti();
+// ─── FACTURA MÚLTIPLE ────────────────────
+function cargarMulti(){
+  const cli=document.getElementById('m-cli').value;
+  document.getElementById('m-fechas').classList.toggle('hidden',!cli);
+  document.getElementById('m-lista-wrap').classList.toggle('hidden',!cli);
+  document.getElementById('m-res-wrap').classList.add('hidden');
+  if(cli)renderMulti();
 }
 
-function renderMulti() {
-  const cli = document.getElementById('multi-cli').value;
-  const desde = document.getElementById('multi-desde').value;
-  const hasta = document.getElementById('multi-hasta').value;
-  const ordenes = DB.ordenes.filter(o => {
-    if (normaliza(o['Cliente']) !== normaliza(cli)) return false;
-    const f = String(o['Fecha']||'').slice(0,10);
-    if (desde && f < desde) return false;
-    if (hasta && f > hasta) return false;
+function renderMulti(){
+  const cli=document.getElementById('m-cli').value;
+  const desde=document.getElementById('m-desde').value;
+  const hasta=document.getElementById('m-hasta').value;
+  const ords=DB.ordenes.filter(o=>{
+    if(norm(o['Cliente'])!==norm(cli))return false;
+    const f=String(o['Fecha']||'').slice(0,10);
+    if(desde&&f<desde)return false;
+    if(hasta&&f>hasta)return false;
     return true;
   });
-  const wrap = document.getElementById('multi-lista-wrap');
-  const lista = document.getElementById('multi-lista');
-  wrap.classList.remove('hidden');
-  document.getElementById('multi-resumen-wrap').classList.add('hidden');
-  if (!ordenes.length) { lista.innerHTML = '<div class="empty">Sin órdenes para este cliente en el rango</div>'; return; }
-  lista.innerHTML = ordenes.map(o => `
+  const lista=document.getElementById('m-lista');
+  document.getElementById('m-res-wrap').classList.add('hidden');
+  if(!ords.length){lista.innerHTML='<div class="empty">Sin órdenes en este rango</div>';return;}
+  lista.innerHTML=ords.map(o=>`
     <div class="check-row">
       <input type="checkbox" id="mck-${o['N° Orden']}" value="${o['N° Orden']}" onchange="calcMulti()"/>
       <label for="mck-${o['N° Orden']}">
-        <strong>N° ${o['N° Orden']}</strong> — ${fechaES(o['Fecha'])} — 
+        <strong>N° ${o['N° Orden']}</strong> — ${fechaCorta(o['Fecha'])} — 
         <span style="color:#1D9E75;font-weight:700;">${fmtCLP(o['Total'])}</span>
-        ${o['Folio SII'] && o['Folio SII'] !== 'Pendiente' ? `<span class="badge badge-facturado" style="margin-left:4px;">Folio ${o['Folio SII']}</span>` : ''}
+        ${o['Folio SII']&&o['Folio SII']!=='Pendiente'?`<span class="badge badge-facturado" style="margin-left:4px;">Folio ${o['Folio SII']}</span>`:''}
       </label>
     </div>`).join('');
 }
 
-function calcMulti() {
-  const sel = [...document.querySelectorAll('#multi-lista input:checked')]
-    .map(cb => DB.ordenes.find(o => String(o['N° Orden']) === cb.value)).filter(Boolean);
-  const wrap = document.getElementById('multi-resumen-wrap');
-  if (!sel.length) { wrap.classList.add('hidden'); return; }
+function calcMulti(){
+  const sel=[...document.querySelectorAll('#m-lista input:checked')]
+    .map(cb=>DB.ordenes.find(o=>String(o['N° Orden'])===cb.value)).filter(Boolean);
+  const wrap=document.getElementById('m-res-wrap');
+  if(!sel.length){wrap.classList.add('hidden');return;}
   wrap.classList.remove('hidden');
-  let sub = 0;
-  document.getElementById('multi-detalle').innerHTML = sel.map(o => {
-    sub += Number(o['Total Neto']) || 0;
-    return `<div class="mf-card">
-      <div class="mf-header">
-        <span style="font-size:13px;font-weight:700;color:#003a79;">N° ${o['N° Orden']}</span>
-        <div style="text-align:right;">
-          <div style="font-size:11px;color:#888;">📅 ${fechaES(o['Fecha'])}</div>
-          <div style="font-weight:700;color:#1D9E75;">${fmtCLP(o['Total'])}</div>
-        </div>
-      </div>
-      <div style="font-size:12px;color:#555;">Neto: ${fmtCLP(o['Total Neto'])} + IVA: ${fmtCLP(o['IVA'])}</div>
-    </div>`;
+
+  // Agrupar productos de todas las órdenes seleccionadas
+  // Como solo tenemos el Resumen Facturas (sin línea a línea),
+  // mostramos las órdenes con sus totales y la suma
+  let subTotal=0;
+  const ordenesHTML=sel.map(o=>{
+    const sn=Number(o['Total Neto'])||0;
+    subTotal+=sn;
+    return`<tr>
+      <td>${o['N° Orden']}</td>
+      <td>${fechaCorta(o['Fecha'])}</td>
+      <td>${o['Cliente']||'—'}</td>
+      <td style="text-align:right;">${fmtCLP(o['Total Neto'])}</td>
+      <td style="text-align:right;">${fmtCLP(o['IVA'])}</td>
+      <td style="text-align:right;font-weight:700;">${fmtCLP(o['Total'])}</td>
+    </tr>`;
   }).join('');
-  document.getElementById('multi-sub').textContent = fmtCLP(sub);
-  document.getElementById('multi-iva').textContent = fmtCLP(sub * 0.19);
-  document.getElementById('multi-tot').textContent = fmtCLP(sub * 1.19);
+
+  document.getElementById('m-res-detalle').innerHTML=`
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>N° Orden</th><th>Fecha</th><th>Cliente</th><th style="text-align:right;">Neto</th><th style="text-align:right;">IVA</th><th style="text-align:right;">Total</th></tr></thead>
+        <tbody>${ordenesHTML}</tbody>
+      </table>
+    </div>`;
+  document.getElementById('m-neto').textContent=fmtCLP(subTotal);
+  document.getElementById('m-iva').textContent=fmtCLP(subTotal*0.19);
+  document.getElementById('m-tot').textContent=fmtCLP(subTotal*1.19);
 }
 
-function descargarMulti() {
-  showToast('Preparando resumen...', 'loading');
-  const cli = document.getElementById('multi-cli').value;
-  const sel = [...document.querySelectorAll('#multi-lista input:checked')]
-    .map(cb => DB.ordenes.find(o => String(o['N° Orden']) === cb.value)).filter(Boolean);
-  const sub = sel.reduce((s,o) => s + (Number(o['Total Neto'])||0), 0);
-  const cliData = DB.clientes.find(c => normaliza(c['Nombre']) === normaliza(cli));
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Resumen Factura Múltiple</title>
-  <style>body{font-family:sans-serif;padding:30px;max-width:700px;margin:auto;}h1{color:#003a79;}table{width:100%;border-collapse:collapse;margin:10px 0;}th,td{border:1px solid #ddd;padding:8px;font-size:13px;}th{background:#f0f6ff;}</style>
-  </head><body>
-  <h1>Resumen Facturación Múltiple — Fën</h1>
-  <p><strong>Cliente:</strong> ${cliData?.['Nombre']||cli} &nbsp;|&nbsp; <strong>RUT:</strong> ${cliData?.['RUT']||'—'}</p>
-  <p><strong>Razón Social:</strong> ${cliData?.['Razón Social']||'—'}</p>
-  <p><strong>Giro:</strong> ${cliData?.['Giro']||'—'}</p>
-  <p><strong>Fecha resumen:</strong> ${fechaES(hoy())}</p><hr/>
-  <table><tr><th>N° Orden</th><th>Fecha</th><th>Neto</th><th>IVA</th><th>Total</th></tr>
-  ${sel.map(o=>`<tr><td>${o['N° Orden']}</td><td>${fechaES(o['Fecha'])}</td><td>${fmtCLP(o['Total Neto'])}</td><td>${fmtCLP(o['IVA'])}</td><td>${fmtCLP(o['Total'])}</td></tr>`).join('')}
-  </table><hr/>
-  <table><tr><td><strong>Total Neto</strong></td><td>${fmtCLP(sub)}</td></tr>
-  <tr><td><strong>IVA 19%</strong></td><td>${fmtCLP(sub*0.19)}</td></tr>
-  <tr><td><strong>TOTAL A FACTURAR</strong></td><td><strong>${fmtCLP(sub*1.19)}</strong></td></tr></table>
-  <p style="font-size:11px;color:#888;margin-top:20px;">Documento de referencia. No constituye una factura ni una orden de compra.</p>
-  </body></html>`;
-  setTimeout(() => {
-    const a = document.createElement('a');
-    a.href = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
-    a.download = `Resumen-${cli}-${hoy()}.html`;
-    a.click();
-    showToast('✅ Resumen descargado', 'success');
-  }, 600);
+async function asignarFolioMulti(){
+  const folio=document.getElementById('m-folio').value.trim();
+  if(!folio){showToast('Ingresa el folio SII','err');return;}
+  const sel=[...document.querySelectorAll('#m-lista input:checked')].map(cb=>cb.value);
+  if(!sel.length){showToast('Selecciona al menos una orden','err');return;}
+  showToast('Asignando folio a '+sel.length+' órdenes...','loading');
+  try{
+    for(const nOrden of sel){
+      await gsCall('asignarFolio',{nOrden,folioSII:folio,fechaFolio:hoy()});
+    }
+    await syncAll();
+    showToast('✅ Folio '+folio+' asignado a '+sel.length+' órdenes','success');
+  }catch(e){showToast('Error: '+e.message,'err');}
 }
 
-function emitirMulti() {
-  showToast('Conecta tu certificado SII para continuar', 'error', 3500);
+function descargarMultiPDF(){
+  const sel=[...document.querySelectorAll('#m-lista input:checked')]
+    .map(cb=>DB.ordenes.find(o=>String(o['N° Orden'])===cb.value)).filter(Boolean);
+  if(!sel.length){showToast('Selecciona órdenes primero','err');return;}
+  const cli=document.getElementById('m-cli').value;
+  const cliData=DB.clientes.find(c=>norm(c['Nombre'])===norm(cli));
+  const folio=document.getElementById('m-folio').value.trim();
+  let sub=0;
+  const rows=sel.map(o=>{
+    const sn=Number(o['Total Neto'])||0;
+    sub+=sn;
+    return`<tr><td>N° ${o['N° Orden']}</td><td>${fechaES(o['Fecha'])}</td><td style="text-align:right;">${fmtCLP(o['Total Neto'])}</td><td style="text-align:right;">${fmtCLP(o['IVA'])}</td><td style="text-align:right;font-weight:700;">${fmtCLP(o['Total'])}</td></tr>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Resumen Factura Múltiple</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Montserrat',sans-serif;color:#222;background:white;padding:40px;max-width:700px;margin:auto;}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;}
+  .logo{width:64px;height:64px;border-radius:50%;border:2px solid #003a79;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#003a79;text-align:center;line-height:1.3;padding:5px;}
+  .titulo{text-align:right;}
+  .titulo h1{font-size:18px;font-weight:900;color:#003a79;letter-spacing:1px;}
+  .titulo p{font-size:12px;color:#555;margin-top:3px;line-height:1.7;}
+  hr{border:none;border-top:1.5px solid #003a79;margin:18px 0;}
+  .cli-box{border:1px solid #e0e0e0;border-radius:6px;padding:14px;margin-bottom:16px;}
+  .cli-label{font-size:9px;font-weight:700;color:#003a79;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
+  .cli-val{font-size:13px;line-height:1.8;}
+  table{width:100%;border-collapse:collapse;margin-bottom:14px;}
+  thead tr{background:#003a79;color:white;}
+  th{padding:9px 10px;font-size:10px;font-weight:700;text-transform:uppercase;text-align:left;}
+  td{padding:9px 10px;font-size:13px;border-bottom:1px solid #f0f0f0;}
+  .totales{width:220px;margin-left:auto;margin-top:8px;}
+  .tot-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;}
+  .tot-total{display:flex;justify-content:space-between;font-size:17px;font-weight:900;color:#003a79;border-top:2px solid #003a79;padding-top:8px;margin-top:4px;}
+  .footer{display:flex;justify-content:space-between;font-size:10px;color:#888;margin-top:28px;border-top:1px solid #e0e0e0;padding-top:12px;}
+  .nota{font-size:10px;color:#aaa;margin-top:20px;text-align:center;}
+</style>
+</head><body>
+<div class="top">
+  <div class="logo">PANADERÍA<br>MASA<br>MADRE<br>· FËN ·</div>
+  <div class="titulo">
+    <h1>RESUMEN FACTURACIÓN</h1>
+    <p>Ainavillo 764, Concepción<br>+56 9 4147 3683 · panaderiafen@gmail.com<br>Fecha: ${fechaES(hoy())}</p>
+  </div>
+</div>
+<hr/>
+<div class="cli-box">
+  <div class="cli-label">Cliente</div>
+  <div class="cli-val">
+    <strong>${cliData?.['Nombre']||cli}</strong><br>
+    ${cliData?.['Razón Social']||''}<br>
+    RUT: ${cliData?.['RUT']||'—'}<br>
+    ${cliData?.['Dirección']||''}
+  </div>
+</div>
+${folio?`<p style="font-size:13px;margin-bottom:12px;"><strong>Folio SII:</strong> ${folio}</p>`:''}
+<table>
+  <thead><tr><th>N° Orden</th><th>Fecha</th><th style="text-align:right;">Neto</th><th style="text-align:right;">IVA</th><th style="text-align:right;">Total</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="totales">
+  <div class="tot-row"><span>Total Neto</span><span>${fmtCLP(sub)}</span></div>
+  <div class="tot-row"><span>IVA 19%</span><span>${fmtCLP(Math.round(sub*0.19))}</span></div>
+  <div class="tot-total"><span>TOTAL</span><span>${fmtCLP(Math.round(sub*1.19))}</span></div>
+</div>
+<div class="footer">
+  <span><strong>FËN</strong> · PANADERÍA MASA MADRE · CAFETERÍA</span>
+  <span>WWW.PANADERIAFEN.CL · @PANADERIAFEN</span>
+</div>
+<p class="nota">Documento de referencia para facturación. No constituye una orden de compra ni una factura electrónica.</p>
+</body></html>`;
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),600);
 }
 
-// ─────────────────────────────────────────
-// CLIENTES Y PRODUCTOS (solo lectura)
-// ─────────────────────────────────────────
-function renderClientes() {
-  const w = document.getElementById('clientes-list');
-  if (!w) return;
-  if (!DB.clientes.length) { w.innerHTML = '<div class="empty">Sin clientes (sincroniza primero)</div>'; return; }
-  w.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>RUT</th><th>Giro</th><th>Contacto</th></tr></thead><tbody>' +
-    DB.clientes.map(c => `<tr>
+// ─── CLIENTES ────────────────────────────
+function renderClientes(){
+  const w=document.getElementById('cli-list');
+  if(!w)return;
+  const q=norm(document.getElementById('cli-q')?.value||'');
+  const lista=DB.clientes.filter(c=>!q||norm(c['Nombre']).includes(q)||norm(c['RUT']||'').includes(q));
+  if(!lista.length){w.innerHTML='<div class="empty">Sin clientes</div>';return;}
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>RUT</th><th>Giro</th><th>Contacto</th></tr></thead><tbody>'+
+    lista.map(c=>`<tr>
       <td><strong>${c['Nombre']}</strong><br><small style="color:#888">${c['Razón Social']||''}</small></td>
       <td>${c['RUT']||'—'}</td>
       <td>${c['Giro']||'—'}</td>
       <td>${c['Contacto']||'—'}<br><small>${c['Teléfono']||''}</small></td>
-    </tr>`).join('') + '</tbody></table></div>';
+    </tr>`).join('')+'</tbody></table></div>';
 }
 
-function renderProductos() {
-  const w = document.getElementById('productos-list');
-  if (!w) return;
-  if (!DB.productos.length) { w.innerHTML = '<div class="empty">Sin productos (sincroniza primero)</div>'; return; }
-  w.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio Base</th></tr></thead><tbody>' +
-    DB.productos.map(p => `<tr>
+async function guardarCliente(){
+  const nom=document.getElementById('nc-nom').value.trim();
+  const rut=document.getElementById('nc-rut').value.trim();
+  if(!nom||!rut){showToast('Nombre y RUT son obligatorios','err');return;}
+  showToast('Guardando cliente en Sheets...','loading');
+  try{
+    await gsCall('addCliente',{
+      nombre:nom, rut, razonSocial:document.getElementById('nc-rs').value.trim(),
+      giro:document.getElementById('nc-giro').value.trim(),
+      dir:document.getElementById('nc-dir').value.trim(),
+      email:document.getElementById('nc-email').value.trim(),
+      tel:document.getElementById('nc-tel').value.trim(),
+      contacto:document.getElementById('nc-contacto').value.trim()
+    });
+    closeModal('modal-cli');
+    await syncAll();
+    showToast('✅ Cliente guardado','success');
+    ['nc-nom','nc-rut','nc-rs','nc-giro','nc-dir','nc-email','nc-tel','nc-contacto'].forEach(id=>document.getElementById(id).value='');
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+// ─── PRODUCTOS ───────────────────────────
+function renderProductos(){
+  const w=document.getElementById('prod-list');
+  if(!w)return;
+  if(!DB.productos.length){w.innerHTML='<div class="empty">Sin productos</div>';return;}
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio Base</th></tr></thead><tbody>'+
+    DB.productos.map(p=>`<tr>
       <td>${p['Nombre']}</td>
       <td>${p['Categoría']||'—'}</td>
       <td>${fmtCLP(p['Precio Base'])}</td>
-    </tr>`).join('') + '</tbody></table></div>';
+    </tr>`).join('')+'</tbody></table></div>';
 }
 
-// ─────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────
-if (!GS_URL) {
-  showBanner();
-  document.getElementById('sync-status').textContent = 'Sin conexión — configura en ⚙️';
-} else {
+async function guardarProducto(){
+  const nom=document.getElementById('np-nom').value.trim();
+  if(!nom){showToast('Ingresa el nombre','err');return;}
+  showToast('Guardando producto en Sheets...','loading');
+  try{
+    await gsCall('addProducto',{
+      nombre:nom,
+      precio:parseFloat(document.getElementById('np-precio').value)||0,
+      categoria:document.getElementById('np-cat').value.trim()
+    });
+    closeModal('modal-prod');
+    await syncAll();
+    showToast('✅ Producto guardado','success');
+    ['np-nom','np-precio','np-cat'].forEach(id=>document.getElementById(id).value='');
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+// ─── PRECIOS ─────────────────────────────
+function renderPrecios(){
+  const w=document.getElementById('pr-list');
+  if(!w)return;
+  const q=norm(document.getElementById('pr-q')?.value||'');
+  const lista=DB.precios.filter(p=>!q||norm(p['Cliente']).includes(q)||norm(p['Producto']).includes(q));
+  if(!lista.length){w.innerHTML='<div class="empty">Sin precios especiales</div>';return;}
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Producto</th><th>Precio base</th><th>Precio especial</th></tr></thead><tbody>'+
+    lista.map(p=>{
+      const prod=DB.productos.find(x=>norm(x['Nombre'])===norm(p['Producto']));
+      return`<tr>
+        <td>${p['Cliente']}</td>
+        <td>${p['Producto']}</td>
+        <td style="color:#999;">${fmtCLP(prod?.['Precio Base']||0)}</td>
+        <td style="color:#1D9E75;font-weight:700;">${fmtCLP(p['Precio'])}</td>
+      </tr>`;
+    }).join('')+'</tbody></table></div>';
+}
+
+async function guardarPrecio(){
+  const cli=document.getElementById('npe-cli').value;
+  const prod=document.getElementById('npe-prod').value;
+  const precio=parseFloat(document.getElementById('npe-precio').value)||0;
+  if(!cli||!prod||!precio){showToast('Completa todos los campos','err');return;}
+  showToast('Guardando precio en Sheets...','loading');
+  try{
+    await gsCall('addPrecio',{cliente:cli,producto:prod,precio});
+    closeModal('modal-precio');
+    await syncAll();
+    showToast('✅ Precio especial guardado','success');
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+// Mostrar precio base al seleccionar producto en modal precio
+document.getElementById('npe-prod').addEventListener('change',function(){
+  const prod=DB.productos.find(p=>norm(p['Nombre'])===norm(this.value));
+  document.getElementById('npe-base').textContent=prod?'Precio base: '+fmtCLP(prod['Precio Base']):'';
+});
+
+// ─── INIT ────────────────────────────────
+if(!GS){
+  document.getElementById('config-banner').classList.remove('hidden');
+  document.getElementById('sync-status').textContent='Sin conexión — configura en ⚙️';
+}else{
   syncAll();
 }
 initNuevaOrden();
