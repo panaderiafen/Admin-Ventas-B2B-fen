@@ -115,8 +115,8 @@ tr:last-child td { border-bottom: none; }
 .config-banner strong { color: #856404; }
 
 /* PRECIO ESPECIAL */
-input.precio-especial { color: #1D9E75; font-weight: 700; border-color: #1D9E75; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -842,10 +842,38 @@ ${notas?'<div class="notas-box"><strong>Notas:</strong> '+notas+'</div>':''}
   <span>WWW.PANADERIAFEN.CL \xb7 @PANADERIAFEN</span>
 </div>
 </body></html>`;
-  const w=window.open('','_blank');
-  w.document.write(docHtml);
-  w.document.close();
-  setTimeout(()=>w.print(),800);
+  const nombreArchivo='Orden_'+numStr+'_'+(cliData?.['Nombre']||'cliente').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf';
+  generarYDescargarPDF(docHtml,nombreArchivo);
+}
+
+// ─── Genera un PDF descargable a partir de un documento HTML completo ───
+function generarYDescargarPDF(docHtml,nombreArchivo){
+  showToast('Generando PDF...','loading');
+  const iframe=document.createElement('iframe');
+  iframe.style.position='fixed';
+  iframe.style.left='-9999px';
+  iframe.style.width='800px';
+  iframe.style.height='1px';
+  document.body.appendChild(iframe);
+  const idoc=iframe.contentWindow.document;
+  idoc.open();
+  idoc.write(docHtml);
+  idoc.close();
+  setTimeout(()=>{
+    html2pdf().set({
+      margin:0,
+      filename:nombreArchivo,
+      image:{type:'jpeg',quality:0.98},
+      html2canvas:{scale:2,useCORS:true},
+      jsPDF:{unit:'pt',format:'a4',orientation:'portrait'}
+    }).from(idoc.body).save().then(()=>{
+      document.body.removeChild(iframe);
+      showToast('✅ PDF descargado, listo para compartir','success');
+    }).catch(e=>{
+      document.body.removeChild(iframe);
+      showToast('Error generando PDF: '+e.message,'err');
+    });
+  },600);
 }
 
 
@@ -1430,10 +1458,8 @@ ${usaDetalles?`<table>
 </div>
 <p class="nota">Documento de referencia para facturaci\xf3n. No constituye una orden de compra ni una factura electr\xf3nica.</p>
 </body></html>`;
-  const w=window.open('','_blank');
-  w.document.write(docHtml);
-  w.document.close();
-  setTimeout(()=>w.print(),800);
+  const nombreArchivo='Facturacion_Multiple_'+(cli||'cliente').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf';
+  generarYDescargarPDF(docHtml,nombreArchivo);
 }
 
 
