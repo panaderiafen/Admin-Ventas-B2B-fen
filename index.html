@@ -116,7 +116,8 @@ tr:last-child td { border-bottom: none; }
 
 /* PRECIO ESPECIAL */
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -848,86 +849,122 @@ ${notas?'<div class="notas-box"><strong>Notas:</strong> '+notas+'</div>':''}
 // ─── Genera el PDF de un documento HTML completo (abre el diálogo de impresión/guardar) ───
 function generarYDescargarPDF(docHtml,nombreArchivo){
   showToast('Generando PDF...','loading');
-  let matchStyle=docHtml.match(/<style>([\s\S]*?)<\/style>/);
-  const matchBody=docHtml.match(/<body>([\s\S]*?)<\/body>/);
-  let styleCss=matchStyle?matchStyle[1]:'';
-  let bodyHtml=matchBody?matchBody[1]:docHtml;
 
-  // Prefijamos todas las clases del documento del PDF (.header, .box, .footer, etc.)
-  // con "pdfdoc-" para que nunca choquen con clases del mismo nombre en la app
-  // (la app ya tiene su propia ".header" con fondo azul, que causaba el conflicto).
-  const clasesUsadas=new Set();
-  styleCss.replace(/\.([a-zA-Z][a-zA-Z0-9_-]*)/g,(m,clase)=>{clasesUsadas.add(clase);return m;});
-  clasesUsadas.forEach(clase=>{
-    const re=new RegExp('\\.'+clase+'(?![a-zA-Z0-9_-])','g');
-    styleCss=styleCss.replace(re,'.pdfdoc-'+clase);
-    const reAttr=new RegExp('class="([^"]*)"','g');
-  });
-  bodyHtml=bodyHtml.replace(/class="([^"]*)"/g,(m,clases)=>{
-    const nuevas=clases.split(/\s+/).map(c=>clasesUsadas.has(c)?'pdfdoc-'+c:c).join(' ');
-    return 'class="'+nuevas+'"';
-  });
+  // Verificamos que las librerías necesarias estén realmente cargadas como globales
+  // antes de tocar el DOM. Si index.html aún referencia el bundle de html2pdf.js
+  // (que no garantiza exponer window.html2canvas / window.jspdf), esto evita que
+  // el toast "Generando PDF..." quede colgado para siempre por un ReferenceError.
+  if(typeof html2canvas!=='function' || typeof jspdf==='undefined' || typeof jspdf.jsPDF!=='function'){
+    showToast('No se pudo generar el PDF: faltan librerías (html2canvas / jsPDF). Revisa los <script> en index.html.','err');
+    return;
+  }
 
-  const styleTag=document.createElement('style');
-  styleTag.textContent=styleCss;
-  document.head.appendChild(styleTag);
-
-  const wrapper=document.createElement('div');
-  wrapper.style.height='0';
-  wrapper.style.overflow='hidden';
-
-  const contenedor=document.createElement('div');
-  contenedor.style.width='720px';
-  contenedor.style.background='#ffffff';
-  contenedor.style.padding='40px 48px';
-  contenedor.innerHTML=bodyHtml;
-  wrapper.appendChild(contenedor);
-  document.body.appendChild(wrapper);
-
+  let wrapper=null, styleTag=null;
   const limpiar=()=>{
-    document.body.removeChild(wrapper);
-    document.head.removeChild(styleTag);
+    if(wrapper && wrapper.parentNode)document.body.removeChild(wrapper);
+    if(styleTag && styleTag.parentNode)document.head.removeChild(styleTag);
   };
 
-  // Esperamos a que cargue la fuente externa (@import de Google Fonts), el logo (imagen)
-  // y el layout se estabilice antes de capturar.
-  setTimeout(()=>{
-    // Salvaguarda: si la captura no termina en 15 segundos (p.ej. por bloqueo CORS
-    // al cargar el logo desde GitHub), avisamos en vez de dejar la operación colgada.
-    let resuelto=false;
-    const timeoutId=setTimeout(()=>{
-      if(!resuelto){
-        resuelto=true;
-        limpiar();
-        showToast('El PDF está tardando demasiado. Revisa tu conexión e intenta de nuevo.','err');
-      }
-    },15000);
+  try{
+    let matchStyle=docHtml.match(/<style>([\s\S]*?)<\/style>/);
+    const matchBody=docHtml.match(/<body>([\s\S]*?)<\/body>/);
+    let styleCss=matchStyle?matchStyle[1]:'';
+    let bodyHtml=matchBody?matchBody[1]:docHtml;
 
-    html2canvas(contenedor,{scale:2,backgroundColor:'#ffffff'}).then(canvas=>{
-      if(resuelto)return;
-      resuelto=true;
-      clearTimeout(timeoutId);
-      limpiar();
-      const imgData=canvas.toDataURL('image/jpeg',0.98);
-      // Página carta en puntos (612 x 792), con margen de 36pt en cada lado
-      const anchoPagina=612,altoPagina=792,margen=36;
-      const anchoUtil=anchoPagina-margen*2;
-      // Escalamos la imagen capturada para que su ancho coincida con el ancho útil,
-      // manteniendo su proporción real, y la centramos horizontalmente.
-      const escala=anchoUtil/canvas.width;
-      const altoImg=canvas.height*escala;
-      const pdf=new jspdf.jsPDF({unit:'pt',format:'letter',orientation:'portrait'});
-      pdf.addImage(imgData,'JPEG',margen,margen,anchoUtil,altoImg);
-      const blob=pdf.output('blob');
-      compartirOdescargarPDF(blob,nombreArchivo);
-    }).catch(e=>{
-      if(resuelto)return;
-      resuelto=true;
-      clearTimeout(timeoutId);
-      limpiar();
-      showToast('Error generando PDF: '+e.message,'err');
+    // Prefijamos todas las clases del documento del PDF (.header, .box, .footer, etc.)
+    // con "pdfdoc-" para que nunca choquen con clases del mismo nombre en la app
+    // (la app ya tiene su propia ".header" con fondo azul, que causaba el conflicto).
+    const clasesUsadas=new Set();
+    styleCss.replace(/\.([a-zA-Z][a-zA-Z0-9_-]*)/g,(m,clase)=>{clasesUsadas.add(clase);return m;});
+    clasesUsadas.forEach(clase=>{
+      const re=new RegExp('\\.'+clase+'(?![a-zA-Z0-9_-])','g');
+      styleCss=styleCss.replace(re,'.pdfdoc-'+clase);
     });
-  },1200);
+    bodyHtml=bodyHtml.replace(/class="([^"]*)"/g,(m,clases)=>{
+      const nuevas=clases.split(/\s+/).map(c=>clasesUsadas.has(c)?'pdfdoc-'+c:c).join(' ');
+      return 'class="'+nuevas+'"';
+    });
+
+    styleTag=document.createElement('style');
+    styleTag.textContent=styleCss;
+    document.head.appendChild(styleTag);
+
+    // Anclamos el wrapper de forma explícita y absoluta fuera del viewport visible,
+    // en vez de depender de height:0 + overflow:hidden. Con height:0 el navegador
+    // puede recortar el alto pero deja el ancho/posición sujeto a cómo el resto
+    // del layout de la página reflowea ese punto, lo que en algunos casos provoca
+    // que html2canvas mida un ancho de captura distinto al ancho real del
+    // contenedor (720px), generando el corrimiento hacia la izquierda en el PDF.
+    // Fijando position:absolute + left fuera de pantalla, el contenedor siempre
+    // se renderiza con su ancho completo de 720px, sin influencia del resto del DOM.
+    wrapper=document.createElement('div');
+    wrapper.style.position='absolute';
+    wrapper.style.top='0';
+    wrapper.style.left='-99999px';
+    wrapper.style.width='720px';
+    wrapper.style.zIndex='-1';
+
+    const contenedor=document.createElement('div');
+    contenedor.style.width='720px';
+    contenedor.style.background='#ffffff';
+    contenedor.style.padding='40px 48px';
+    contenedor.style.boxSizing='border-box';
+    contenedor.innerHTML=bodyHtml;
+    wrapper.appendChild(contenedor);
+    document.body.appendChild(wrapper);
+
+    // Esperamos a que cargue la fuente externa (@import de Google Fonts), el logo (imagen)
+    // y el layout se estabilice antes de capturar.
+    setTimeout(()=>{
+      // Salvaguarda: si la captura no termina en 15 segundos (p.ej. por bloqueo CORS
+      // al cargar el logo desde GitHub), avisamos en vez de dejar la operación colgada.
+      let resuelto=false;
+      const timeoutId=setTimeout(()=>{
+        if(!resuelto){
+          resuelto=true;
+          limpiar();
+          showToast('El PDF está tardando demasiado. Revisa tu conexión e intenta de nuevo.','err');
+        }
+      },15000);
+
+      html2canvas(contenedor,{scale:2,backgroundColor:'#ffffff',width:720,windowWidth:720}).then(canvas=>{
+        if(resuelto)return;
+        resuelto=true;
+        clearTimeout(timeoutId);
+        limpiar();
+        const imgData=canvas.toDataURL('image/jpeg',0.98);
+        // Página carta en puntos (612 x 792), con margen de 36pt en cada lado
+        const anchoPagina=612,altoPagina=792,margen=36;
+        const anchoUtil=anchoPagina-margen*2;
+        const altoUtil=altoPagina-margen*2;
+        // Escalamos la imagen capturada para que su ancho coincida con el ancho útil,
+        // manteniendo su proporción real, y la centramos horizontal y verticalmente.
+        const escala=anchoUtil/canvas.width;
+        let anchoImg=anchoUtil;
+        let altoImg=canvas.height*escala;
+        // Si el contenido es más alto que una página, no lo escalamos hacia abajo
+        // (eso lo haría ilegible); lo dejamos a tamaño completo y que jsPDF/usuario
+        // maneje el desborde, en vez de comprimirlo y descentrarlo verticalmente.
+        const x=margen+(anchoUtil-anchoImg)/2;
+        const y=altoImg<=altoUtil?margen+(altoUtil-altoImg)/2:margen;
+        const pdf=new jspdf.jsPDF({unit:'pt',format:'letter',orientation:'portrait'});
+        pdf.addImage(imgData,'JPEG',x,y,anchoImg,altoImg);
+        const blob=pdf.output('blob');
+        compartirOdescargarPDF(blob,nombreArchivo);
+      }).catch(e=>{
+        if(resuelto)return;
+        resuelto=true;
+        clearTimeout(timeoutId);
+        limpiar();
+        showToast('Error generando PDF: '+e.message,'err');
+      });
+    },1200);
+  }catch(e){
+    // Cualquier error síncrono (DOM, regex, etc.) también limpia el toast y el DOM,
+    // en vez de dejar "Generando PDF..." colgado indefinidamente.
+    limpiar();
+    showToast('Error generando PDF: '+e.message,'err');
+  }
 }
 
 function compartirOdescargarPDF(blob,nombreArchivo){
