@@ -137,6 +137,7 @@ input.precio-especial { color: #1D9E75; font-weight: 700; border-color: #1D9E75;
   <button class="nav-btn active" onclick="showSec('ordenes',this)">📋 Órdenes</button>
   <button class="nav-btn" onclick="showSec('facturacion',this)">🧾 Facturación</button>
   <button class="nav-btn" onclick="showSec('pagos',this)">💳 Pagos</button>
+  <button class="nav-btn" onclick="showSec('analisis',this)">📊 Análisis</button>
   <button class="nav-btn" onclick="showSec('clientes',this)">👥 Clientes</button>
   <button class="nav-btn" onclick="showSec('productos',this)">📦 Productos</button>
   <button class="nav-btn" onclick="showSec('precios',this)">🏷️ Precios</button>
@@ -287,7 +288,30 @@ input.precio-especial { color: #1D9E75; font-weight: 700; border-color: #1D9E75;
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════ CLIENTES ═══ -->
+<!-- ═══════════════════════════════════════ ANÁLISIS ═══ -->
+<div id="sec-analisis" class="section">
+  <div class="card">
+    <div class="card-title">📊 Análisis rápido</div>
+    <label>Periodo</label>
+    <select id="an-periodo" onchange="renderAnalisis()">
+      <option value="semana" selected>Semana actual</option>
+      <option value="mes">Mes actual</option>
+      <option value="todo">Todo el historial</option>
+    </select>
+    <label>Cliente</label>
+    <select id="an-cliente" onchange="renderAnalisis()">
+      <option value="">Todos los clientes (global)</option>
+    </select>
+  </div>
+  <div class="card">
+    <div class="card-title" id="an-titulo">Resumen — Semana actual</div>
+    <div id="an-resumen"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📋 Detalle de órdenes en el periodo</div>
+    <div id="an-detalle"></div>
+  </div>
+</div>
 <div id="sec-clientes" class="section">
   <div class="card">
     <div class="card-title">👥 Clientes</div>
@@ -533,6 +557,7 @@ function showSec(id,btn){
   if(id==='ordenes'){populateSelects();renderOrdenes();}
   if(id==='facturacion'){populateSelects();renderFact();}
   if(id==='pagos')renderPagos();
+  if(id==='analisis')renderAnalisis();
   if(id==='clientes')renderClientes();
   if(id==='productos')renderProductos();
   if(id==='precios'){populateModalSelects();renderPrecios();}
@@ -1062,6 +1087,82 @@ function renderPagos(){
       <td>${estadoBadge(o['Estado Pago'])}</td>
       <td>${fechaCorta(o['Fecha Pago'])}</td>
     </tr>`).join('')+'</tbody></table></div>';
+}
+
+// ─── ANÁLISIS ─────────────────────────────
+function inicioSemana(d){
+  const dt=new Date(d+'T00:00:00');
+  const diaSemana=dt.getDay(); // 0=domingo
+  const offset=diaSemana===0?6:diaSemana-1; // lunes como inicio de semana
+  dt.setDate(dt.getDate()-offset);
+  return dt.toISOString().slice(0,10);
+}
+function finSemana(d){
+  const ini=new Date(inicioSemana(d)+'T00:00:00');
+  ini.setDate(ini.getDate()+6);
+  return ini.toISOString().slice(0,10);
+}
+function enPeriodo(fechaStr,periodo){
+  const f=String(fechaStr||'').slice(0,10);
+  if(!f)return false;
+  const h=hoy();
+  if(periodo==='todo')return true;
+  if(periodo==='mes')return f.slice(0,7)===h.slice(0,7);
+  if(periodo==='semana')return f>=inicioSemana(h)&&f<=finSemana(h);
+  return true;
+}
+function renderAnalisis(){
+  const selCli=document.getElementById('an-cliente');
+  if(selCli&&selCli.options.length<=1){
+    selCli.innerHTML='<option value="">Todos los clientes (global)</option>'+
+      DB.clientes.map(c=>`<option value="${c['Nombre']}">${c['Nombre']}</option>`).join('');
+  }
+  const periodo=document.getElementById('an-periodo')?.value||'semana';
+  const cliente=document.getElementById('an-cliente')?.value||'';
+  const labelPeriodo={semana:'Semana actual',mes:'Mes actual',todo:'Todo el historial'}[periodo];
+  document.getElementById('an-titulo').textContent='Resumen — '+labelPeriodo+(cliente?' — '+cliente:' (global)');
+
+  let ordenes=DB.ordenes.filter(o=>enPeriodo(o['Fecha'],periodo));
+  if(cliente)ordenes=ordenes.filter(o=>o['Cliente']===cliente);
+
+  let totalFacturado=0,totalPagadoMes=0,totalPagadoVencido=0,totalPendiente=0,totalPagadoGenerico=0;
+  ordenes.forEach(o=>{
+    const t=Number(o['Total'])||0;
+    totalFacturado+=t;
+    const est=o['Estado Pago']||'PENDIENTE';
+    if(est==='PAGADO EN MES')totalPagadoMes+=t;
+    else if(est==='PAGADO EN MES VENCIDO')totalPagadoVencido+=t;
+    else if(est==='PAGADO')totalPagadoGenerico+=t;
+    else totalPendiente+=t;
+  });
+  const totalPagado=totalPagadoMes+totalPagadoVencido+totalPagadoGenerico;
+
+  document.getElementById('an-resumen').innerHTML=`
+    <div class="resumen-box">
+      <div class="resumen-row"><span>N° de órdenes en el periodo</span><span>${ordenes.length}</span></div>
+      <div class="resumen-row total"><span>Total facturado</span><span>${fmtCLP(totalFacturado)}</span></div>
+    </div>
+    <div class="resumen-box" style="margin-top:10px;">
+      <div class="resumen-row"><span>✅ Pagado en mes</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(totalPagadoMes)}</span></div>
+      <div class="resumen-row"><span>⚠️ Pagado en mes vencido</span><span style="color:#c08a00;font-weight:700;">${fmtCLP(totalPagadoVencido)}</span></div>
+      <div class="resumen-row"><span>💰 Pagado (otro)</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(totalPagadoGenerico)}</span></div>
+      <div class="resumen-row total"><span>Total pagado</span><span>${fmtCLP(totalPagado)}</span></div>
+    </div>
+    <div class="resumen-box" style="margin-top:10px;">
+      <div class="resumen-row total"><span>🕓 Pendiente de pago</span><span style="color:#e74c3c;">${fmtCLP(totalPendiente)}</span></div>
+    </div>`;
+
+  const ordenadas=ordenes.slice().sort((a,b)=>String(b['Fecha']||'').localeCompare(String(a['Fecha']||'')));
+  document.getElementById('an-detalle').innerHTML=ordenadas.length?
+    '<div class="table-wrap"><table><thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead><tbody>'+
+    ordenadas.map(o=>`<tr>
+      <td><strong>${o['N° Orden']}</strong></td>
+      <td>${fechaCorta(o['Fecha'])}</td>
+      <td>${o['Cliente']||'—'}</td>
+      <td style="text-align:right;">${fmtCLP(o['Total'])}</td>
+      <td>${estadoBadge(o['Estado Pago'])}</td>
+    </tr>`).join('')+'</tbody></table></div>'
+    :'<div class="empty">Sin órdenes en este periodo</div>';
 }
 
 function buscarOrdenPago(){
