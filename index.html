@@ -786,15 +786,14 @@ function generarPDFOrden(nOrden,fecha,cliData,lineas,sub,notas){
   .box-val{font-size:13px;color:#222;line-height:1.85;font-family:'Barlow',sans-serif;}
   .box-val strong{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;}
   table{width:100%;border-collapse:collapse;margin-bottom:16px;}
-  thead tr{background:#003a79;}
-  th{padding:10px 12px;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:white;text-align:left;}
+  th{background-color:#003a79;padding:10px 12px;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#ffffff;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   th:nth-child(2){text-align:center;}th:nth-child(3),th:nth-child(4){text-align:right;}
   td{padding:11px 12px;font-size:13px;font-family:'Barlow',sans-serif;border-bottom:1px solid #eef0f5;}
   tbody tr:last-child td{border-bottom:none;}
   .totales{width:230px;margin-left:auto;margin-top:4px;}
   .tot-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:#444;font-family:'Barlow',sans-serif;}
   .tot-total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;color:#003a79;border-top:2px solid #003a79;padding-top:9px;margin-top:6px;}
-  .footer{display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-top:32px;border-top:1px solid #e0e0e0;padding-top:14px;font-family:'Barlow',sans-serif;letter-spacing:0.5px;}
+  .footer{display:flex;justify-content:space-between;font-size:10px;color:#777;margin-top:32px;border-top:1px solid #e0e0e0;padding-top:14px;font-family:'Barlow',sans-serif;letter-spacing:0.5px;}
   .footer strong{color:#003a79;}
   .notas-box{background:#f5f7ff;border-left:3px solid #003a79;padding:10px 14px;margin-bottom:16px;font-size:12px;font-family:'Barlow',sans-serif;color:#444;}
 </style>
@@ -1435,17 +1434,16 @@ function descargarMultiPDF(){
   .resumen-ordenes .ro-label{font-size:9px;font-weight:800;color:#003a79;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
   .resumen-ordenes .ro-val{font-size:13px;color:#222;font-family:'Barlow',sans-serif;line-height:1.8;}
   table{width:100%;border-collapse:collapse;margin-bottom:16px;}
-  thead tr{background:#003a79;}
-  th{padding:10px 12px;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:white;text-align:left;}
+  th{background-color:#003a79;padding:10px 12px;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#ffffff;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   th:nth-child(3),th:nth-child(4),th:nth-child(5){text-align:right;}
   td{padding:10px 12px;font-size:13px;font-family:'Barlow',sans-serif;border-bottom:1px solid #eef0f5;}
   tbody tr:last-child td{border-bottom:none;}
   .totales{width:240px;margin-left:auto;margin-top:4px;}
   .tot-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:#444;font-family:'Barlow',sans-serif;}
   .tot-total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;color:#003a79;border-top:2px solid #003a79;padding-top:9px;margin-top:6px;}
-  .footer{display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-top:28px;border-top:1px solid #e0e0e0;padding-top:14px;font-family:'Barlow',sans-serif;letter-spacing:0.5px;}
+  .footer{display:flex;justify-content:space-between;font-size:10px;color:#777;margin-top:28px;border-top:1px solid #e0e0e0;padding-top:14px;font-family:'Barlow',sans-serif;letter-spacing:0.5px;}
   .footer strong{color:#003a79;}
-  .nota{font-size:10px;color:#bbb;margin-top:18px;text-align:center;font-family:'Barlow',sans-serif;}
+  .nota{font-size:10px;color:#999;margin-top:18px;text-align:center;font-family:'Barlow',sans-serif;}
   ${folio?'.folio-badge{display:inline-block;background:#003a79;color:white;padding:4px 14px;border-radius:4px;font-size:13px;font-weight:700;margin-bottom:14px;}':''}
 </style>
 </head><body>
