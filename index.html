@@ -765,7 +765,7 @@ function generarPDFOrden(nOrden,fecha,cliData,lineas,sub,notas){
   const iva=Math.round(sub*0.19);
   const total=Math.round(sub)+iva;
   const numStr=String(nOrden).padStart(4,'0');
-  const LOGO='https://raw.githubusercontent.com/panaderiafen/Admin-Ventas-B2B-fen/main/Logo_Fen_Color-09%20(1).jpg';
+  const LOGO='https://raw.githubusercontent.com/panaderiafen/Admin-Ventas-B2B-fen/main/Logo_Fen_Colores_Sin_fondo-14%20(1).jpg';
   const rows=lineas.map(l=>`<tr><td>${l.producto}</td><td style="text-align:center;">${l.cantidad}</td><td style="text-align:right;">${fmtCLP(l.precioUnit)}</td><td style="text-align:right;">${fmtCLP(Math.round(l.cantidad*l.precioUnit))}</td></tr>`).join('');
   const docHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Orden de Compra N\xb0 ${numStr}</title>
@@ -1325,7 +1325,7 @@ function descargarMultiPDF(){
   const cli=document.getElementById('m-cli').value;
   const cliData=DB.clientes.find(c=>norm(c['Nombre'])===norm(cli));
   const folio=document.getElementById('m-folio').value.trim();
-  const LOGO='https://raw.githubusercontent.com/panaderiafen/Admin-Ventas-B2B-fen/main/Logo_Fen_Color-09%20(1).jpg';
+  const LOGO='https://raw.githubusercontent.com/panaderiafen/Admin-Ventas-B2B-fen/main/Logo_Fen_Colores_Sin_fondo-14%20(1).jpg';
 
   // Por ahora no contamos con el detalle de productos por orden en este resumen,
   // así que siempre se muestra la tabla por orden (no por producto).
