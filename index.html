@@ -860,12 +860,14 @@ function generarYDescargarPDF(docHtml,nombreArchivo){
   document.head.appendChild(styleTag);
 
   const contenedor=document.createElement('div');
-  contenedor.style.position='absolute';
+  contenedor.style.position='fixed';
   contenedor.style.left='0';
   contenedor.style.top='0';
   contenedor.style.width='720px';
   contenedor.style.background='#ffffff';
-  contenedor.style.zIndex='-9999';
+  contenedor.style.opacity='1';
+  contenedor.style.visibility='visible';
+  contenedor.style.transform='translateX(-200vw)';
   contenedor.innerHTML=matchBody?matchBody[1]:docHtml;
   document.body.appendChild(contenedor);
 
