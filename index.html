@@ -116,7 +116,6 @@ tr:last-child td { border-bottom: none; }
 
 /* PRECIO ESPECIAL */
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -444,19 +443,6 @@ tr:last-child td { border-bottom: none; }
     <div class="modal-btns">
       <button class="btn btn-danger" style="flex:1;" onclick="confirmarDel()">Sí, eliminar</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-del')">Cancelar</button>
-    </div>
-  </div>
-</div>
-
-<!-- PDF generado -->
-<div id="modal-pdf-listo" class="modal-overlay">
-  <div class="modal">
-    <div class="modal-title">✅ PDF generado</div>
-    <p style="font-size:14px;color:#555;margin-bottom:14px;">El documento está listo. ¿Qué quieres hacer?</p>
-    <div class="modal-btns" style="flex-direction:column;gap:8px;">
-      <button class="btn btn-primary btn-full" onclick="verPDFGenerado()">👁️ Ver / Compartir</button>
-      <button class="btn btn-secondary btn-full" onclick="descargarPDFGenerado()">📥 Descargar</button>
-      <button class="btn btn-secondary btn-full" onclick="closeModal('modal-pdf-listo')">Cerrar</button>
     </div>
   </div>
 </div>
@@ -859,70 +845,12 @@ ${notas?'<div class="notas-box"><strong>Notas:</strong> '+notas+'</div>':''}
   generarYDescargarPDF(docHtml,nombreArchivo);
 }
 
-// ─── Genera un PDF a partir de un documento HTML completo y ofrece Ver/Descargar ───
-let _pdfBlobActual=null;
-let _pdfNombreActual='documento.pdf';
-
+// ─── Genera el PDF de un documento HTML completo (abre el diálogo de impresión/guardar) ───
 function generarYDescargarPDF(docHtml,nombreArchivo){
-  showToast('Generando PDF...','loading');
-  const iframe=document.createElement('iframe');
-  iframe.style.position='fixed';
-  iframe.style.left='-9999px';
-  iframe.style.top='0';
-  iframe.style.width='800px';
-  iframe.style.height='1200px';
-  iframe.style.border='none';
-  document.body.appendChild(iframe);
-  const idoc=iframe.contentWindow.document;
-  idoc.open();
-  idoc.write(docHtml);
-  idoc.close();
-  // Esperamos a que cargue la fuente externa (@import de Google Fonts) y el layout se estabilice
-  setTimeout(()=>{
-    // Ajustamos el iframe a la altura real del contenido ya renderizado
-    const anchoReal=idoc.body.scrollWidth;
-    const altoReal=idoc.body.scrollHeight;
-    iframe.style.height=altoReal+'px';
-    // Tamaño de página en puntos (1px ≈ 0.75pt), con margen mínimo, para que todo el documento
-    // quede en una sola página sin importar cuánto contenido tenga
-    const anchoPt=anchoReal*0.75;
-    const altoPt=altoReal*0.75;
-    html2pdf().set({
-      margin:0,
-      filename:nombreArchivo,
-      image:{type:'jpeg',quality:0.98},
-      html2canvas:{scale:2,useCORS:true},
-      jsPDF:{unit:'pt',format:[anchoPt,altoPt],orientation:'portrait'}
-    }).from(idoc.body).outputPdf('blob').then(blob=>{
-      document.body.removeChild(iframe);
-      _pdfBlobActual=blob;
-      _pdfNombreActual=nombreArchivo;
-      showToast('✅ PDF listo','success');
-      openModal('modal-pdf-listo');
-    }).catch(e=>{
-      document.body.removeChild(iframe);
-      showToast('Error generando PDF: '+e.message,'err');
-    });
-  },900);
-}
-
-function verPDFGenerado(){
-  if(!_pdfBlobActual){showToast('No hay PDF generado','err');return;}
-  const url=URL.createObjectURL(_pdfBlobActual);
-  window.open(url,'_blank');
-  closeModal('modal-pdf-listo');
-}
-
-function descargarPDFGenerado(){
-  if(!_pdfBlobActual){showToast('No hay PDF generado','err');return;}
-  const url=URL.createObjectURL(_pdfBlobActual);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download=_pdfNombreActual;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  closeModal('modal-pdf-listo');
+  const w=window.open('','_blank');
+  w.document.write(docHtml);
+  w.document.close();
+  setTimeout(()=>w.print(),800);
 }
 
 
