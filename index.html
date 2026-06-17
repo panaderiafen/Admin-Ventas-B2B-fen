@@ -892,7 +892,21 @@ function generarYDescargarPDF(docHtml,nombreArchivo){
   // Esperamos a que cargue la fuente externa (@import de Google Fonts), el logo (imagen)
   // y el layout se estabilice antes de capturar.
   setTimeout(()=>{
+    // Salvaguarda: si la captura no termina en 15 segundos (p.ej. por bloqueo CORS
+    // al cargar el logo desde GitHub), avisamos en vez de dejar la operación colgada.
+    let resuelto=false;
+    const timeoutId=setTimeout(()=>{
+      if(!resuelto){
+        resuelto=true;
+        limpiar();
+        showToast('El PDF está tardando demasiado. Revisa tu conexión e intenta de nuevo.','err');
+      }
+    },15000);
+
     html2canvas(contenedor,{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(canvas=>{
+      if(resuelto)return;
+      resuelto=true;
+      clearTimeout(timeoutId);
       limpiar();
       const imgData=canvas.toDataURL('image/jpeg',0.98);
       // Página carta en puntos (612 x 792), con margen de 36pt en cada lado
@@ -907,6 +921,9 @@ function generarYDescargarPDF(docHtml,nombreArchivo){
       const blob=pdf.output('blob');
       compartirOdescargarPDF(blob,nombreArchivo);
     }).catch(e=>{
+      if(resuelto)return;
+      resuelto=true;
+      clearTimeout(timeoutId);
       limpiar();
       showToast('Error generando PDF: '+e.message,'err');
     });
