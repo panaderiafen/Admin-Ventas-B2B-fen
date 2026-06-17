@@ -848,19 +848,30 @@ ${notas?'<div class="notas-box"><strong>Notas:</strong> '+notas+'</div>':''}
 // ─── Genera el PDF de un documento HTML completo (abre el diálogo de impresión/guardar) ───
 function generarYDescargarPDF(docHtml,nombreArchivo){
   showToast('Generando PDF...','loading');
-  // Extraemos el <style> y el contenido del <body> del documento generado,
-  // y lo inyectamos directamente en la página actual (sin iframe), para que
-  // html2canvas mida y capture el contenido de forma confiable.
-  const matchStyle=docHtml.match(/<style>([\s\S]*?)<\/style>/);
+  let matchStyle=docHtml.match(/<style>([\s\S]*?)<\/style>/);
   const matchBody=docHtml.match(/<body>([\s\S]*?)<\/body>/);
+  let styleCss=matchStyle?matchStyle[1]:'';
+  let bodyHtml=matchBody?matchBody[1]:docHtml;
+
+  // Prefijamos todas las clases del documento del PDF (.header, .box, .footer, etc.)
+  // con "pdfdoc-" para que nunca choquen con clases del mismo nombre en la app
+  // (la app ya tiene su propia ".header" con fondo azul, que causaba el conflicto).
+  const clasesUsadas=new Set();
+  styleCss.replace(/\.([a-zA-Z][a-zA-Z0-9_-]*)/g,(m,clase)=>{clasesUsadas.add(clase);return m;});
+  clasesUsadas.forEach(clase=>{
+    const re=new RegExp('\\.'+clase+'(?![a-zA-Z0-9_-])','g');
+    styleCss=styleCss.replace(re,'.pdfdoc-'+clase);
+    const reAttr=new RegExp('class="([^"]*)"','g');
+  });
+  bodyHtml=bodyHtml.replace(/class="([^"]*)"/g,(m,clases)=>{
+    const nuevas=clases.split(/\s+/).map(c=>clasesUsadas.has(c)?'pdfdoc-'+c:c).join(' ');
+    return 'class="'+nuevas+'"';
+  });
 
   const styleTag=document.createElement('style');
-  styleTag.textContent=matchStyle?matchStyle[1]:'';
+  styleTag.textContent=styleCss;
   document.head.appendChild(styleTag);
 
-  // Wrapper exterior: oculta visualmente sin sacar el contenido del flujo de renderizado
-  // (algunos navegadores móviles no renderizan completamente elementos posicionados
-  // muy fuera del viewport, lo que causaba la captura en blanco).
   const wrapper=document.createElement('div');
   wrapper.style.height='0';
   wrapper.style.overflow='hidden';
@@ -868,7 +879,7 @@ function generarYDescargarPDF(docHtml,nombreArchivo){
   const contenedor=document.createElement('div');
   contenedor.style.width='720px';
   contenedor.style.background='#ffffff';
-  contenedor.innerHTML=matchBody?matchBody[1]:docHtml;
+  contenedor.innerHTML=bodyHtml;
   wrapper.appendChild(contenedor);
   document.body.appendChild(wrapper);
 
