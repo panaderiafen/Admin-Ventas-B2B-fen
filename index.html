@@ -1001,16 +1001,32 @@ function abrirFolio(nOrden){
   document.getElementById('fol-key').value=nOrden;
   document.getElementById('fol-num').value='';
   document.getElementById('fol-fecha').value=hoy();
+  const lineas=DB.detalles.filter(d=>String(d['N° Orden'])===String(nOrden));
+  const tablaProductos=lineas.length?`
+    <div class="table-wrap" style="margin-top:10px;">
+      <table>
+        <thead><tr><th>Producto</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Neto Unit.</th><th style="text-align:right;">Neto Total</th></tr></thead>
+        <tbody>${lineas.map(l=>`<tr>
+          <td>${l['Producto']||'—'}</td>
+          <td style="text-align:center;">${l['Cantidad']||0}</td>
+          <td style="text-align:right;">${fmtCLP(l['Precio Neto Unit.']||0)}</td>
+          <td style="text-align:right;">${fmtCLP(l['Neto Total']||0)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`:'<div class="hint" style="text-align:center;padding:10px;">Sin líneas de detalle disponibles.</div>';
   // Info completa del pedido
   document.getElementById('fol-info').innerHTML=`
     <div class="oi-row"><span class="oi-label">N° Orden</span><span class="oi-value">${o['N° Orden']}</span></div>
     <div class="oi-row"><span class="oi-label">Fecha</span><span class="oi-value">${fechaES(o['Fecha'])}</span></div>
     <div class="oi-row"><span class="oi-label">Cliente</span><span class="oi-value">${o['Cliente']||'—'}</span></div>
     <div class="oi-row"><span class="oi-label">RUT</span><span class="oi-value">${DB.clientes.find(c=>norm(c['Nombre'])===norm(o['Cliente']))?.['RUT']||'—'}</span></div>
-    <div class="oi-row"><span class="oi-label">Neto</span><span class="oi-value">${fmtCLP(o['Total Neto'])}</span></div>
-    <div class="oi-row"><span class="oi-label">IVA 19%</span><span class="oi-value">${fmtCLP(o['IVA'])}</span></div>
-    <div class="oi-row" style="font-weight:700;"><span class="oi-label" style="color:#003a79;">TOTAL</span><span class="oi-value" style="color:#003a79;">${fmtCLP(o['Total'])}</span></div>
-    <div class="oi-row"><span class="oi-label">Estado pago</span><span class="oi-value">${estadoBadge(o['Estado Pago'])}</span></div>`;
+    ${tablaProductos}
+    <div class="resumen-box" style="margin-top:10px;">
+      <div class="resumen-row"><span>Neto</span><span>${fmtCLP(o['Total Neto'])}</span></div>
+      <div class="resumen-row"><span>IVA 19%</span><span>${fmtCLP(o['IVA'])}</span></div>
+      <div class="resumen-row total"><span>Total</span><span>${fmtCLP(o['Total'])}</span></div>
+    </div>
+    <div class="oi-row" style="margin-top:10px;"><span class="oi-label">Estado pago</span><span class="oi-value">${estadoBadge(o['Estado Pago'])}</span></div>`;
   openModal('modal-folio');
 }
 
