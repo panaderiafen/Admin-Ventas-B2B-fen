@@ -962,7 +962,9 @@ async function confirmarDel(){
 
 // ─── FACTURACIÓN ─────────────────────────
 function renderFact(){
-  const pend=DB.ordenes.filter(o=>!o['Folio SII']||o['Folio SII']==='Pendiente');
+  const pend=DB.ordenes.filter(o=>!o['Folio SII']||o['Folio SII']==='Pendiente')
+    .slice()
+    .sort((a,b)=>String(a['Fecha']||'').localeCompare(String(b['Fecha']||'')));
   const pl=document.getElementById('fp-list');
   if(pl)pl.innerHTML=pend.length?pend.map(o=>`
     <div class="orden-card">
