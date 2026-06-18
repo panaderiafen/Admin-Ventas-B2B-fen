@@ -579,7 +579,7 @@ function showTab(sec,tab,btn){
   if(sec==='ord'){
     document.getElementById('ord-nueva').classList.toggle('hidden',tab!=='nueva');
     document.getElementById('ord-lista').classList.toggle('hidden',tab!=='lista');
-    if(tab==='nueva'){populateSelects();initNuevaOrden();}
+    if(tab==='nueva'){populateSelects();initNuevaOrden();syncAll();}
     if(tab==='lista')renderOrdenes();
   } else {
     ['pend','emit','multi'].forEach(t=>document.getElementById('fact-'+t).classList.toggle('hidden',t!==tab));
