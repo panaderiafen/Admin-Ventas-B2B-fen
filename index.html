@@ -1322,27 +1322,36 @@ function buscarOrdenPago(){
   const el=document.getElementById('pg-res');
   const kEl=document.getElementById('pg-key');
   if(!q){el.textContent='';kEl.value='';return;}
+  const pagados=['PAGADO','PAGADO EN MES','PAGADO EN MES VENCIDO'];
   const coincidencias=DB.ordenes.filter(o=>
-    String(o['N° Orden']).includes(q)||
-    norm(o['Folio SII']||'').includes(q)||
-    norm(o['Cliente']||'').includes(q)
+    (String(o['N° Orden']).includes(q)||
+     norm(o['Folio SII']||'').includes(q)||
+     norm(o['Cliente']||'').includes(q))
+    && !pagados.includes(o['Estado Pago'])
   );
   if(coincidencias.length===1){
-    const found=coincidencias[0];
-    el.className='hint ok';
-    el.textContent=`✅ N°${found['N° Orden']} — ${found['Cliente']} — ${fmtCLP(found['Total'])}${found['Folio SII']&&found['Folio SII']!=='Pendiente'?' — Folio: '+found['Folio SII']:''}`;
-    kEl.value=found['N° Orden'];
+    seleccionarOrdenPago(coincidencias[0]['N° Orden']);
   }else if(coincidencias.length>1){
     el.className='hint';
-    el.innerHTML='Varias coincidencias, precisa más:<br>'+coincidencias.slice(0,8).map(o=>
-      `N°${o['N° Orden']} — ${o['Cliente']}${o['Folio SII']&&o['Folio SII']!=='Pendiente'?' — Folio: '+o['Folio SII']:''}`
+    el.innerHTML='Varias coincidencias sin pagar, elige una:<br>'+coincidencias.slice(0,8).map(o=>
+      `<a href="javascript:void(0)" onclick="seleccionarOrdenPago('${o['N° Orden']}')" style="color:#003a79;font-weight:600;text-decoration:underline;">N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])}${o['Folio SII']&&o['Folio SII']!=='Pendiente'?' — Folio: '+o['Folio SII']:''}</a>`
     ).join('<br>');
     kEl.value='';
   }else{
     el.className='hint error';
-    el.textContent='No se encontró ninguna orden.';
+    el.textContent='No se encontró ninguna orden sin pagar con esa búsqueda.';
     kEl.value='';
   }
+}
+
+function seleccionarOrdenPago(nOrden){
+  const found=DB.ordenes.find(o=>String(o['N° Orden'])===String(nOrden));
+  const el=document.getElementById('pg-res');
+  const kEl=document.getElementById('pg-key');
+  if(!found){el.className='hint error';el.textContent='No se encontró la orden.';kEl.value='';return;}
+  el.className='hint ok';
+  el.textContent=`✅ N°${found['N° Orden']} — ${found['Cliente']} — ${fmtCLP(found['Total'])}${found['Folio SII']&&found['Folio SII']!=='Pendiente'?' — Folio: '+found['Folio SII']:''}`;
+  kEl.value=found['N° Orden'];
 }
 
 async function registrarPago(){
