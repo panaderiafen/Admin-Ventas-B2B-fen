@@ -152,6 +152,9 @@ tr:last-child td { border-bottom: none; }
   <button class="btn btn-primary btn-full" style="margin-top:10px;" onclick="guardarUrlBanner()">Conectar</button>
 </div>
 
+<!-- Banner recordatorio de archivado -->
+<div id="archivo-banner" class="hidden"></div>
+
 <!-- ═══════════════════════════════════════ ÓRDENES ═══ -->
 <div id="sec-ordenes" class="section active">
   <div class="inner-tabs">
@@ -330,6 +333,10 @@ tr:last-child td { border-bottom: none; }
     <select id="an-cliente" onchange="renderAnalisis()">
       <option value="">Todos los clientes (global)</option>
     </select>
+    <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="an-historico" onchange="cargarHistoricoSiNecesario()"/>
+      <label for="an-historico" style="margin:0;font-weight:600;color:#555;">Incluir datos históricos archivados</label>
+    </div>
   </div>
   <div class="card">
     <div class="card-title" id="an-titulo">Resumen — Semana actual</div>
@@ -389,6 +396,12 @@ tr:last-child td { border-bottom: none; }
     <button class="btn btn-primary" style="margin-top:10px;" onclick="guardarCfg()">Guardar y conectar</button>
     <hr class="divider"/>
     <p style="font-size:12px;color:#666;">ID Sheets: <strong>1iZA6467dXZ1EWi8P3TzKfFTwodmcbeZiaJAUhsAsLUc</strong></p>
+  </div>
+  <div class="card">
+    <div class="card-title">🗄️ Archivado de datos</div>
+    <p style="font-size:13px;color:#555;margin-bottom:12px;">El archivado mueve las órdenes antiguas (pagadas + con folio + más de 3 meses) a las hojas históricas, manteniendo la app rápida. Próximo archivado: <strong>30 de septiembre 2026</strong>.</p>
+    <div id="archivo-status" style="font-size:12px;color:#888;margin-bottom:10px;">Cargando último archivado...</div>
+    <button class="btn btn-secondary" onclick="ejecutarArchivado()">🗄️ Archivar ahora</button>
   </div>
 </div>
 
@@ -517,7 +530,101 @@ tr:last-child td { border-bottom: none; }
 <script>
 // ─── ESTADO ───────────────────────────────
 let GS = localStorage.getItem('fen_gs') || '';
-let DB = { clientes:[], productos:[], precios:[], ordenes:[], detalles:[] };
+const DB = {clientes:[],productos:[],precios:[],ordenes:[],detalles:[],historico:{ordenes:[],detalles:[],cargado:false}};
+
+// ─── ARCHIVADO: RECORDATORIO Y EJECUCIÓN ──────────────
+const FECHA_PRIMER_ARCHIVADO = '2026-09-30'; // primer archivado programado
+const MESES_CICLO = 3;
+const DIAS_AVISO = 5;
+
+function calcularProximoArchivado(ultimoStr) {
+  if (!ultimoStr) return FECHA_PRIMER_ARCHIVADO;
+  const d = new Date(ultimoStr);
+  d.setMonth(d.getMonth() + MESES_CICLO);
+  return d.toISOString().slice(0,10);
+}
+
+async function verificarRecordatorioArchivado() {
+  if (!GS) return;
+  try {
+    const res = await gsCall('getUltimoArchivado');
+    const ultimo = res.ultimoArchivado || '';
+    const proximo = calcularProximoArchivado(ultimo);
+    const hoy = hoy_();
+    const diasRestantes = Math.round((new Date(proximo) - new Date(hoy)) / 86400000);
+    const banner = document.getElementById('archivo-banner');
+    const status = document.getElementById('archivo-status');
+    if (status) {
+      status.textContent = ultimo
+        ? 'Último archivado: ' + fechaCorta(ultimo) + ' · Próximo: ' + fechaCorta(proximo)
+        : 'Sin archivados previos · Primer archivado programado: ' + fechaCorta(proximo);
+    }
+    if (!banner) return;
+    if (diasRestantes < 0) {
+      // Vencido: advertencia urgente
+      banner.className = '';
+      banner.style.cssText = 'background:#fff0f0;border:2px solid #e74c3c;border-radius:10px;padding:14px;margin:14px;';
+      banner.innerHTML = `<strong style="color:#c0392b;">⚠️ Archivado vencido hace ${Math.abs(diasRestantes)} días</strong>
+        <p style="font-size:13px;color:#666;margin:6px 0;">La app puede volverse más lenta. Archiva ahora para mantener el rendimiento.</p>
+        <button class="btn btn-primary btn-sm" onclick="navTo('config')">🗄️ Ir a Archivado</button>`;
+    } else if (diasRestantes <= DIAS_AVISO) {
+      // Próximo: recordatorio suave
+      banner.className = '';
+      banner.style.cssText = 'background:#fff8e1;border:1px solid #ffc107;border-radius:10px;padding:14px;margin:14px;';
+      banner.innerHTML = `<strong style="color:#856404;">🗄️ Recuerda archivar en ${diasRestantes} día${diasRestantes!==1?'s':''}</strong>
+        <p style="font-size:13px;color:#666;margin:6px 0;">El próximo archivado es el ${fechaCorta(proximo)}. Archiva para mantener la app rápida.</p>
+        <button class="btn btn-secondary btn-sm" onclick="navTo('config')">Ir a Archivado</button>`;
+    } else {
+      banner.className = 'hidden';
+      banner.style.cssText = '';
+      banner.innerHTML = '';
+    }
+  } catch(e) { /* silencioso, no bloquear la app */ }
+}
+
+function hoy_() { return new Date().toISOString().slice(0,10); }
+
+async function ejecutarArchivado() {
+  if (!confirm('¿Confirmas que quieres archivar las órdenes que cumplen los 3 criterios?\n\n• Pagadas (no PENDIENTE)\n• Con folio SII asignado\n• Con más de 3 meses de antigüedad\n\nEsta acción moverá esas órdenes a las hojas históricas.')) return;
+  showToast('Archivando... esto puede tomar unos segundos','loading');
+  try {
+    const res = await gsCall('archivarOrdenes');
+    if (res.error) { showToast('Error: '+res.error,'err'); return; }
+    await syncAll();
+    DB.historico.cargado = false; // forzar recarga del histórico si estaba cargado
+    verificarRecordatorioArchivado();
+    showToast(`✅ ${res.archivadas} órdenes archivadas correctamente`,'success');
+  } catch(e) { showToast('Error: '+e.message,'err'); }
+}
+
+// ─── HISTÓRICO EN ANÁLISIS ─────────────────────────────
+async function cargarHistoricoSiNecesario() {
+  const incluir = document.getElementById('an-historico')?.checked;
+  if (!incluir || DB.historico.cargado) { renderAnalisis(); return; }
+  showToast('Cargando histórico...','loading');
+  try {
+    const [ords, dets] = await Promise.all([
+      gsCall('getOrdenesHistorico'),
+      gsCall('getDetallesHistorico')
+    ]);
+    DB.historico.ordenes = ords || [];
+    DB.historico.detalles = dets || [];
+    DB.historico.cargado = true;
+    showToast('✅ Histórico cargado','success');
+  } catch(e) { showToast('Error cargando histórico: '+e.message,'err'); }
+  renderAnalisis();
+}
+
+function navTo(sec) {
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  const secEl = document.getElementById('sec-'+sec);
+  if (secEl) secEl.classList.add('active');
+  const navBtn = document.querySelector(`.nav-btn[onclick*="'${sec}'"]`);
+  if (navBtn) navBtn.classList.add('active');
+  showSection(sec);
+}
+// DB declarado arriba con soporte de histórico
 let _folKey=null, _pagoKey=null, _delKey=null;
 
 // ─── API ──────────────────────────────────
@@ -549,6 +656,7 @@ async function syncAll() {
     document.getElementById('sync-status').textContent =
       'Sincronizado · '+DB.ordenes.length+' órdenes · '+DB.clientes.length+' clientes';
     showToast('✅ Sincronizado','success');
+    verificarRecordatorioArchivado();
   } catch(e){ showToast('Error: '+e.message,'err'); }
 }
 
@@ -1308,15 +1416,20 @@ function renderAnalisis(){
   }
   const periodo=document.getElementById('an-periodo')?.value||'semana';
   const cliente=document.getElementById('an-cliente')?.value||'';
+  const incluirHistorico=document.getElementById('an-historico')?.checked||false;
   let labelPeriodo={semana:'Semana actual',mes:'Mes actual',todo:'Todo el historial'}[periodo];
   if(periodo==='personalizado'){
     const desde=document.getElementById('an-desde')?.value||'';
     const hasta=document.getElementById('an-hasta')?.value||'';
     labelPeriodo=(desde?fechaCorta(desde):'…')+' a '+(hasta?fechaCorta(hasta):'…');
   }
-  document.getElementById('an-titulo').textContent='Resumen — '+labelPeriodo+(cliente?' — '+cliente:' (global)');
+  document.getElementById('an-titulo').textContent='Resumen — '+labelPeriodo+(cliente?' — '+cliente:' (global)')+(incluirHistorico?' [+histórico]':'');
 
-  let ordenes=DB.ordenes.filter(o=>enPeriodo(o['Fecha'],periodo));
+  const todasOrdenes=incluirHistorico
+    ? [...DB.ordenes, ...DB.historico.ordenes]
+    : DB.ordenes;
+
+  let ordenes=todasOrdenes.filter(o=>enPeriodo(o['Fecha'],periodo));
   if(cliente)ordenes=ordenes.filter(o=>o['Cliente']===cliente);
 
   let totalFacturado=0,totalPagadoMes=0,totalPagadoVencido=0,totalPendiente=0,totalPagadoGenerico=0;
@@ -1347,7 +1460,7 @@ function renderAnalisis(){
     </div>`;
 
   // ─── CAJA REAL DEL PERIODO (según Fecha Pago, no Fecha de venta) ───
-  let ordenesPagadas=DB.ordenes.filter(o=>o['Fecha Pago']&&enPeriodo(o['Fecha Pago'],periodo));
+  let ordenesPagadas=todasOrdenes.filter(o=>o['Fecha Pago']&&enPeriodo(o['Fecha Pago'],periodo));
   if(cliente)ordenesPagadas=ordenesPagadas.filter(o=>o['Cliente']===cliente);
 
   let cajaEnMes=0,cajaVencida=0;
