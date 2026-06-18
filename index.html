@@ -320,6 +320,11 @@ tr:last-child td { border-bottom: none; }
     <div id="an-caja"></div>
   </div>
   <div class="card">
+    <div class="card-title">🔍 Diagnóstico: diferencias Resumen vs Caja real</div>
+    <p style="font-size:12px;color:#666;margin-bottom:12px;">Órdenes que un cálculo cuenta como pagado-en-mes y el otro no, para encontrar inconsistencias de datos.</p>
+    <div id="an-diag"></div>
+  </div>
+  <div class="card">
     <div class="card-title">📋 Detalle de órdenes en el periodo</div>
     <div id="an-detalle"></div>
   </div>
@@ -1357,6 +1362,40 @@ function renderAnalisis(){
         });
       }
       cajaEl.innerHTML=html;
+    }
+  }
+
+  // ─── DIAGNÓSTICO: comparar PAGADO EN MES del resumen vs Pago-mes de Caja real ───
+  // Set A: órdenes que el resumen de arriba cuenta como 'PAGADO EN MES' (filtradas por Fecha de venta en el periodo)
+  const setA=ordenes.filter(o=>(o['Estado Pago']||'')==='PAGADO EN MES');
+  // Set B: órdenes que Caja real cuenta como 'Pago mes' (filtradas por Fecha Pago en el periodo, mesVenta===mesPago)
+  const setB=enMesOrdenes;
+  const keyOrden=o=>String(o['N° Orden']);
+  const enA=new Set(setA.map(keyOrden));
+  const enB=new Set(setB.map(keyOrden));
+  const soloEnB=setB.filter(o=>!enA.has(keyOrden(o))); // Caja real las suma, resumen no
+  const soloEnA=setA.filter(o=>!enB.has(keyOrden(o))); // Resumen las suma, Caja real no
+  const diagEl=document.getElementById('an-diag');
+  if(diagEl){
+    if(!soloEnA.length&&!soloEnB.length){
+      diagEl.innerHTML='<div class="empty">Sin diferencias: ambos cálculos coinciden en este periodo</div>';
+    }else{
+      let html='';
+      if(soloEnB.length){
+        const sub=soloEnB.reduce((s,o)=>s+(Number(o['Total'])||0),0);
+        html+=`<div style="font-size:11px;font-weight:700;color:#c08a00;margin-bottom:6px;">⚠️ Caja real las suma como "Pago mes", el Resumen NO (subtotal: ${fmtCLP(sub)})</div>`;
+        html+='<div class="table-wrap"><table><thead><tr><th>N°</th><th>Cliente</th><th>Fecha</th><th>Fecha Pago</th><th>Estado Pago guardado</th><th>Total</th></tr></thead><tbody>'+
+          soloEnB.map(o=>`<tr><td><strong>${o['N° Orden']}</strong></td><td>${o['Cliente']||'—'}</td><td>${fechaCorta(o['Fecha'])}</td><td>${fechaCorta(o['Fecha Pago'])}</td><td>${estadoBadge(o['Estado Pago'])}</td><td style="text-align:right;">${fmtCLP(o['Total'])}</td></tr>`).join('')+
+          '</tbody></table></div>';
+      }
+      if(soloEnA.length){
+        const sub=soloEnA.reduce((s,o)=>s+(Number(o['Total'])||0),0);
+        html+=`<div style="font-size:11px;font-weight:700;color:#c08a00;margin:14px 0 6px;">⚠️ El Resumen las suma como "Pagado en mes", Caja real NO (subtotal: ${fmtCLP(sub)})</div>`;
+        html+='<div class="table-wrap"><table><thead><tr><th>N°</th><th>Cliente</th><th>Fecha</th><th>Fecha Pago</th><th>Estado Pago guardado</th><th>Total</th></tr></thead><tbody>'+
+          soloEnA.map(o=>`<tr><td><strong>${o['N° Orden']}</strong></td><td>${o['Cliente']||'—'}</td><td>${fechaCorta(o['Fecha'])}</td><td>${fechaCorta(o['Fecha Pago'])}</td><td>${estadoBadge(o['Estado Pago'])}</td><td style="text-align:right;">${fmtCLP(o['Total'])}</td></tr>`).join('')+
+          '</tbody></table></div>';
+      }
+      diagEl.innerHTML=html;
     }
   }
 
