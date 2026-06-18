@@ -213,8 +213,16 @@ tr:last-child td { border-bottom: none; }
   <div id="fact-pend">
     <div class="card">
       <div class="card-title">🧾 Pendientes de facturar</div>
-      <div class="search-box">
-        <input type="text" id="fp-q" placeholder="Buscar por cliente..." oninput="renderFact()"/>
+      <div class="search-box" style="display:flex;gap:8px;align-items:flex-end;">
+        <div style="flex:1;">
+          <input type="text" id="fp-q" placeholder="Buscar por cliente..." oninput="renderFact()"/>
+        </div>
+        <div>
+          <input type="date" id="fp-fecha" onchange="renderFact()" title="Filtrar por fecha exacta"/>
+        </div>
+        <div>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('fp-fecha').value='';document.getElementById('fp-q').value='';renderFact();">✕ Limpiar</button>
+        </div>
       </div>
       <div id="fp-list"></div>
     </div>
@@ -1141,8 +1149,10 @@ async function confirmarDel(){
 // ─── FACTURACIÓN ─────────────────────────
 function renderFact(){
   const qFp=norm(document.getElementById('fp-q')?.value||'');
+  const fpFecha=document.getElementById('fp-fecha')?.value||'';
   const pend=DB.ordenes.filter(o=>!o['Folio SII']||o['Folio SII']==='Pendiente')
     .filter(o=>!qFp||norm(o['Cliente']||'').includes(qFp))
+    .filter(o=>!fpFecha||String(o['Fecha']||'').slice(0,10)===fpFecha)
     .slice()
     .sort((a,b)=>String(a['Fecha']||'').localeCompare(String(b['Fecha']||'')));
   const pl=document.getElementById('fp-list');
