@@ -211,7 +211,13 @@ tr:last-child td { border-bottom: none; }
   </div>
 
   <div id="fact-pend">
-    <div class="card"><div class="card-title">🧾 Pendientes de facturar</div><div id="fp-list"></div></div>
+    <div class="card">
+      <div class="card-title">🧾 Pendientes de facturar</div>
+      <div class="search-box">
+        <input type="text" id="fp-q" placeholder="Buscar por cliente..." oninput="renderFact()"/>
+      </div>
+      <div id="fp-list"></div>
+    </div>
   </div>
 
   <div id="fact-emit" class="hidden">
@@ -263,8 +269,8 @@ tr:last-child td { border-bottom: none; }
 <div id="sec-pagos" class="section">
   <div class="card">
     <div class="card-title">➕ Registrar pago</div>
-    <label>Buscar por Folio SII o N° orden</label>
-    <input type="text" id="pg-buscar" placeholder="Ej: 2902 o 18" oninput="buscarOrdenPago()"/>
+    <label>Buscar por Folio SII, N° orden o cliente</label>
+    <input type="text" id="pg-buscar" placeholder="Ej: 2902, 18 o nombre del cliente" oninput="buscarOrdenPago()"/>
     <div id="pg-res" class="hint"></div>
     <input type="hidden" id="pg-key"/>
     <label>Fecha de pago</label>
@@ -1127,7 +1133,9 @@ async function confirmarDel(){
 
 // ─── FACTURACIÓN ─────────────────────────
 function renderFact(){
+  const qFp=norm(document.getElementById('fp-q')?.value||'');
   const pend=DB.ordenes.filter(o=>!o['Folio SII']||o['Folio SII']==='Pendiente')
+    .filter(o=>!qFp||norm(o['Cliente']||'').includes(qFp))
     .slice()
     .sort((a,b)=>String(a['Fecha']||'').localeCompare(String(b['Fecha']||'')));
   const pl=document.getElementById('fp-list');
@@ -1294,14 +1302,18 @@ function renderAnalisis(){
 
   const ordenadas=ordenes.slice().sort((a,b)=>String(b['Fecha']||'').localeCompare(String(a['Fecha']||'')));
   document.getElementById('an-detalle').innerHTML=ordenadas.length?
-    '<div class="table-wrap"><table><thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead><tbody>'+
-    ordenadas.map(o=>`<tr>
+    '<div class="table-wrap"><table><thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Folio SII</th></tr></thead><tbody>'+
+    ordenadas.map(o=>{
+      const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
+      return `<tr>
       <td><strong>${o['N° Orden']}</strong></td>
       <td>${fechaCorta(o['Fecha'])}</td>
       <td>${o['Cliente']||'—'}</td>
       <td style="text-align:right;">${fmtCLP(o['Total'])}</td>
       <td>${estadoBadge(o['Estado Pago'])}</td>
-    </tr>`).join('')+'</tbody></table></div>'
+      <td>${tieneFolio?`<span class="badge badge-facturado">${o['Folio SII']}</span>`:`<span class="badge badge-pendiente">Pendiente</span>`}</td>
+    </tr>`;
+    }).join('')+'</tbody></table></div>'
     :'<div class="empty">Sin órdenes en este periodo</div>';
 }
 
@@ -1310,11 +1322,22 @@ function buscarOrdenPago(){
   const el=document.getElementById('pg-res');
   const kEl=document.getElementById('pg-key');
   if(!q){el.textContent='';kEl.value='';return;}
-  const found=DB.ordenes.find(o=>String(o['N° Orden']).includes(q)||norm(o['Folio SII']||'').includes(q));
-  if(found){
+  const coincidencias=DB.ordenes.filter(o=>
+    String(o['N° Orden']).includes(q)||
+    norm(o['Folio SII']||'').includes(q)||
+    norm(o['Cliente']||'').includes(q)
+  );
+  if(coincidencias.length===1){
+    const found=coincidencias[0];
     el.className='hint ok';
     el.textContent=`✅ N°${found['N° Orden']} — ${found['Cliente']} — ${fmtCLP(found['Total'])}${found['Folio SII']&&found['Folio SII']!=='Pendiente'?' — Folio: '+found['Folio SII']:''}`;
     kEl.value=found['N° Orden'];
+  }else if(coincidencias.length>1){
+    el.className='hint';
+    el.innerHTML='Varias coincidencias, precisa más:<br>'+coincidencias.slice(0,8).map(o=>
+      `N°${o['N° Orden']} — ${o['Cliente']}${o['Folio SII']&&o['Folio SII']!=='Pendiente'?' — Folio: '+o['Folio SII']:''}`
+    ).join('<br>');
+    kEl.value='';
   }else{
     el.className='hint error';
     el.textContent='No se encontró ninguna orden.';
@@ -1385,15 +1408,18 @@ function renderMulti(){
   const lista=document.getElementById('m-lista');
   document.getElementById('m-res-wrap').classList.add('hidden');
   if(!ords.length){lista.innerHTML='<div class="empty">Sin órdenes en este rango</div>';return;}
-  lista.innerHTML=ords.map(o=>`
+  lista.innerHTML=ords.map(o=>{
+    const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
+    return `
     <div class="check-row">
-      <input type="checkbox" id="mck-${o['N° Orden']}" value="${o['N° Orden']}" onchange="calcMulti()"/>
-      <label for="mck-${o['N° Orden']}">
+      <input type="checkbox" id="mck-${o['N° Orden']}" value="${o['N° Orden']}" onchange="calcMulti()" ${tieneFolio?'disabled title="Esta orden ya tiene folio SII asignado y no puede incluirse en una nueva factura múltiple"':''}/>
+      <label for="mck-${o['N° Orden']}" style="${tieneFolio?'opacity:0.55;cursor:not-allowed;':''}">
         <strong>N° ${o['N° Orden']}</strong> — ${fechaCorta(o['Fecha'])} — 
         <span style="color:#1D9E75;font-weight:700;">${fmtCLP(o['Total'])}</span>
-        ${o['Folio SII']&&o['Folio SII']!=='Pendiente'?`<span class="badge badge-facturado" style="margin-left:4px;">Folio ${o['Folio SII']}</span>`:''}
+        ${tieneFolio?`<span class="badge badge-facturado" style="margin-left:4px;">Folio ${o['Folio SII']}</span>`:''}
       </label>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function calcMulti(){
