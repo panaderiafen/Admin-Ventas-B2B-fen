@@ -302,11 +302,22 @@ tr:last-child td { border-bottom: none; }
   <div class="card">
     <div class="card-title">📊 Análisis rápido</div>
     <label>Periodo</label>
-    <select id="an-periodo" onchange="renderAnalisis()">
+    <select id="an-periodo" onchange="onPeriodoChange()">
       <option value="semana" selected>Semana actual</option>
       <option value="mes">Mes actual</option>
       <option value="todo">Todo el historial</option>
+      <option value="personalizado">Búsqueda personalizada...</option>
     </select>
+    <div id="an-rango-custom" class="hidden" style="display:flex;gap:8px;margin-top:8px;">
+      <div style="flex:1;">
+        <label>Desde</label>
+        <input type="date" id="an-desde" onchange="renderAnalisis()"/>
+      </div>
+      <div style="flex:1;">
+        <label>Hasta</label>
+        <input type="date" id="an-hasta" onchange="renderAnalisis()"/>
+      </div>
+    </div>
     <label>Cliente</label>
     <select id="an-cliente" onchange="renderAnalisis()">
       <option value="">Todos los clientes (global)</option>
@@ -1245,6 +1256,23 @@ function finSemana(d){
   ini.setDate(ini.getDate()+6);
   return ini.toISOString().slice(0,10);
 }
+function onPeriodoChange(){
+  const periodo=document.getElementById('an-periodo').value;
+  const wrap=document.getElementById('an-rango-custom');
+  if(wrap)wrap.classList.toggle('hidden',periodo!=='personalizado');
+  if(periodo==='personalizado'){
+    const desdeEl=document.getElementById('an-desde'),hastaEl=document.getElementById('an-hasta');
+    if(desdeEl&&!desdeEl.value){
+      // sugerir un rango razonable por defecto: últimos 30 días
+      const h=hoy();
+      const d=new Date(h);
+      d.setDate(d.getDate()-30);
+      desdeEl.value=d.toISOString().slice(0,10);
+      hastaEl.value=h;
+    }
+  }
+  renderAnalisis();
+}
 function enPeriodo(fechaStr,periodo){
   const f=String(fechaStr||'').slice(0,10);
   if(!f)return false;
@@ -1252,6 +1280,14 @@ function enPeriodo(fechaStr,periodo){
   if(periodo==='todo')return true;
   if(periodo==='mes')return f.slice(0,7)===h.slice(0,7);
   if(periodo==='semana')return f>=inicioSemana(h)&&f<=finSemana(h);
+  if(periodo==='personalizado'){
+    const desde=document.getElementById('an-desde')?.value||'';
+    const hasta=document.getElementById('an-hasta')?.value||'';
+    if(!desde&&!hasta)return true;
+    if(desde&&f<desde)return false;
+    if(hasta&&f>hasta)return false;
+    return true;
+  }
   return true;
 }
 function renderAnalisis(){
@@ -1262,7 +1298,12 @@ function renderAnalisis(){
   }
   const periodo=document.getElementById('an-periodo')?.value||'semana';
   const cliente=document.getElementById('an-cliente')?.value||'';
-  const labelPeriodo={semana:'Semana actual',mes:'Mes actual',todo:'Todo el historial'}[periodo];
+  let labelPeriodo={semana:'Semana actual',mes:'Mes actual',todo:'Todo el historial'}[periodo];
+  if(periodo==='personalizado'){
+    const desde=document.getElementById('an-desde')?.value||'';
+    const hasta=document.getElementById('an-hasta')?.value||'';
+    labelPeriodo=(desde?fechaCorta(desde):'…')+' a '+(hasta?fechaCorta(hasta):'…');
+  }
   document.getElementById('an-titulo').textContent='Resumen — '+labelPeriodo+(cliente?' — '+cliente:' (global)');
 
   let ordenes=DB.ordenes.filter(o=>enPeriodo(o['Fecha'],periodo));
