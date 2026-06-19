@@ -402,6 +402,7 @@ tr:last-child td { border-bottom: none; }
     <p style="font-size:13px;color:#555;margin-bottom:12px;">El archivado mueve las órdenes antiguas (pagadas + con folio + más de 3 meses) a las hojas históricas, manteniendo la app rápida. Próximo archivado: <strong>30 de septiembre 2026</strong>.</p>
     <div id="archivo-status" style="font-size:12px;color:#888;margin-bottom:10px;">Cargando último archivado...</div>
     <button class="btn btn-secondary" onclick="ejecutarArchivado()">🗄️ Archivar ahora</button>
+    <button class="btn btn-secondary" style="margin-top:8px;" onclick="sincronizarDetalle()">🔧 Sincronizar Detalle Histórico</button>
   </div>
 </div>
 
@@ -608,6 +609,17 @@ async function ejecutarArchivado() {
     DB.historico.cargado = false;
     verificarRecordatorioArchivado();
     showToast(`✅ ${res.archivadas} órdenes archivadas correctamente`,'success');
+  } catch(e) { showToast('Error: '+e.message,'err'); }
+}
+
+async function sincronizarDetalle() {
+  if (!confirm('Esto moverá las líneas de Detalle Ventas que corresponden a órdenes ya archivadas en Resumen Historico.\n\n¿Confirmas?')) return;
+  showToast('Sincronizando Detalle... esto puede tomar unos minutos','loading');
+  try {
+    const res = await gsCall('sincronizarDetalle');
+    if (res.error) { showToast('Error: '+res.error,'err'); return; }
+    await syncAll();
+    showToast(`✅ ${res.movidas} líneas sincronizadas al histórico`,'success');
   } catch(e) { showToast('Error: '+e.message,'err'); }
 }
 
