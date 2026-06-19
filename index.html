@@ -1588,23 +1588,40 @@ function buscarOrdenPago(){
   const q=norm(document.getElementById('pg-buscar').value);
   const el=document.getElementById('pg-res');
   const kEl=document.getElementById('pg-key');
-  if(!q){el.textContent='';kEl.value='';return;}
+  if(!q){el.innerHTML='';kEl.value='';return;}
   const coincidencias=DB.ordenes.filter(o=>
     String(o['N° Orden']).includes(q)||
     norm(o['Folio SII']||'').includes(q)||
     norm(o['Cliente']||'').includes(q)
   );
+  if(coincidencias.length===0){
+    el.className='hint error';
+    el.textContent='No se encontró ninguna orden con esa búsqueda.';
+    kEl.value='';
+    return;
+  }
+  // Detectar si la búsqueda es por folio SII (todas comparten el mismo folio)
+  const esBusquedaPorFolio = coincidencias.length>1 &&
+    coincidencias.every(o=>norm(o['Folio SII']||'').includes(q)) &&
+    !q.match(/^\d{1,4}$/); // evitar confundir N° orden corto con folio
   if(coincidencias.length===1){
     seleccionarOrdenPago(coincidencias[0]['N° Orden']);
-  }else if(coincidencias.length>1){
+  }else if(esBusquedaPorFolio){
+    // Mostrar todas las órdenes del folio con opción de seleccionar todas
+    const totalFolio=coincidencias.reduce((s,o)=>s+(Number(o['Total'])||0),0);
+    el.className='hint';
+    const nordenes=coincidencias.map(o=>o['N° Orden']).join(',');
+    el.innerHTML=`<strong>Folio ${coincidencias[0]['Folio SII']} — ${coincidencias.length} órdenes</strong><br>`+
+      coincidencias.map(o=>`<a href="javascript:void(0)" onclick="seleccionarOrdenPago('${o['N° Orden']}')" style="color:#003a79;font-weight:600;text-decoration:underline;">N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])} ${estadoBadge(o['Estado Pago'])}</a>`).join('<br>')+
+      `<br><hr style="margin:8px 0;border-color:#ddd;"/>`+
+      `<strong style="color:#1D9E75;">Total combinado: ${fmtCLP(totalFolio)}</strong><br>`+
+      `<a href="javascript:void(0)" onclick="seleccionarTodasOrdenPago('${nordenes}')" style="color:#003a79;font-weight:700;text-decoration:underline;">✅ Seleccionar todas (${coincidencias.length} órdenes)</a>`;
+    kEl.value='';
+  }else{
     el.className='hint';
     el.innerHTML='Varias coincidencias, elige una:<br>'+coincidencias.slice(0,8).map(o=>
       `<a href="javascript:void(0)" onclick="seleccionarOrdenPago('${o['N° Orden']}')" style="color:#003a79;font-weight:600;text-decoration:underline;">N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])} ${estadoBadge(o['Estado Pago'])}</a>`
     ).join('<br>');
-    kEl.value='';
-  }else{
-    el.className='hint error';
-    el.textContent='No se encontró ninguna orden con esa búsqueda.';
     kEl.value='';
   }
 }
@@ -1619,18 +1636,35 @@ function seleccionarOrdenPago(nOrden){
   kEl.value=found['N° Orden'];
 }
 
+function seleccionarTodasOrdenPago(nordenesCsv){
+  const nordenes=nordenesCsv.split(',');
+  const ordenes=nordenes.map(n=>DB.ordenes.find(o=>String(o['N° Orden'])===String(n))).filter(Boolean);
+  if(!ordenes.length){return;}
+  const el=document.getElementById('pg-res');
+  const kEl=document.getElementById('pg-key');
+  const total=ordenes.reduce((s,o)=>s+(Number(o['Total'])||0),0);
+  el.className='hint ok';
+  el.innerHTML=`✅ <strong>${ordenes.length} órdenes seleccionadas — Folio ${ordenes[0]['Folio SII']}</strong><br>`+
+    ordenes.map(o=>`N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])}`).join('<br>')+
+    `<br><strong style="color:#003a79;">Total a registrar: ${fmtCLP(total)}</strong>`;
+  kEl.value=nordenesCsv; // guardar todos los N° separados por coma
+}
+
 async function registrarPago(){
-  const nOrden=document.getElementById('pg-key').value;
-  if(!nOrden){showToast('Busca una orden primero','err');return;}
+  const keyVal=document.getElementById('pg-key').value;
+  if(!keyVal){showToast('Busca una orden primero','err');return;}
   const fechaPago=document.getElementById('pg-fecha').value;
   const estado=document.getElementById('pg-estado').value;
   if(!estado){showToast('Selecciona el estado del pago','err');return;}
   if(estado!=='PENDIENTE'&&!fechaPago){showToast('Ingresa la fecha de pago','err');return;}
+  const nordenes=keyVal.split(',').map(n=>n.trim()).filter(Boolean);
   showToast('Registrando en Sheets...','loading');
   try{
-    await gsCall('registrarPago',{nOrden,fechaPago:estado==='PENDIENTE'?(fechaPago||''):fechaPago,estado});
+    for(const nOrden of nordenes){
+      await gsCall('registrarPago',{nOrden,fechaPago:estado==='PENDIENTE'?(fechaPago||''):fechaPago,estado});
+    }
     await syncAll();
-    showToast(estado==='PENDIENTE'?'✅ Orden vuelta a PENDIENTE':'✅ Pago registrado','success');
+    showToast(estado==='PENDIENTE'?'✅ Orden(es) vueltas a PENDIENTE':`✅ Pago registrado (${nordenes.length} orden${nordenes.length>1?'es':''})`, 'success');
     ['pg-buscar','pg-ref','pg-fecha'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('pg-estado').value='';
     document.getElementById('pg-key').value='';
