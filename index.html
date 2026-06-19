@@ -1615,7 +1615,7 @@ function buscarOrdenPago(){
     el.className='hint';
     const nordenes=coincidencias.map(o=>o['N° Orden']).join(',');
     el.innerHTML=`<strong>Folio ${coincidencias[0]['Folio SII']} — ${coincidencias.length} órdenes</strong><br>`+
-      coincidencias.map(o=>`<a href="javascript:void(0)" onclick="seleccionarOrdenPago('${o['N° Orden']}')" style="color:#003a79;font-weight:600;text-decoration:underline;">N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])} ${estadoBadge(o['Estado Pago'])}</a>`).join('<br>')+
+      coincidencias.map(o=>`<a href="javascript:void(0)" onclick="seleccionarOrdenPago('${o['N° Orden']}')" style="color:#003a79;font-weight:600;text-decoration:underline;">N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])}</a> ${estadoBadge(o['Estado Pago'])}`).join('<br>')+
       `<br><hr style="margin:8px 0;border-color:#ddd;"/>`+
       `<strong style="color:#1D9E75;">Total combinado: ${fmtCLP(totalFolio)}</strong><br>`+
       `<a href="javascript:void(0)" onclick="seleccionarTodasOrdenPago('${nordenes}')" style="color:#003a79;font-weight:700;text-decoration:underline;">✅ Seleccionar todas (${coincidencias.length} órdenes)</a>`;
@@ -1623,7 +1623,7 @@ function buscarOrdenPago(){
   }else{
     el.className='hint';
     el.innerHTML='Varias coincidencias, elige una:<br>'+coincidencias.slice(0,8).map(o=>
-      `<a href="javascript:void(0)" onclick="seleccionarOrdenPago('${o['N° Orden']}')" style="color:#003a79;font-weight:600;text-decoration:underline;">N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])} ${estadoBadge(o['Estado Pago'])}</a>`
+      `<a href="javascript:void(0)" onclick="seleccionarOrdenPago('${o['N° Orden']}')" style="color:#003a79;font-weight:600;text-decoration:underline;">N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])}</a> ${estadoBadge(o['Estado Pago'])}`
     ).join('<br>');
     kEl.value='';
   }
