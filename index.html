@@ -1600,10 +1600,13 @@ function buscarOrdenPago(){
     kEl.value='';
     return;
   }
-  // Detectar si la búsqueda es por folio SII (todas comparten el mismo folio)
+  // Detectar si la búsqueda es por folio SII (todas comparten el mismo folio exacto)
+  const foliosUnicos = [...new Set(coincidencias.map(o=>norm(o['Folio SII']||'')))];
   const esBusquedaPorFolio = coincidencias.length>1 &&
-    coincidencias.every(o=>norm(o['Folio SII']||'').includes(q)) &&
-    !q.match(/^\d{1,4}$/); // evitar confundir N° orden corto con folio
+    foliosUnicos.length===1 &&
+    foliosUnicos[0]!=='' &&
+    foliosUnicos[0]!=='pendiente' &&
+    foliosUnicos[0]===q;
   if(coincidencias.length===1){
     seleccionarOrdenPago(coincidencias[0]['N° Orden']);
   }else if(esBusquedaPorFolio){
