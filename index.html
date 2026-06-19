@@ -590,8 +590,22 @@ async function ejecutarArchivado() {
   try {
     const res = await gsCall('archivarOrdenes');
     if (res.error) { showToast('Error: '+res.error,'err'); return; }
+    if (res.archivadas === 0 && res.diag) {
+      const d = res.diag;
+      let msg = 'Sin órdenes archivables.\n\nDiagnóstico:\n';
+      msg += 'Fecha límite: ' + d.limiteStr + '\n';
+      msg += 'Col Fecha: ' + d.colFecha + ' | Col Estado: ' + d.colEstado + ' | Col Folio: ' + d.colFolio + '\n\n';
+      msg += 'Muestra de las órdenes más antiguas:\n';
+      (d.muestra||[]).forEach(function(m) {
+        msg += 'N°' + m.nOrden + ' | Fecha:[' + m.fecha + '] antigua:' + m.esAntigua +
+               ' | Estado:[' + m.estado + '] pagada:' + m.esPagada +
+               ' | Folio:[' + m.folio + '] tieneFolio:' + m.tieneFolio + '\n';
+      });
+      alert(msg);
+      return;
+    }
     await syncAll();
-    DB.historico.cargado = false; // forzar recarga del histórico si estaba cargado
+    DB.historico.cargado = false;
     verificarRecordatorioArchivado();
     showToast(`✅ ${res.archivadas} órdenes archivadas correctamente`,'success');
   } catch(e) { showToast('Error: '+e.message,'err'); }
