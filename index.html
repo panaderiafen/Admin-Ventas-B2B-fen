@@ -300,6 +300,21 @@ tr:last-child td { border-bottom: none; }
     <button class="btn btn-primary btn-full" style="margin-top:14px;" onclick="registrarPago()">Registrar pago</button>
   </div>
   <div class="card">
+    <div class="card-title">🕓 Pagos pendientes</div>
+    <div class="search-box" style="display:flex;gap:8px;align-items:flex-end;">
+      <div style="flex:1;">
+        <input type="text" id="pp-q" placeholder="Folio SII, N° orden o cliente..." oninput="renderPagosPendientes()"/>
+      </div>
+      <div>
+        <input type="date" id="pp-fecha" onchange="renderPagosPendientes()" title="Filtrar por fecha exacta"/>
+      </div>
+      <div>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('pp-q').value='';document.getElementById('pp-fecha').value='';renderPagosPendientes();">✕</button>
+      </div>
+    </div>
+    <div id="pp-list"></div>
+  </div>
+  <div class="card">
     <div class="card-title">💳 Pagos registrados</div>
     <div class="search-box">
       <input type="text" id="pg-q" placeholder="Folio SII, N° orden o cliente..." oninput="renderPagos()"/>
@@ -705,7 +720,7 @@ function showSec(id,btn){
   if(btn)btn.classList.add('active');
   if(id==='ordenes'){populateSelects();renderOrdenes();}
   if(id==='facturacion'){populateSelects();renderFact();}
-  if(id==='pagos')renderPagos();
+  if(id==='pagos'){renderPagos();renderPagosPendientes();}
   if(id==='analisis')renderAnalisis();
   if(id==='clientes')renderClientes();
   if(id==='productos')renderProductos();
@@ -1145,7 +1160,7 @@ function compartirOdescargarPDF(blob,nombreArchivo){
 
 
 // ─── LISTA ÓRDENES ───────────────────────
-function renderAll(){renderOrdenes();renderFact();renderPagos();renderClientes();renderProductos();renderPrecios();}
+function renderAll(){renderOrdenes();renderFact();renderPagos();renderPagosPendientes();renderClientes();renderProductos();renderPrecios();}
 
 function renderOrdenes(){
   const w=document.getElementById('ord-list');
@@ -1385,6 +1400,40 @@ function renderPagos(){
       <td>${estadoBadge(o['Estado Pago'])}</td>
       <td>${fechaCorta(o['Fecha Pago'])}</td>
     </tr>`).join('')+'</tbody></table></div>';
+}
+
+function renderPagosPendientes(){
+  const w=document.getElementById('pp-list');
+  if(!w)return;
+  const q=norm(document.getElementById('pp-q')?.value||'');
+  const ppFecha=document.getElementById('pp-fecha')?.value||'';
+  const lista=DB.ordenes
+    .filter(o=>o['Estado Pago']==='PENDIENTE'||!o['Estado Pago'])
+    .filter(o=>!q||String(o['N° Orden']).includes(q)||norm(o['Cliente']||'').includes(q)||norm(o['Folio SII']||'').includes(q))
+    .filter(o=>!ppFecha||String(o['Fecha']||'').slice(0,10)===ppFecha)
+    .sort((a,b)=>String(a['Fecha']||'').localeCompare(String(b['Fecha']||'')));
+  if(!lista.length){w.innerHTML='<div class="empty">Sin órdenes pendientes de pago</div>';return;}
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>N°</th><th>Folio</th><th>Cliente</th><th>Fecha</th><th>Total</th><th></th></tr></thead><tbody>'+
+    lista.map(o=>`<tr>
+      <td><strong>${o['N° Orden']}</strong></td>
+      <td>${o['Folio SII']&&o['Folio SII']!=='Pendiente'?o['Folio SII']:'—'}</td>
+      <td>${o['Cliente']||'—'}</td>
+      <td>${fechaCorta(o['Fecha'])}</td>
+      <td style="color:#e74c3c;font-weight:700;">${fmtCLP(o['Total'])}</td>
+      <td><button class="btn btn-primary btn-sm" onclick="seleccionarDesdePendiente('${o['N° Orden']}')">Registrar pago</button></td>
+    </tr>`).join('')+'</tbody></table></div>';
+}
+
+function seleccionarDesdePendiente(nOrden){
+  // Autocompleta el buscador de Registrar pago y selecciona la orden
+  const buscar=document.getElementById('pg-buscar');
+  if(buscar){
+    buscar.value=String(nOrden);
+    buscarOrdenPago();
+  }
+  // Scroll hacia arriba para ver el formulario
+  document.getElementById('sec-pagos').scrollTop=0;
+  window.scrollTo({top:0, behavior:'smooth'});
 }
 
 // ─── ANÁLISIS ─────────────────────────────
@@ -1679,9 +1728,6 @@ async function registrarPago(){
   if(estado!=='PENDIENTE'&&!fechaPago){showToast('Ingresa la fecha de pago','err');return;}
   const nordenes=keyVal.split(',').map(n=>n.trim()).filter(Boolean);
   const fechaFinal=estado==='PENDIENTE'?(fechaPago||''):fechaPago;
-  // Mostrar confirmación con los valores exactos que se van a enviar
-  const confirmMsg=`¿Confirmas registrar el pago?\n\nÓrdenes: ${nordenes.join(', ')}\nFecha: ${fechaFinal||'(vacía)'}\nEstado: ${estado}`;
-  if(!confirm(confirmMsg))return;
   showToast('Registrando en Sheets...','loading');
   try{
     if(nordenes.length===1){
