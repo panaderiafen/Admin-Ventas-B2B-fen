@@ -1589,6 +1589,23 @@ function buscarOrdenPago(){
   const el=document.getElementById('pg-res');
   const kEl=document.getElementById('pg-key');
   if(!q){el.innerHTML='';kEl.value='';return;}
+  // Si ya hay una selección confirmada (pg-key lleno) y el texto no cambió, no hacer nada
+  const keyActual=kEl.value;
+  if(keyActual){
+    // Verificar si el texto de búsqueda sigue siendo el mismo folio/orden seleccionado
+    // Si es así, no regenerar la lista (protege la selección ya hecha)
+    const ordenesKey=keyActual.split(',').map(n=>n.trim());
+    const primeraOrden=DB.ordenes.find(o=>String(o['N° Orden'])===ordenesKey[0]);
+    if(primeraOrden){
+      const folioOrden=norm(primeraOrden['Folio SII']||'');
+      const nOrden=String(primeraOrden['N° Orden']);
+      if(q===folioOrden||q===nOrden||norm(primeraOrden['Cliente']||'').includes(q)){
+        return; // la búsqueda sigue apuntando a la orden ya seleccionada, no regenerar
+      }
+    }
+    // Si el texto cambió significativamente, limpiar la selección y buscar de nuevo
+    kEl.value='';
+  }
   const coincidencias=DB.ordenes.filter(o=>
     String(o['N° Orden']).includes(q)||
     norm(o['Folio SII']||'').includes(q)||
