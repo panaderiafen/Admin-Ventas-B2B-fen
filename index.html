@@ -1661,10 +1661,14 @@ async function registrarPago(){
   if(!estado){showToast('Selecciona el estado del pago','err');return;}
   if(estado!=='PENDIENTE'&&!fechaPago){showToast('Ingresa la fecha de pago','err');return;}
   const nordenes=keyVal.split(',').map(n=>n.trim()).filter(Boolean);
+  const fechaFinal=estado==='PENDIENTE'?(fechaPago||''):fechaPago;
   showToast('Registrando en Sheets...','loading');
   try{
-    for(const nOrden of nordenes){
-      await gsCall('registrarPago',{nOrden,fechaPago:estado==='PENDIENTE'?(fechaPago||''):fechaPago,estado});
+    if(nordenes.length===1){
+      await gsCall('registrarPago',{nOrden:nordenes[0],fechaPago:fechaFinal,estado});
+    }else{
+      // Mandar todas las órdenes en una sola llamada para evitar conflictos
+      await gsCall('registrarPago',{nordenes,fechaPago:fechaFinal,estado});
     }
     await syncAll();
     showToast(estado==='PENDIENTE'?'✅ Orden(es) vueltas a PENDIENTE':`✅ Pago registrado (${nordenes.length} orden${nordenes.length>1?'es':''})`, 'success');
