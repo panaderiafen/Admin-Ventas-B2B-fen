@@ -803,6 +803,7 @@ function parseFecha(d){
   }
   return s.slice(0,10);
 }
+function esFechaValida(fp){return /^\d{4}-\d{2}-\d{2}$/.test(parseFecha(fp));}
 function fechaCorta(d){
   if(!d)return'—';
   const s=parseFecha(d);
@@ -1567,7 +1568,6 @@ function renderDia(){
   let ordenesDia=todasOrdenes.filter(o=>parseFecha(o['Fecha'])===dia);
   if(cliente)ordenesDia=ordenesDia.filter(o=>o['Cliente']===cliente);
   const totalDia=ordenesDia.reduce((s,o)=>s+(Number(o['Total'])||0),0);
-  const esFechaValida=fp=>{const s=parseFecha(fp);return /^\d{4}-\d{2}-\d{2}$/.test(s);};
   const cobradoDia=ordenesDia.filter(o=>esFechaValida(o['Fecha Pago'])).reduce((s,o)=>s+(Number(o['Total'])||0),0);
   const pendienteDia=totalDia-cobradoDia;
   const el=document.getElementById('an-dia-res');
@@ -1613,7 +1613,6 @@ function renderAnalisis(mostrarTodoDetalle){
   if(cliente)ordenes=ordenes.filter(o=>o['Cliente']===cliente);
 
   // Resumen simplificado: Total facturado / Cobrado (por fecha pago) / Pendiente
-  const esFechaValida=fp=>{const s=parseFecha(fp);return /^\d{4}-\d{2}-\d{2}$/.test(s);};
   let totalFacturado=0,totalCobrado=0,totalPendiente=0;
   ordenes.forEach(o=>{
     const t=Number(o['Total'])||0;
