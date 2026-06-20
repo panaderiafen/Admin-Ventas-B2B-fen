@@ -207,6 +207,7 @@ tr:last-child td { border-bottom: none; }
 
 <!-- ═══════════════════════════════════════ FACTURACIÓN ═══ -->
 <div id="sec-facturacion" class="section">
+  <div id="fact-recordatorio" class="hidden"></div>
   <div class="inner-tabs">
     <button class="inner-tab active" onclick="showTab('fact','pend',this)">Pendientes</button>
     <button class="inner-tab" onclick="showTab('fact','emit',this)">Emitidas</button>
@@ -578,6 +579,81 @@ function calcularProximoArchivado(ultimoStr) {
   return d.toISOString().slice(0,10);
 }
 
+function verificarRecordatoriosFacturacion(){
+  const hoyStr=hoy();
+  const fecha=new Date(hoyStr);
+  const diaSemana=fecha.getDay(); // 0=dom, 6=sab
+  const esSabado=diaSemana===6;
+  const ultimoDiaMes=new Date(fecha.getFullYear(),fecha.getMonth()+1,0).getDate();
+  const esUltimoDiaMes=fecha.getDate()===ultimoDiaMes;
+
+  const banner=document.getElementById('fact-recordatorio');
+  if(!banner)return;
+
+  let mensajes=[];
+
+  if(esSabado){
+    // Clientes con Facturación=Semanal que tienen órdenes sin folio esta semana
+    const inicioSem=inicioSemana(hoyStr);
+    const finSem=finSemana(hoyStr);
+    const clientesSemanales=DB.clientes
+      .filter(c=>c['Facturación']==='Semanal')
+      .filter(c=>{
+        return DB.ordenes.some(o=>
+          norm(o['Cliente']||'')===norm(c['Nombre'])&&
+          (!o['Folio SII']||o['Folio SII']==='Pendiente')&&
+          parseFecha(o['Fecha'])>=inicioSem&&
+          parseFecha(o['Fecha'])<=finSem
+        );
+      });
+    if(clientesSemanales.length){
+      mensajes.push({
+        tipo:'semanal',
+        titulo:`🗓️ Facturación semanal pendiente — ${clientesSemanales.length} cliente${clientesSemanales.length>1?'s':''}`,
+        clientes:clientesSemanales
+      });
+    }
+  }
+
+  if(esUltimoDiaMes){
+    // Clientes con Facturación=Mensual que tienen órdenes sin folio este mes
+    const mesActual=hoyStr.slice(0,7);
+    const clientesMensuales=DB.clientes
+      .filter(c=>c['Facturación']==='Mensual')
+      .filter(c=>{
+        return DB.ordenes.some(o=>
+          norm(o['Cliente']||'')===norm(c['Nombre'])&&
+          (!o['Folio SII']||o['Folio SII']==='Pendiente')&&
+          parseFecha(o['Fecha']).slice(0,7)===mesActual
+        );
+      });
+    if(clientesMensuales.length){
+      mensajes.push({
+        tipo:'mensual',
+        titulo:`📅 Facturación mensual pendiente — ${clientesMensuales.length} cliente${clientesMensuales.length>1?'s':''}`,
+        clientes:clientesMensuales
+      });
+    }
+  }
+
+  if(!mensajes.length){
+    banner.className='hidden';
+    banner.innerHTML='';
+    return;
+  }
+
+  banner.className='';
+  banner.style.cssText='background:#fff8e1;border:2px solid #ffc107;border-radius:10px;padding:14px;margin:0 0 14px 0;';
+  banner.innerHTML=mensajes.map(m=>`
+    <div style="margin-bottom:${mensajes.length>1?'12px':'0'};">
+      <strong style="color:#856404;font-size:14px;">${m.titulo}</strong>
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">
+        ${m.clientes.map(c=>`<span style="background:#003a79;color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">${c['Nombre']}</span>`).join('')}
+      </div>
+    </div>
+  `).join('<hr style="border-color:#ffc107;margin:8px 0;"/>');
+}
+
 async function verificarRecordatorioArchivado() {
   if (!GS) return;
   try {
@@ -716,6 +792,7 @@ async function syncAll() {
       'Sincronizado · '+DB.ordenes.length+' órdenes · '+DB.clientes.length+' clientes';
     showToast('✅ Sincronizado','success');
     verificarRecordatorioArchivado();
+    verificarRecordatoriosFacturacion();
   } catch(e){ showToast('Error: '+e.message,'err'); }
 }
 
@@ -737,7 +814,7 @@ function showSec(id,btn){
   document.getElementById('sec-'+id).classList.add('active');
   if(btn)btn.classList.add('active');
   if(id==='ordenes'){populateSelects();renderOrdenes();}
-  if(id==='facturacion'){populateSelects();renderFact();}
+  if(id==='facturacion'){populateSelects();renderFact();verificarRecordatoriosFacturacion();}
   if(id==='pagos'){renderPagos();renderPagosPendientes();}
   if(id==='analisis')renderAnalisis();
   if(id==='clientes')renderClientes();
@@ -2153,13 +2230,31 @@ function renderClientes(){
   const q=norm(document.getElementById('cli-q')?.value||'');
   const lista=DB.clientes.filter(c=>!q||norm(c['Nombre']).includes(q)||norm(c['RUT']||'').includes(q));
   if(!lista.length){w.innerHTML='<div class="empty">Sin clientes</div>';return;}
-  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>RUT</th><th>Giro</th><th>Contacto</th></tr></thead><tbody>'+
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>RUT</th><th>Giro</th><th>Contacto</th><th>Facturación</th></tr></thead><tbody>'+
     lista.map(c=>`<tr>
       <td><strong>${c['Nombre']}</strong><br><small style="color:#888">${c['Razón Social']||''}</small></td>
       <td>${c['RUT']||'—'}</td>
       <td>${c['Giro']||'—'}</td>
       <td>${c['Contacto']||'—'}<br><small>${c['Teléfono']||''}</small></td>
+      <td>
+        <select onchange="actualizarFacturacion('${c['Nombre']}',this.value)" style="font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid #ddd;">
+          <option value="" ${!c['Facturación']?'selected':''}>Diaria</option>
+          <option value="Semanal" ${c['Facturación']==='Semanal'?'selected':''}>Semanal</option>
+          <option value="Mensual" ${c['Facturación']==='Mensual'?'selected':''}>Mensual</option>
+        </select>
+      </td>
     </tr>`).join('')+'</tbody></table></div>';
+}
+
+async function actualizarFacturacion(nombre, valor){
+  try{
+    await gsCall('updateClienteFacturacion',{nombre, facturacion: valor});
+    // Actualizar en memoria sin re-sincronizar todo
+    const cli=DB.clientes.find(c=>c['Nombre']===nombre);
+    if(cli)cli['Facturación']=valor;
+    showToast('✅ Modalidad actualizada','success');
+    verificarRecordatoriosFacturacion();
+  }catch(e){showToast('Error: '+e.message,'err');}
 }
 
 async function guardarCliente(){
