@@ -790,6 +790,12 @@ function parseFecha(d){
   const s=String(d).trim();
   // Si ya es YYYY-MM-DD
   if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+  // Si es un número serial de Sheets (rango de fechas válidas: ~1900-2100)
+  const n=Number(s);
+  if(!isNaN(n)&&n>=30000&&n<=100000){
+    const dt=new Date((n-25569)*86400*1000);
+    return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  }
   // Si es un string de fecha en inglés tipo "Thu Jun 19 2026..."
   const parsed=new Date(s);
   if(!isNaN(parsed.getTime())){
