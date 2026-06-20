@@ -261,7 +261,10 @@ tr:last-child td { border-bottom: none; }
       </div>
 
       <div id="m-lista-wrap" class="hidden" style="margin-top:12px;">
-        <div style="font-size:12px;font-weight:700;color:#003a79;margin-bottom:8px;">Selecciona órdenes</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:700;color:#003a79;">Selecciona órdenes</div>
+          <button class="btn btn-secondary btn-sm" onclick="seleccionarTodasMulti()">☑️ Seleccionar todas</button>
+        </div>
         <div id="m-lista"></div>
       </div>
 
@@ -2002,6 +2005,13 @@ function renderMulti(){
       </label>
     </div>`;
   }).join('');
+}
+
+function seleccionarTodasMulti(){
+  const checks=[...document.querySelectorAll('#m-lista input[type="checkbox"]:not(:disabled)')];
+  const todasMarcadas=checks.every(cb=>cb.checked);
+  checks.forEach(cb=>cb.checked=!todasMarcadas);
+  calcMulti();
 }
 
 function calcMulti(){
