@@ -775,15 +775,31 @@ function fechaES(d){
   const M=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   return `${parseInt(dd)} de ${M[parseInt(m)-1]} de ${y}`;
 }
+function parseFecha(d){
+  if(!d)return'';
+  if(d instanceof Date){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  const s=String(d).trim();
+  // Si ya es YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+  // Si es un string de fecha en inglés tipo "Thu Jun 19 2026..."
+  const parsed=new Date(s);
+  if(!isNaN(parsed.getTime())){
+    return parsed.getFullYear()+'-'+String(parsed.getMonth()+1).padStart(2,'0')+'-'+String(parsed.getDate()).padStart(2,'0');
+  }
+  return s.slice(0,10);
+}
 function fechaCorta(d){
   if(!d)return'—';
-  const s=String(d).slice(0,10);
+  const s=parseFecha(d);
+  if(!s||s.length<10)return'—';
   const [y,m,dd]=s.split('-');
   const M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   return `${parseInt(dd)} ${M[parseInt(m)-1]} ${y}`;
 }
 function mesAnio(d){
-  const s=String(d||'').slice(0,10);
+  const s=parseFecha(d);
   if(!s||s.length<7)return'—';
   const [y,m]=s.split('-');
   const M=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -1467,7 +1483,7 @@ function onPeriodoChange(){
   renderAnalisis();
 }
 function enPeriodo(fechaStr,periodo){
-  const f=String(fechaStr||'').slice(0,10);
+  const f=parseFecha(fechaStr);
   if(!f)return false;
   const h=hoy();
   if(periodo==='todo')return true;
@@ -1543,8 +1559,8 @@ function renderAnalisis(){
   const vencidoPorMesOrigen={}; // key: 'YYYY-MM' -> {label, total, ordenes:[]}
   ordenesPagadas.forEach(o=>{
     const t=Number(o['Total'])||0;
-    const mesVenta=String(o['Fecha']||'').slice(0,7);
-    const mesPago=String(o['Fecha Pago']||'').slice(0,7);
+    const mesVenta=parseFecha(o['Fecha']).slice(0,7);
+    const mesPago=parseFecha(o['Fecha Pago']).slice(0,7);
     if(!mesVenta||!mesPago)return;
     if(mesVenta===mesPago){
       cajaEnMes+=t;
