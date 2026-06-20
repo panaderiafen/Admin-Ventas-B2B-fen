@@ -1863,12 +1863,14 @@ function renderMulti(){
   if(!ords.length){lista.innerHTML='<div class="empty">Sin órdenes en este rango</div>';return;}
   lista.innerHTML=ords.map(o=>{
     const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
+    const esCobrada=esFechaValida(o['Fecha Pago']);
     return `
     <div class="check-row">
       <input type="checkbox" id="mck-${o['N° Orden']}" value="${o['N° Orden']}" onchange="calcMulti()" ${tieneFolio?'disabled title="Esta orden ya tiene folio SII asignado y no puede incluirse en una nueva factura múltiple"':''}/>
       <label for="mck-${o['N° Orden']}" style="${tieneFolio?'opacity:0.55;cursor:not-allowed;':''}">
         <strong>N° ${o['N° Orden']}</strong> — ${fechaCorta(o['Fecha'])} — 
         <span style="color:#1D9E75;font-weight:700;">${fmtCLP(o['Total'])}</span>
+        ${estadoBadge(esCobrada?'PAGADO':'PENDIENTE')}
         ${tieneFolio?`<span class="badge badge-facturado" style="margin-left:4px;">Folio ${o['Folio SII']}</span>`:''}
       </label>
     </div>`;
@@ -1927,13 +1929,42 @@ async function asignarFolioMulti(){
   if(!folio){showToast('Ingresa el folio SII','err');return;}
   const sel=[...document.querySelectorAll('#m-lista input:checked')].map(cb=>cb.value);
   if(!sel.length){showToast('Selecciona al menos una orden','err');return;}
+  // Validar folio duplicado
+  const ordenesConFolio=DB.ordenes.filter(o=>
+    norm(o['Folio SII']||'')===norm(folio)&&!sel.includes(String(o['N° Orden']))
+  );
+  if(ordenesConFolio.length){
+    const detalle=ordenesConFolio.map(o=>`N°${o['N° Orden']} — ${o['Cliente']||'—'}`).join('\n');
+    const confirmar=confirm(`⚠️ El folio ${folio} ya está asignado a:\n\n${detalle}\n\n¿Confirmas asignarlo también a estas ${sel.length} órdenes?`);
+    if(!confirmar)return;
+  }
   showToast('Asignando folio a '+sel.length+' órdenes...','loading');
   try{
     for(const nOrden of sel){
       await gsCall('asignarFolio',{nOrden,folioSII:folio,fechaFolio:hoy()});
     }
     await syncAll();
-    showToast('✅ Folio '+folio+' asignado a '+sel.length+' órdenes','success');
+    // Banner resumen que desaparece solo
+    const ordenesSel=sel.map(n=>DB.ordenes.find(o=>String(o['N° Orden'])===n)).filter(Boolean);
+    const totalAsignado=ordenesSel.reduce((s,o)=>s+(Number(o['Total'])||0),0);
+    const banner=document.createElement('div');
+    banner.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#003a79;color:#fff;border-radius:12px;padding:16px 24px;z-index:9999;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.3);min-width:280px;';
+    banner.innerHTML=`<div style="font-size:16px;font-weight:700;margin-bottom:6px;">✅ Folio ${folio} asignado</div>
+      <div style="font-size:13px;opacity:0.9;">${sel.length} orden${sel.length>1?'es':''} — Total: ${fmtCLP(totalAsignado)}</div>
+      <div style="font-size:12px;opacity:0.7;margin-top:4px;">${ordenesSel.map(o=>'N°'+o['N° Orden']).join(' · ')}</div>`;
+    document.body.appendChild(banner);
+    setTimeout(()=>{
+      banner.remove();
+      // Resetear formulario para nueva búsqueda
+      document.getElementById('m-cli').value='';
+      document.getElementById('m-desde').value='';
+      document.getElementById('m-hasta').value='';
+      document.getElementById('m-folio').value='';
+      document.getElementById('m-lista').innerHTML='';
+      document.getElementById('m-res-wrap').classList.add('hidden');
+      document.getElementById('m-fechas').classList.add('hidden');
+      document.getElementById('m-lista-wrap').classList.add('hidden');
+    },3000);
   }catch(e){showToast('Error: '+e.message,'err');}
 }
 
