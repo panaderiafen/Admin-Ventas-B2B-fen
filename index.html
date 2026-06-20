@@ -1431,7 +1431,7 @@ async function guardarFolio(){
 }
 
 // ─── PAGOS ───────────────────────────────
-function renderPagos(){
+function renderPagos(mostrarTodos){
   const w=document.getElementById('pg-list');
   if(!w)return;
   const q=norm(document.getElementById('pg-q')?.value||'');
@@ -1442,18 +1442,22 @@ function renderPagos(){
     return norm(o['Cliente']||'').includes(q);
   }).filter(o=>o['Estado Pago']&&o['Estado Pago']!=='PENDIENTE');
   if(!lista.length){w.innerHTML='<div class="empty">Sin pagos registrados</div>';return;}
+  const limite=(!mostrarTodos&&!q)?3:lista.length;
+  const visible=lista.slice(0,limite);
+  const hayMas=lista.length>limite;
   w.innerHTML='<div class="table-wrap"><table><thead><tr><th>N°</th><th>Folio</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha pago</th></tr></thead><tbody>'+
-    lista.map(o=>`<tr>
+    visible.map(o=>`<tr>
       <td><strong>${o['N° Orden']}</strong></td>
       <td>${o['Folio SII']&&o['Folio SII']!=='Pendiente'?o['Folio SII']:'—'}</td>
       <td>${o['Cliente']||'—'}</td>
       <td style="color:#1D9E75;font-weight:700;">${fmtCLP(o['Total'])}</td>
       <td>${estadoBadge(o['Estado Pago'])}</td>
       <td>${fechaCorta(o['Fecha Pago'])}</td>
-    </tr>`).join('')+'</tbody></table></div>';
+    </tr>`).join('')+'</tbody></table></div>'+
+    (hayMas?`<div style="text-align:center;margin-top:10px;"><a href="javascript:void(0)" onclick="renderPagos(true)" style="color:#003a79;font-weight:600;font-size:13px;">Ver todas (${lista.length} pagos registrados)</a></div>`:'');
 }
 
-function renderPagosPendientes(){
+function renderPagosPendientes(mostrarTodos){
   const w=document.getElementById('pp-list');
   if(!w)return;
   const q=norm(document.getElementById('pp-q')?.value||'');
@@ -1469,15 +1473,19 @@ function renderPagosPendientes(){
     .filter(o=>!ppFecha||String(o['Fecha']||'').slice(0,10)===ppFecha)
     .sort((a,b)=>String(a['Fecha']||'').localeCompare(String(b['Fecha']||'')));
   if(!lista.length){w.innerHTML='<div class="empty">Sin órdenes pendientes de pago</div>';return;}
+  const limite=(!mostrarTodos&&!q&&!ppFecha)?3:lista.length;
+  const visible=lista.slice(0,limite);
+  const hayMas=lista.length>limite;
   w.innerHTML='<div class="table-wrap"><table><thead><tr><th>N°</th><th>Folio</th><th>Cliente</th><th>Fecha</th><th>Total</th><th></th></tr></thead><tbody>'+
-    lista.map(o=>`<tr>
+    visible.map(o=>`<tr>
       <td><strong>${o['N° Orden']}</strong></td>
       <td>${o['Folio SII']&&o['Folio SII']!=='Pendiente'?o['Folio SII']:'—'}</td>
       <td>${o['Cliente']||'—'}</td>
       <td>${fechaCorta(o['Fecha'])}</td>
       <td style="color:#e74c3c;font-weight:700;">${fmtCLP(o['Total'])}</td>
       <td><button class="btn btn-primary btn-sm" onclick="seleccionarDesdePendiente('${o['N° Orden']}')">Registrar pago</button></td>
-    </tr>`).join('')+'</tbody></table></div>';
+    </tr>`).join('')+'</tbody></table></div>'+
+    (hayMas?`<div style="text-align:center;margin-top:10px;"><a href="javascript:void(0)" onclick="renderPagosPendientes(true)" style="color:#e74c3c;font-weight:600;font-size:13px;">Ver todas (${lista.length} pendientes de pago)</a></div>`:'');
 }
 
 function seleccionarDesdePendiente(nOrden){
