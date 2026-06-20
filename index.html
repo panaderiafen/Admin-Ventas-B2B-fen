@@ -232,7 +232,18 @@ tr:last-child td { border-bottom: none; }
   </div>
 
   <div id="fact-emit" class="hidden">
-    <div class="card"><div class="card-title">✅ Facturas emitidas</div><div id="fe-list"></div></div>
+    <div class="card">
+      <div class="card-title">✅ Facturas emitidas</div>
+      <div class="search-box" style="display:flex;gap:8px;align-items:flex-end;">
+        <div style="flex:1;">
+          <input type="text" id="fe-q" placeholder="Folio, N° orden o cliente..." oninput="renderFact()"/>
+        </div>
+        <div>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('fe-q').value='';renderFact();">✕</button>
+        </div>
+      </div>
+      <div id="fe-list"></div>
+    </div>
   </div>
 
   <div id="fact-multi" class="hidden">
@@ -1198,23 +1209,26 @@ function renderOrdenes(){
   const q=norm(document.getElementById('ord-q')?.value||'');
   const lista=DB.ordenes.filter(o=>!q||String(o['N° Orden']).includes(q)||norm(o['Cliente']||'').includes(q));
   if(!lista.length){w.innerHTML='<div class="empty">Sin órdenes</div>';return;}
-  w.innerHTML=lista.map(o=>`
+  w.innerHTML=lista.map(o=>{
+    const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
+    return `
     <div class="orden-card">
       <div class="orden-card-top">
         <div>
           <strong style="color:#003a79">N° ${o['N° Orden']}</strong>
           ${estadoBadge(o['Estado Pago'])}
-          ${o['Folio SII']&&o['Folio SII']!=='Pendiente'?`<span class="badge badge-facturado">Folio ${o['Folio SII']}</span>`:''}
+          ${tieneFolio?`<span class="badge badge-facturado">Folio ${o['Folio SII']}</span>`:''}
         </div>
         <span style="font-weight:700;color:#1D9E75">${fmtCLP(o['Total'])}</span>
       </div>
       <div class="orden-card-meta">👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; 📅 ${fechaCorta(o['Fecha'])}</div>
       <div class="row-actions">
         <button class="btn btn-secondary btn-sm" onclick="abrirDetalle('${o['N° Orden']}')">📋 Ver detalle</button>
-        <button class="btn btn-secondary btn-sm" onclick="abrirEditar('${o['N° Orden']}')">✏️ Editar</button>
+        <button class="btn btn-secondary btn-sm" onclick="abrirEditar('${o['N° Orden']}')" ${tieneFolio?'disabled title="No se puede editar una orden con folio SII asignado"':''} style="${tieneFolio?'opacity:0.45;cursor:not-allowed;':''}">✏️ Editar</button>
         <button class="btn btn-danger btn-sm" onclick="abrirDel('${o['N° Orden']}')">🗑️ Eliminar</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 let _detOrden = null;
@@ -1284,13 +1298,38 @@ function pdfDesdeDetalle(){
 function abrirEditar(nOrden){
   const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(nOrden));
   if(!o)return;
+  // Bloquear edición si tiene folio SII
+  if(o['Folio SII']&&o['Folio SII']!=='Pendiente'){
+    showToast('No se puede editar una orden con folio SII asignado','err');
+    return;
+  }
   document.getElementById('ed-key').value=nOrden;
   populateSelects();
   document.getElementById('ed-cli').value=o['Cliente']||'';
-  document.getElementById('ed-fecha').value=String(o['Fecha']||'').slice(0,10)||hoy();
-  document.getElementById('ed-notas').value=o['Observación']||'';
-  document.getElementById('ed-lineas').innerHTML='';
-  addLinea('ed-lineas');
+  document.getElementById('ed-fecha').value=parseFecha(o['Fecha'])||hoy();
+  document.getElementById('ed-notas').value=o['Observación']||o['Notas']||'';
+  // Cargar líneas reales desde DB.detalles
+  const lineas=DB.detalles.filter(d=>String(d['N° Orden'])===String(nOrden));
+  const contenedor=document.getElementById('ed-lineas');
+  contenedor.innerHTML='';
+  if(lineas.length){
+    lineas.forEach(l=>{
+      addLinea('ed-lineas');
+      // Llenar la última línea agregada con los datos reales
+      const filas=contenedor.querySelectorAll('.linea-row');
+      const ultima=filas[filas.length-1];
+      if(ultima){
+        const selProd=ultima.querySelector('.sel-prod');
+        const inpCant=ultima.querySelector('.inp-cant');
+        const inpPrecio=ultima.querySelector('.inp-precio-cli');
+        if(selProd)selProd.value=l['Producto']||'';
+        if(inpCant)inpCant.value=l['Cantidad']||1;
+        if(inpPrecio)inpPrecio.value=Number(l['Precio Unit']||l['Precio Neto Unit.']||0);
+      }
+    });
+  }else{
+    addLinea('ed-lineas');
+  }
   calcRes('ed-lineas','ed-neto','ed-iva','ed-tot');
   openModal('modal-edit');
 }
@@ -1364,7 +1403,15 @@ function renderFact(){
       </div>
     </div>`).join(''):'<div class="empty">Sin órdenes pendientes</div>';
 
-  const emit=DB.ordenes.filter(o=>o['Folio SII']&&o['Folio SII']!=='Pendiente');
+  const qFe=norm(document.getElementById('fe-q')?.value||'');
+  const esNumFe=/^\d+$/.test(qFe.trim());
+  const emit=DB.ordenes.filter(o=>o['Folio SII']&&o['Folio SII']!=='Pendiente')
+    .filter(o=>{
+      if(!qFe)return true;
+      if(esNumFe)return String(o['N° Orden'])===qFe||norm(o['Folio SII']||'')===qFe;
+      return norm(o['Cliente']||'').includes(qFe);
+    })
+    .sort((a,b)=>String(b['Fecha']||'').localeCompare(String(a['Fecha']||'')));
   const el=document.getElementById('fe-list');
   if(el)el.innerHTML=emit.length?emit.map(o=>`
     <div class="orden-card">
@@ -1375,7 +1422,7 @@ function renderFact(){
         </div>
         <span style="font-weight:700;color:#1D9E75">${fmtCLP(o['Total'])}</span>
       </div>
-      <div class="orden-card-meta">👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; ${estadoBadge(o['Estado Pago'])}</div>
+      <div class="orden-card-meta">👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; 📅 ${fechaCorta(o['Fecha'])} &nbsp;|&nbsp; ${estadoBadge(o['Estado Pago'])}</div>
     </div>`).join(''):'<div class="empty">Sin facturas emitidas</div>';
 }
 
