@@ -1392,15 +1392,19 @@ function abrirEditar(nOrden){
   if(lineas.length){
     lineas.forEach(l=>{
       addLinea('ed-lineas');
-      // Llenar la última línea agregada con los datos reales
-      const filas=contenedor.querySelectorAll('.linea-row');
+      const filas=contenedor.querySelectorAll('.linea-producto');
       const ultima=filas[filas.length-1];
       if(ultima){
-        const selProd=ultima.querySelector('.sel-prod');
-        const inpCant=ultima.querySelector('.inp-cant');
-        const inpPrecio=ultima.querySelector('.inp-precio-cli');
-        if(selProd)selProd.value=l['Producto']||'';
-        if(inpCant)inpCant.value=l['Cantidad']||1;
+        const selProd=ultima.querySelector('select');
+        const inpCant=ultima.querySelector('.linea-cant');
+        const inpPrecio=ultima.querySelector('.linea-cli');
+        const inpBase=ultima.querySelector('.linea-base');
+        if(selProd){
+          selProd.value=l['Producto']||'';
+          // Disparar onProdSel para cargar precio base
+          onProdSel(selProd,'ed-lineas');
+        }
+        if(inpCant)inpCant.value=Number(l['Cantidad'])||1;
         if(inpPrecio)inpPrecio.value=Number(l['Precio Unit']||l['Precio Neto Unit.']||0);
       }
     });
