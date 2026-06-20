@@ -291,8 +291,6 @@ tr:last-child td { border-bottom: none; }
     <select id="pg-estado">
       <option value="" selected disabled>Seleccionar estado...</option>
       <option value="PENDIENTE">PENDIENTE</option>
-      <option value="PAGADO EN MES">PAGADO EN MES</option>
-      <option value="PAGADO EN MES VENCIDO">PAGADO EN MES VENCIDO</option>
       <option value="PAGADO">PAGADO</option>
     </select>
     <label>Referencia / comprobante</label>
@@ -354,6 +352,14 @@ tr:last-child td { border-bottom: none; }
     </div>
   </div>
   <div class="card">
+    <div class="card-title">📅 Resumen del día</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <input type="date" id="an-dia" onchange="renderDia()"/>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('an-dia').value=hoy();renderDia();">Hoy</button>
+    </div>
+    <div id="an-dia-res"></div>
+  </div>
+  <div class="card">
     <div class="card-title" id="an-titulo">Resumen — Semana actual</div>
     <div id="an-resumen"></div>
   </div>
@@ -363,8 +369,8 @@ tr:last-child td { border-bottom: none; }
     <div id="an-caja"></div>
   </div>
   <div class="card">
-    <div class="card-title">🔍 Diagnóstico: diferencias Resumen vs Caja real</div>
-    <p style="font-size:12px;color:#666;margin-bottom:12px;">Órdenes que un cálculo cuenta como pagado-en-mes y el otro no, para encontrar inconsistencias de datos.</p>
+    <div class="card-title">🔍 Diagnóstico: órdenes sin fecha de pago</div>
+    <p style="font-size:12px;color:#666;margin-bottom:12px;">Órdenes marcadas como pagadas pero sin fecha de pago registrada — afectan la precisión de Caja real.</p>
     <div id="an-diag"></div>
   </div>
   <div class="card">
@@ -1547,12 +1553,40 @@ function enPeriodo(fechaStr,periodo){
   }
   return true;
 }
-function renderAnalisis(){
+function renderDia(){
+  const dia=document.getElementById('an-dia')?.value||hoy();
+  const cliente=document.getElementById('an-cliente')?.value||'';
+  const todasOrdenes=document.getElementById('an-historico')?.checked
+    ? [...DB.ordenes,...DB.historico.ordenes] : DB.ordenes;
+  let ordenesDia=todasOrdenes.filter(o=>parseFecha(o['Fecha'])===dia);
+  if(cliente)ordenesDia=ordenesDia.filter(o=>o['Cliente']===cliente);
+  const totalDia=ordenesDia.reduce((s,o)=>s+(Number(o['Total'])||0),0);
+  const cobradoDia=ordenesDia.filter(o=>parseFecha(o['Fecha Pago'])).reduce((s,o)=>s+(Number(o['Total'])||0),0);
+  const pendienteDia=totalDia-cobradoDia;
+  const el=document.getElementById('an-dia-res');
+  if(!el)return;
+  if(!ordenesDia.length){el.innerHTML='<div class="empty">Sin órdenes en este día</div>';return;}
+  el.innerHTML=`<div class="resumen-box">
+    <div class="resumen-row"><span>N° de órdenes</span><span>${ordenesDia.length}</span></div>
+    <div class="resumen-row total"><span>Total ventas del día</span><span>${fmtCLP(totalDia)}</span></div>
+  </div>
+  <div class="resumen-box" style="margin-top:10px;">
+    <div class="resumen-row"><span>✅ Cobrado</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(cobradoDia)}</span></div>
+    <div class="resumen-row total"><span>🕓 Pendiente de cobro</span><span style="color:#e74c3c;">${fmtCLP(pendienteDia)}</span></div>
+  </div>`;
+}
+
+function renderAnalisis(mostrarTodoDetalle){
   const selCli=document.getElementById('an-cliente');
   if(selCli&&selCli.options.length<=1){
     selCli.innerHTML='<option value="">Todos los clientes (global)</option>'+
       DB.clientes.map(c=>`<option value="${c['Nombre']}">${c['Nombre']}</option>`).join('');
   }
+  // Inicializar fecha del día si está vacía
+  const diaEl=document.getElementById('an-dia');
+  if(diaEl&&!diaEl.value)diaEl.value=hoy();
+  renderDia();
+
   const periodo=document.getElementById('an-periodo')?.value||'semana';
   const cliente=document.getElementById('an-cliente')?.value||'';
   const incluirHistorico=document.getElementById('an-historico')?.checked||false;
@@ -1571,17 +1605,17 @@ function renderAnalisis(){
   let ordenes=todasOrdenes.filter(o=>enPeriodo(o['Fecha'],periodo));
   if(cliente)ordenes=ordenes.filter(o=>o['Cliente']===cliente);
 
-  let totalFacturado=0,totalPagadoMes=0,totalPagadoVencido=0,totalPendiente=0,totalPagadoGenerico=0;
+  // Resumen simplificado: Total facturado / Cobrado (por fecha pago) / Pendiente
+  let totalFacturado=0,totalCobrado=0,totalPendiente=0;
   ordenes.forEach(o=>{
     const t=Number(o['Total'])||0;
     totalFacturado+=t;
-    const est=o['Estado Pago']||'PENDIENTE';
-    if(est==='PAGADO EN MES')totalPagadoMes+=t;
-    else if(est==='PAGADO EN MES VENCIDO')totalPagadoVencido+=t;
-    else if(est==='PAGADO')totalPagadoGenerico+=t;
-    else totalPendiente+=t;
+    if(parseFecha(o['Fecha Pago'])){
+      totalCobrado+=t;
+    }else{
+      totalPendiente+=t;
+    }
   });
-  const totalPagado=totalPagadoMes+totalPagadoVencido+totalPagadoGenerico;
 
   document.getElementById('an-resumen').innerHTML=`
     <div class="resumen-box">
@@ -1589,22 +1623,17 @@ function renderAnalisis(){
       <div class="resumen-row total"><span>Total facturado</span><span>${fmtCLP(totalFacturado)}</span></div>
     </div>
     <div class="resumen-box" style="margin-top:10px;">
-      <div class="resumen-row"><span>✅ Pagado en mes</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(totalPagadoMes)}</span></div>
-      <div class="resumen-row"><span>⚠️ Pagado en mes vencido</span><span style="color:#c08a00;font-weight:700;">${fmtCLP(totalPagadoVencido)}</span></div>
-      <div class="resumen-row"><span>💰 Pagado (otro)</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(totalPagadoGenerico)}</span></div>
-      <div class="resumen-row total"><span>Total pagado</span><span>${fmtCLP(totalPagado)}</span></div>
-    </div>
-    <div class="resumen-box" style="margin-top:10px;">
-      <div class="resumen-row total"><span>🕓 Pendiente de pago</span><span style="color:#e74c3c;">${fmtCLP(totalPendiente)}</span></div>
+      <div class="resumen-row"><span>✅ Cobrado</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(totalCobrado)}</span></div>
+      <div class="resumen-row total"><span>🕓 Pendiente de cobro</span><span style="color:#e74c3c;">${fmtCLP(totalPendiente)}</span></div>
     </div>`;
 
   // ─── CAJA REAL DEL PERIODO (según Fecha Pago, no Fecha de venta) ───
-  let ordenesPagadas=todasOrdenes.filter(o=>o['Fecha Pago']&&enPeriodo(o['Fecha Pago'],periodo));
+  let ordenesPagadas=todasOrdenes.filter(o=>o['Fecha Pago']&&parseFecha(o['Fecha Pago'])&&enPeriodo(o['Fecha Pago'],periodo));
   if(cliente)ordenesPagadas=ordenesPagadas.filter(o=>o['Cliente']===cliente);
 
   let cajaEnMes=0,cajaVencida=0;
   const enMesOrdenes=[];
-  const vencidoPorMesOrigen={}; // key: 'YYYY-MM' -> {label, total, ordenes:[]}
+  const vencidoPorMesOrigen={};
   ordenesPagadas.forEach(o=>{
     const t=Number(o['Total'])||0;
     const mesVenta=parseFecha(o['Fecha']).slice(0,7);
@@ -1629,12 +1658,12 @@ function renderAnalisis(){
       cajaEl.innerHTML='<div class="empty">Sin pagos recibidos en este periodo</div>';
     }else{
       let html=`<div class="resumen-box">
-        <div class="resumen-row"><span>✅ Pago mes (venta y pago del mismo mes)</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(cajaEnMes)}</span></div>
-        <div class="resumen-row"><span>⚠️ Pago mes vencido (de meses anteriores)</span><span style="color:#c08a00;font-weight:700;">${fmtCLP(cajaVencida)}</span></div>
-        <div class="resumen-row total"><span>Total ingreso del periodo</span><span>${fmtCLP(totalCaja)}</span></div>
+        <div class="resumen-row"><span>✅ Cobro del periodo (venta y pago mismo mes)</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(cajaEnMes)}</span></div>
+        <div class="resumen-row"><span>⚠️ Cobro de periodo anterior</span><span style="color:#c08a00;font-weight:700;">${fmtCLP(cajaVencida)}</span></div>
+        <div class="resumen-row total"><span>Total ingresado en el periodo</span><span>${fmtCLP(totalCaja)}</span></div>
       </div>`;
       if(gruposVencido.length){
-        html+=`<div style="font-size:11px;font-weight:700;color:#555;margin:12px 0 6px;text-transform:uppercase;letter-spacing:0.5px;">Origen del pago mes vencido</div>`;
+        html+=`<div style="font-size:11px;font-weight:700;color:#555;margin:12px 0 6px;text-transform:uppercase;letter-spacing:0.5px;">Origen del cobro de periodos anteriores</div>`;
         gruposVencido.forEach(g=>{
           html+=`<div class="resumen-box" style="margin-bottom:8px;">
             <div class="resumen-row" style="font-weight:700;color:#003a79;"><span>De ${g.label}</span><span>${fmtCLP(g.total)}</span></div>
@@ -1646,54 +1675,44 @@ function renderAnalisis(){
     }
   }
 
-  // ─── DIAGNÓSTICO: comparar PAGADO EN MES del resumen vs Pago-mes de Caja real ───
-  // Set A: órdenes que el resumen de arriba cuenta como 'PAGADO EN MES' (filtradas por Fecha de venta en el periodo)
-  const setA=ordenes.filter(o=>(o['Estado Pago']||'')==='PAGADO EN MES');
-  // Set B: órdenes que Caja real cuenta como 'Pago mes' (filtradas por Fecha Pago en el periodo, mesVenta===mesPago)
-  const setB=enMesOrdenes;
-  const keyOrden=o=>String(o['N° Orden']);
-  const enA=new Set(setA.map(keyOrden));
-  const enB=new Set(setB.map(keyOrden));
-  const soloEnB=setB.filter(o=>!enA.has(keyOrden(o))); // Caja real las suma, resumen no
-  const soloEnA=setA.filter(o=>!enB.has(keyOrden(o))); // Resumen las suma, Caja real no
+  // ─── DIAGNÓSTICO: órdenes con estado pagado pero sin fecha de pago ───
+  const sinFecha=ordenes.filter(o=>{
+    const est=(o['Estado Pago']||'').toUpperCase();
+    const tieneFecha=!!(parseFecha(o['Fecha Pago']));
+    return est!=='PENDIENTE'&&est!==''&&!tieneFecha;
+  });
   const diagEl=document.getElementById('an-diag');
   if(diagEl){
-    if(!soloEnA.length&&!soloEnB.length){
-      diagEl.innerHTML='<div class="empty">Sin diferencias: ambos cálculos coinciden en este periodo</div>';
+    if(!sinFecha.length){
+      diagEl.innerHTML='<div class="empty">Sin inconsistencias: todas las órdenes pagadas tienen fecha de pago</div>';
     }else{
-      let html='';
-      if(soloEnB.length){
-        const sub=soloEnB.reduce((s,o)=>s+(Number(o['Total'])||0),0);
-        html+=`<div style="font-size:11px;font-weight:700;color:#c08a00;margin-bottom:6px;">⚠️ Caja real las suma como "Pago mes", el Resumen NO (subtotal: ${fmtCLP(sub)})</div>`;
-        html+='<div class="table-wrap"><table><thead><tr><th>N°</th><th>Cliente</th><th>Fecha</th><th>Fecha Pago</th><th>Estado Pago guardado</th><th>Total</th></tr></thead><tbody>'+
-          soloEnB.map(o=>`<tr><td><strong>${o['N° Orden']}</strong></td><td>${o['Cliente']||'—'}</td><td>${fechaCorta(o['Fecha'])}</td><td>${fechaCorta(o['Fecha Pago'])}</td><td>${estadoBadge(o['Estado Pago'])}</td><td style="text-align:right;">${fmtCLP(o['Total'])}</td></tr>`).join('')+
-          '</tbody></table></div>';
-      }
-      if(soloEnA.length){
-        const sub=soloEnA.reduce((s,o)=>s+(Number(o['Total'])||0),0);
-        html+=`<div style="font-size:11px;font-weight:700;color:#c08a00;margin:14px 0 6px;">⚠️ El Resumen las suma como "Pagado en mes", Caja real NO (subtotal: ${fmtCLP(sub)})</div>`;
-        html+='<div class="table-wrap"><table><thead><tr><th>N°</th><th>Cliente</th><th>Fecha</th><th>Fecha Pago</th><th>Estado Pago guardado</th><th>Total</th></tr></thead><tbody>'+
-          soloEnA.map(o=>`<tr><td><strong>${o['N° Orden']}</strong></td><td>${o['Cliente']||'—'}</td><td>${fechaCorta(o['Fecha'])}</td><td>${fechaCorta(o['Fecha Pago'])}</td><td>${estadoBadge(o['Estado Pago'])}</td><td style="text-align:right;">${fmtCLP(o['Total'])}</td></tr>`).join('')+
-          '</tbody></table></div>';
-      }
-      diagEl.innerHTML=html;
+      diagEl.innerHTML=`<div style="font-size:11px;font-weight:700;color:#c08a00;margin-bottom:6px;">⚠️ ${sinFecha.length} orden(es) marcadas como pagadas sin fecha de pago registrada</div>`+
+        '<div class="table-wrap"><table><thead><tr><th>N°</th><th>Cliente</th><th>Fecha venta</th><th>Estado guardado</th><th>Total</th></tr></thead><tbody>'+
+        sinFecha.map(o=>`<tr><td><strong>${o['N° Orden']}</strong></td><td>${o['Cliente']||'—'}</td><td>${fechaCorta(o['Fecha'])}</td><td>${estadoBadge(o['Estado Pago'])}</td><td style="text-align:right;">${fmtCLP(o['Total'])}</td></tr>`).join('')+
+        '</tbody></table></div>';
     }
   }
 
+  // ─── DETALLE CON PAGINACIÓN ───
   const ordenadas=ordenes.slice().sort((a,b)=>String(b['Fecha']||'').localeCompare(String(a['Fecha']||'')));
+  const limite=mostrarTodoDetalle?ordenadas.length:3;
+  const visible=ordenadas.slice(0,limite);
+  const hayMas=ordenadas.length>limite;
   document.getElementById('an-detalle').innerHTML=ordenadas.length?
     '<div class="table-wrap"><table><thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Folio SII</th></tr></thead><tbody>'+
-    ordenadas.map(o=>{
+    visible.map(o=>{
       const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
+      const cobrada=!!(parseFecha(o['Fecha Pago']));
       return `<tr>
       <td><strong>${o['N° Orden']}</strong></td>
       <td>${fechaCorta(o['Fecha'])}</td>
       <td>${o['Cliente']||'—'}</td>
       <td style="text-align:right;">${fmtCLP(o['Total'])}</td>
-      <td>${estadoBadge(o['Estado Pago'])}</td>
+      <td>${cobrada?'<span class="badge badge-pagado">COBRADO</span>':'<span class="badge badge-pendiente">PENDIENTE</span>'}</td>
       <td>${tieneFolio?`<span class="badge badge-facturado">${o['Folio SII']}</span>`:`<span class="badge badge-pendiente">Pendiente</span>`}</td>
     </tr>`;
-    }).join('')+'</tbody></table></div>'
+    }).join('')+'</tbody></table></div>'+
+    (hayMas?`<div style="text-align:center;margin-top:10px;"><a href="javascript:void(0)" onclick="renderAnalisis(true)" style="color:#003a79;font-weight:600;font-size:13px;">Ver todas (${ordenadas.length} órdenes)</a></div>`:'')
     :'<div class="empty">Sin órdenes en este periodo</div>';
 }
 
