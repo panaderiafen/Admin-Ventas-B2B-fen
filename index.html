@@ -484,6 +484,7 @@ tr:last-child td { border-bottom: none; }
 <div id="modal-del" class="modal-overlay">
   <div class="modal">
     <div class="modal-title">🗑️ Eliminar orden</div>
+    <div id="del-info"></div>
     <p style="font-size:14px;color:#555;margin-bottom:14px;">¿Eliminar la orden <strong id="del-num"></strong> de Google Sheets? No se puede deshacer.</p>
     <div class="modal-btns">
       <button class="btn btn-danger" style="flex:1;" onclick="confirmarDel()">Sí, eliminar</button>
@@ -1297,8 +1298,24 @@ async function guardarEdicion(){
 
 // ─── ELIMINAR ────────────────────────────
 function abrirDel(nOrden){
+  const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(nOrden));
   _delKey=nOrden;
   document.getElementById('del-num').textContent='N° '+nOrden;
+  // Verificar si tiene folio SII o pago registrado
+  if(o){
+    const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
+    const tienePago=!!(o['Estado Pago']&&o['Estado Pago']!=='PENDIENTE'&&o['Fecha Pago']);
+    let advertencia='';
+    if(tieneFolio&&tienePago){
+      advertencia=`⚠️ Esta orden tiene folio SII ${o['Folio SII']} asignado y pago registrado (${fechaCorta(o['Fecha Pago'])}).\n\nEliminarla puede generar inconsistencias tributarias.`;
+    }else if(tieneFolio){
+      advertencia=`⚠️ Esta orden tiene folio SII ${o['Folio SII']} asignado.\n\nEliminarla puede generar inconsistencias tributarias.`;
+    }else if(tienePago){
+      advertencia=`⚠️ Esta orden tiene pago registrado (${fechaCorta(o['Fecha Pago'])}).`;
+    }
+    const delInfo=document.getElementById('del-info');
+    if(delInfo)delInfo.innerHTML=advertencia?`<div class="hint error" style="margin-bottom:10px;">${advertencia.replace(/\n/g,'<br>')}</div>`:'';
+  }
   openModal('modal-del');
 }
 async function confirmarDel(){
@@ -1389,6 +1406,21 @@ function abrirFolio(nOrden){
 async function guardarFolio(){
   const folio=document.getElementById('fol-num').value.trim();
   if(!folio){showToast('Ingresa el folio','err');return;}
+  // Validar si el folio ya existe en otra orden
+  const ordenesConFolio=DB.ordenes.filter(o=>
+    norm(o['Folio SII']||'')===norm(folio)&&
+    String(o['N° Orden'])!==String(_folKey)
+  );
+  if(ordenesConFolio.length){
+    const detalle=ordenesConFolio.map(o=>
+      `N°${o['N° Orden']} — ${o['Cliente']||'—'} — ${fechaCorta(o['Fecha'])} — ${fmtCLP(o['Total'])}`
+    ).join('\n');
+    const confirmar=confirm(
+      `⚠️ El folio ${folio} ya está asignado a ${ordenesConFolio.length} orden(es):\n\n${detalle}\n\n` +
+      `Esto puede ser correcto si es una Factura Múltiple.\n¿Confirmas asignar este mismo folio a la orden N°${_folKey}?`
+    );
+    if(!confirmar)return;
+  }
   showToast('Guardando folio en Sheets...','loading');
   try{
     await gsCall('asignarFolio',{nOrden:_folKey,folioSII:folio,fechaFolio:document.getElementById('fol-fecha').value});
