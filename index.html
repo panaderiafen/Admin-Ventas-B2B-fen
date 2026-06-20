@@ -1403,9 +1403,12 @@ function renderPagos(){
   const w=document.getElementById('pg-list');
   if(!w)return;
   const q=norm(document.getElementById('pg-q')?.value||'');
-  const lista=DB.ordenes.filter(o=>
-    (!q||String(o['N° Orden']).includes(q)||norm(o['Cliente']||'').includes(q)||norm(o['Folio SII']||'').includes(q))
-  ).filter(o=>o['Estado Pago']&&o['Estado Pago']!=='PENDIENTE');
+  const esNumerico=/^\d+$/.test(q.trim());
+  const lista=DB.ordenes.filter(o=>{
+    if(!q)return true;
+    if(esNumerico)return String(o['N° Orden'])===q.trim()||norm(o['Folio SII']||'')===q.trim();
+    return norm(o['Cliente']||'').includes(q);
+  }).filter(o=>o['Estado Pago']&&o['Estado Pago']!=='PENDIENTE');
   if(!lista.length){w.innerHTML='<div class="empty">Sin pagos registrados</div>';return;}
   w.innerHTML='<div class="table-wrap"><table><thead><tr><th>N°</th><th>Folio</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha pago</th></tr></thead><tbody>'+
     lista.map(o=>`<tr>
@@ -1423,9 +1426,14 @@ function renderPagosPendientes(){
   if(!w)return;
   const q=norm(document.getElementById('pp-q')?.value||'');
   const ppFecha=document.getElementById('pp-fecha')?.value||'';
+  const esNumerico=/^\d+$/.test(q.trim());
   const lista=DB.ordenes
     .filter(o=>o['Estado Pago']==='PENDIENTE'||!o['Estado Pago'])
-    .filter(o=>!q||String(o['N° Orden']).includes(q)||norm(o['Cliente']||'').includes(q)||norm(o['Folio SII']||'').includes(q))
+    .filter(o=>{
+      if(!q)return true;
+      if(esNumerico)return String(o['N° Orden'])===q.trim()||norm(o['Folio SII']||'')===q.trim();
+      return norm(o['Cliente']||'').includes(q);
+    })
     .filter(o=>!ppFecha||String(o['Fecha']||'').slice(0,10)===ppFecha)
     .sort((a,b)=>String(a['Fecha']||'').localeCompare(String(b['Fecha']||'')));
   if(!lista.length){w.innerHTML='<div class="empty">Sin órdenes pendientes de pago</div>';return;}
@@ -1657,25 +1665,28 @@ function buscarOrdenPago(){
   // Si ya hay una selección confirmada (pg-key lleno) y el texto no cambió, no hacer nada
   const keyActual=kEl.value;
   if(keyActual){
-    // Verificar si el texto de búsqueda sigue siendo el mismo folio/orden seleccionado
-    // Si es así, no regenerar la lista (protege la selección ya hecha)
     const ordenesKey=keyActual.split(',').map(n=>n.trim());
     const primeraOrden=DB.ordenes.find(o=>String(o['N° Orden'])===ordenesKey[0]);
     if(primeraOrden){
       const folioOrden=norm(primeraOrden['Folio SII']||'');
       const nOrden=String(primeraOrden['N° Orden']);
       if(q===folioOrden||q===nOrden||norm(primeraOrden['Cliente']||'').includes(q)){
-        return; // la búsqueda sigue apuntando a la orden ya seleccionada, no regenerar
+        return;
       }
     }
-    // Si el texto cambió significativamente, limpiar la selección y buscar de nuevo
     kEl.value='';
   }
-  const coincidencias=DB.ordenes.filter(o=>
-    String(o['N° Orden']).includes(q)||
-    norm(o['Folio SII']||'').includes(q)||
-    norm(o['Cliente']||'').includes(q)
-  );
+  const esNumerico = /^\d+$/.test(q.trim());
+  const coincidencias=DB.ordenes.filter(o=>{
+    if(esNumerico){
+      // Match exacto para numéricos: evita colisión entre N° Orden y Folio SII
+      const matchOrden = String(o['N° Orden'])===q.trim();
+      const matchFolio = norm(o['Folio SII']||'')===q.trim();
+      return matchOrden||matchFolio;
+    }
+    // Match parcial solo para texto (nombres de clientes)
+    return norm(o['Cliente']||'').includes(q);
+  });
   if(coincidencias.length===0){
     el.className='hint error';
     el.textContent='No se encontró ninguna orden con esa búsqueda.';
