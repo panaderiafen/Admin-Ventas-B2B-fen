@@ -1561,7 +1561,8 @@ function renderDia(){
   let ordenesDia=todasOrdenes.filter(o=>parseFecha(o['Fecha'])===dia);
   if(cliente)ordenesDia=ordenesDia.filter(o=>o['Cliente']===cliente);
   const totalDia=ordenesDia.reduce((s,o)=>s+(Number(o['Total'])||0),0);
-  const cobradoDia=ordenesDia.filter(o=>parseFecha(o['Fecha Pago'])).reduce((s,o)=>s+(Number(o['Total'])||0),0);
+  const esFechaValida=fp=>{const s=parseFecha(fp);return /^\d{4}-\d{2}-\d{2}$/.test(s);};
+  const cobradoDia=ordenesDia.filter(o=>esFechaValida(o['Fecha Pago'])).reduce((s,o)=>s+(Number(o['Total'])||0),0);
   const pendienteDia=totalDia-cobradoDia;
   const el=document.getElementById('an-dia-res');
   if(!el)return;
@@ -1606,11 +1607,12 @@ function renderAnalisis(mostrarTodoDetalle){
   if(cliente)ordenes=ordenes.filter(o=>o['Cliente']===cliente);
 
   // Resumen simplificado: Total facturado / Cobrado (por fecha pago) / Pendiente
+  const esFechaValida=fp=>{const s=parseFecha(fp);return /^\d{4}-\d{2}-\d{2}$/.test(s);};
   let totalFacturado=0,totalCobrado=0,totalPendiente=0;
   ordenes.forEach(o=>{
     const t=Number(o['Total'])||0;
     totalFacturado+=t;
-    if(parseFecha(o['Fecha Pago'])){
+    if(esFechaValida(o['Fecha Pago'])){
       totalCobrado+=t;
     }else{
       totalPendiente+=t;
@@ -1702,7 +1704,7 @@ function renderAnalisis(mostrarTodoDetalle){
     '<div class="table-wrap"><table><thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Folio SII</th></tr></thead><tbody>'+
     visible.map(o=>{
       const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
-      const cobrada=!!(parseFecha(o['Fecha Pago']));
+      const cobrada=esFechaValida(o['Fecha Pago']);
       return `<tr>
       <td><strong>${o['N° Orden']}</strong></td>
       <td>${fechaCorta(o['Fecha'])}</td>
