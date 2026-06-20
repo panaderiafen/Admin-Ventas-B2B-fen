@@ -581,8 +581,8 @@ function calcularProximoArchivado(ultimoStr) {
 
 function verificarRecordatoriosFacturacion(){
   const hoyStr=hoy();
-  const fecha=new Date(hoyStr);
-  const diaSemana=fecha.getDay(); // 0=dom, 6=sab
+  const fecha=new Date(); // usar hora local, no UTC
+  const diaSemana=fecha.getDay(); // 0=dom, 6=sab (hora local)
   const esSabado=diaSemana===6;
   const ultimoDiaMes=new Date(fecha.getFullYear(),fecha.getMonth()+1,0).getDate();
   const esUltimoDiaMes=fecha.getDate()===ultimoDiaMes;
