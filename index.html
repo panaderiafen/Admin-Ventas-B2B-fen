@@ -78,6 +78,7 @@ tr:last-child td { border-bottom: none; }
 /* MODAL */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; align-items: center; justify-content: center; padding: 14px; }
 .modal-overlay.open { display: flex; }
+.modal-box { background: white; border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); width: 100%; overflow: hidden; }
 .modal { background: white; border-radius: 16px; padding: 22px; width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; }
 .modal-title { font-size: 15px; font-weight: 700; color: #003a79; margin-bottom: 14px; }
 .modal-btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
@@ -437,7 +438,9 @@ tr:last-child td { border-bottom: none; }
     <div class="card-title">🗄️ Archivado de datos</div>
     <p style="font-size:13px;color:#555;margin-bottom:12px;">El archivado mueve las órdenes antiguas (pagadas + con folio + más de 45 días) a las hojas históricas, manteniendo la app rápida. Próximo archivado: <strong>14 de agosto 2026</strong>.</p>
     <div id="archivo-status" style="font-size:12px;color:#888;margin-bottom:10px;">Cargando último archivado...</div>
+    <button class="btn btn-secondary" onclick="verificarArchivado()" style="margin-right:8px;">🔍 Verificar</button>
     <button class="btn btn-secondary" onclick="ejecutarArchivado()">🗄️ Archivar ahora</button>
+    <div id="verificar-resultado" style="margin-top:10px;font-size:13px;display:none;"></div>
     <button class="btn btn-secondary" style="margin-top:8px;" onclick="sincronizarDetalle()">🔧 Sincronizar Detalle Histórico</button>
   </div>
 </div>
@@ -726,6 +729,24 @@ async function verificarRecordatorioArchivado() {
 }
 
 function hoy_() { return new Date().toISOString().slice(0,10); }
+
+async function verificarArchivado() {
+  const div = document.getElementById('verificar-resultado');
+  div.style.display = 'block';
+  div.style.cssText = 'margin-top:10px;font-size:13px;display:block;padding:10px;background:#f8f9fa;border-radius:8px;';
+  div.textContent = '🔍 Verificando...';
+  try {
+    const res = await gsCall('verificarArchivado');
+    if (res.error) { div.textContent = '⚠️ Error: ' + res.error; return; }
+    if (res.total === 0) {
+      div.innerHTML = '✅ No hay órdenes que cumplan los 3 criterios (pagada + folio SII + más de 45 días). <br><span style="color:#888;">Fecha límite: ' + res.fechaLimite + '</span>';
+    } else {
+      div.innerHTML = `<strong style="color:#003a79;">📦 ${res.total} orden${res.total!==1?'es':''} listas para archivar</strong><br>
+        <span style="color:#888;font-size:12px;">Fecha límite: ${res.fechaLimite}</span><br>
+        <div style="margin-top:6px;">${res.ordenes.map(o => `<div>• N° ${o.nOrden} — ${o.cliente} — ${o.fecha}</div>`).join('')}</div>`;
+    }
+  } catch(e) { div.textContent = '⚠️ Error de conexión'; }
+}
 
 async function ejecutarArchivado() {
   if (!confirm('¿Confirmas que quieres archivar las órdenes que cumplen los 3 criterios?\n\n• Pagadas (no PENDIENTE)\n• Con folio SII asignado\n• Con más de 45 días de antigüedad\n\nEsta acción moverá esas órdenes a las hojas históricas.')) return;
@@ -1323,6 +1344,9 @@ function renderOrdenes(){
   const lista=DB.ordenes.filter(o=>!q||String(o['N° Orden']).includes(q)||norm(o['Cliente']||'').includes(q));
   if(!lista.length){w.innerHTML='<div class="empty">Sin órdenes</div>';return;}
   w.innerHTML=lista.map(o=>{
+    const cli = DB.clientes.find(c => norm(c['Nombre']||'') === norm(o['Cliente']||''));
+    const facturacion = cli ? String(cli['Facturación'] || cli['Facturacion'] || '').toLowerCase() : '';
+    const esDiario = facturacion === 'diario' || facturacion === 'diaria';
     const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
     return `
     <div class="orden-card">
@@ -1337,7 +1361,7 @@ function renderOrdenes(){
       <div class="orden-card-meta">👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; 📅 ${fechaCorta(o['Fecha'])}</div>
       <div class="row-actions">
         <button class="btn btn-secondary btn-sm" onclick="abrirDetalle('${o['N° Orden']}')">📋 Ver detalle</button>
-        <button class="btn btn-secondary btn-sm" onclick="abrirPagoRapido('${o['N° Orden']}')">💳 Pago</button>
+        ${esDiario ? `<button class="btn btn-secondary btn-sm" onclick="abrirPagoRapido('${o['N° Orden']}')">💳 Pago</button>` : ''}
         <button class="btn btn-secondary btn-sm" onclick="abrirEditar('${o['N° Orden']}')" ${tieneFolio?'disabled title="No se puede editar una orden con folio SII asignado"':''} style="${tieneFolio?'opacity:0.45;cursor:not-allowed;':''}">✏️ Editar</button>
         <button class="btn btn-danger btn-sm" onclick="abrirDel('${o['N° Orden']}')">🗑️ Eliminar</button>
       </div>
