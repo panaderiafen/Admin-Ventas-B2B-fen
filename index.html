@@ -435,7 +435,7 @@ tr:last-child td { border-bottom: none; }
   </div>
   <div class="card">
     <div class="card-title">🗄️ Archivado de datos</div>
-    <p style="font-size:13px;color:#555;margin-bottom:12px;">El archivado mueve las órdenes antiguas (pagadas + con folio + más de 3 meses) a las hojas históricas, manteniendo la app rápida. Próximo archivado: <strong>30 de septiembre 2026</strong>.</p>
+    <p style="font-size:13px;color:#555;margin-bottom:12px;">El archivado mueve las órdenes antiguas (pagadas + con folio + más de 45 días) a las hojas históricas, manteniendo la app rápida. Próximo archivado: <strong>14 de agosto 2026</strong>.</p>
     <div id="archivo-status" style="font-size:12px;color:#888;margin-bottom:10px;">Cargando último archivado...</div>
     <button class="btn btn-secondary" onclick="ejecutarArchivado()">🗄️ Archivar ahora</button>
     <button class="btn btn-secondary" style="margin-top:8px;" onclick="sincronizarDetalle()">🔧 Sincronizar Detalle Histórico</button>
@@ -445,6 +445,36 @@ tr:last-child td { border-bottom: none; }
 <!-- ═══════════════════════════════════════ MODALES ═══ -->
 
 <!-- Detalle orden -->
+<!-- MODAL PAGO RÁPIDO -->
+<div id="modal-pago-rapido" class="modal-overlay">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-header">
+      <span id="pr-titulo">💳 Registrar pago</span>
+      <button class="modal-close" onclick="closeModal('modal-pago-rapido')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="pr-info" style="background:#f0f7ff;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#003a79;font-weight:600;"></div>
+      <div class="form-group">
+        <label>Estado de pago</label>
+        <select id="pr-estado" onchange="onPrEstadoChange()">
+          <option value="">— Selecciona —</option>
+          <option value="PAGADO">✅ PAGADO</option>
+          <option value="PENDIENTE">🕓 PENDIENTE</option>
+        </select>
+      </div>
+      <div class="form-group" id="pr-fecha-wrap">
+        <label>Fecha de pago</label>
+        <input type="date" id="pr-fecha"/>
+      </div>
+      <input type="hidden" id="pr-norden"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pago-rapido')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-pr-confirmar" onclick="confirmarPagoRapido()">Confirmar pago</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-detalle" class="modal-overlay">
   <div class="modal">
     <div class="modal-title" id="det-title">📋 Detalle de orden</div>
@@ -571,15 +601,15 @@ let GS = localStorage.getItem('fen_gs') || '';
 const DB = {clientes:[],productos:[],precios:[],ordenes:[],detalles:[],historico:{ordenes:[],detalles:[],cargado:false}};
 
 // ─── ARCHIVADO: RECORDATORIO Y EJECUCIÓN ──────────────
-const FECHA_PRIMER_ARCHIVADO = '2026-09-30'; // primer archivado programado
-const MESES_CICLO = 3;
+const FECHA_PRIMER_ARCHIVADO = '2026-08-14'; // primer archivado programado
+const DIAS_CICLO = 45;
 const DIAS_AVISO = 5;
 
 function calcularProximoArchivado(ultimoStr) {
   if (!ultimoStr) return FECHA_PRIMER_ARCHIVADO;
   const d = new Date(ultimoStr);
-  d.setMonth(d.getMonth() + MESES_CICLO);
-  return d.toISOString().slice(0,10);
+  d.setDate(d.getDate() + DIAS_CICLO);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
 function verificarRecordatoriosFacturacion(){
@@ -698,7 +728,7 @@ async function verificarRecordatorioArchivado() {
 function hoy_() { return new Date().toISOString().slice(0,10); }
 
 async function ejecutarArchivado() {
-  if (!confirm('¿Confirmas que quieres archivar las órdenes que cumplen los 3 criterios?\n\n• Pagadas (no PENDIENTE)\n• Con folio SII asignado\n• Con más de 3 meses de antigüedad\n\nEsta acción moverá esas órdenes a las hojas históricas.')) return;
+  if (!confirm('¿Confirmas que quieres archivar las órdenes que cumplen los 3 criterios?\n\n• Pagadas (no PENDIENTE)\n• Con folio SII asignado\n• Con más de 45 días de antigüedad\n\nEsta acción moverá esas órdenes a las hojas históricas.')) return;
   showToast('Archivando... esto puede tomar unos segundos','loading');
   try {
     const res = await gsCall('archivarOrdenes');
@@ -864,7 +894,10 @@ function guardarUrlBanner(){
 // ─── HELPERS ─────────────────────────────
 function fmtCLP(n){return '$'+Math.round(n||0).toLocaleString('es-CL');}
 function norm(s){return String(s||'').toLowerCase().trim();}
-function hoy(){return new Date().toISOString().slice(0,10);}
+function hoy(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function fechaES(d){
   if(!d)return'—';
   const s=String(d).slice(0,10);
@@ -1304,6 +1337,7 @@ function renderOrdenes(){
       <div class="orden-card-meta">👤 ${o['Cliente']||'—'} &nbsp;|&nbsp; 📅 ${fechaCorta(o['Fecha'])}</div>
       <div class="row-actions">
         <button class="btn btn-secondary btn-sm" onclick="abrirDetalle('${o['N° Orden']}')">📋 Ver detalle</button>
+        <button class="btn btn-secondary btn-sm" onclick="abrirPagoRapido('${o['N° Orden']}')">💳 Pago</button>
         <button class="btn btn-secondary btn-sm" onclick="abrirEditar('${o['N° Orden']}')" ${tieneFolio?'disabled title="No se puede editar una orden con folio SII asignado"':''} style="${tieneFolio?'opacity:0.45;cursor:not-allowed;':''}">✏️ Editar</button>
         <button class="btn btn-danger btn-sm" onclick="abrirDel('${o['N° Orden']}')">🗑️ Eliminar</button>
       </div>
@@ -1941,6 +1975,46 @@ function seleccionarTodasOrdenPago(nordenesCsv){
     ordenes.map(o=>`N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])}`).join('<br>')+
     `<br><strong style="color:#003a79;">Total a registrar: ${fmtCLP(total)}</strong>`;
   kEl.value=nordenesCsv; // guardar todos los N° separados por coma
+}
+
+// ─── PAGO RÁPIDO ─────────────────────────────
+function abrirPagoRapido(nOrden) {
+  const o = DB.ordenes.find(x => String(x['N° Orden']) === String(nOrden));
+  if (!o) { showToast('Orden no encontrada', 'err'); return; }
+  document.getElementById('pr-titulo').textContent = '💳 Pago — Orden N° ' + nOrden;
+  document.getElementById('pr-info').innerHTML =
+    '<strong>' + (o['Cliente'] || '—') + '</strong> · ' +
+    fechaCorta(o['Fecha']) + ' · <span style="color:#1D9E75;font-weight:800;">' +
+    fmtCLP(o['Total']) + '</span>' +
+    '<br><span style="font-size:12px;color:#555;">Estado actual: ' + (o['Estado Pago'] || 'PENDIENTE') + '</span>';
+  document.getElementById('pr-estado').value = esFechaValida(o['Fecha Pago']) ? 'PAGADO' : 'PENDIENTE';
+  document.getElementById('pr-fecha').value = esFechaValida(o['Fecha Pago']) ? parseFecha(o['Fecha Pago']) : hoy();
+  document.getElementById('pr-norden').value = nOrden;
+  onPrEstadoChange();
+  openModal('modal-pago-rapido');
+}
+
+function onPrEstadoChange() {
+  const estado = document.getElementById('pr-estado').value;
+  const wrap = document.getElementById('pr-fecha-wrap');
+  wrap.style.display = estado === 'PENDIENTE' ? 'none' : 'block';
+}
+
+async function confirmarPagoRapido() {
+  const nOrden = document.getElementById('pr-norden').value;
+  const estado = document.getElementById('pr-estado').value;
+  const fechaPago = document.getElementById('pr-fecha').value;
+  if (!estado) { showToast('Selecciona el estado', 'err'); return; }
+  if (estado !== 'PENDIENTE' && !fechaPago) { showToast('Ingresa la fecha de pago', 'err'); return; }
+  const btn = document.getElementById('btn-pr-confirmar');
+  btn.disabled = true; btn.textContent = '⏳ Guardando...';
+  try {
+    await gsCall('registrarPago', { nOrden, fechaPago: estado === 'PENDIENTE' ? '' : fechaPago, estado });
+    await syncAll();
+    showToast('✅ Pago registrado', 'success');
+    closeModal('modal-pago-rapido');
+  } catch(e) { showToast('Error: ' + e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = 'Confirmar pago'; }
 }
 
 async function registrarPago(){
