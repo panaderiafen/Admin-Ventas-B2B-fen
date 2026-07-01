@@ -2394,7 +2394,7 @@ function renderClientes(){
       <td>${c['Contacto']||'—'}<br><small>${c['Teléfono']||''}</small></td>
       <td>
         <select onchange="actualizarFacturacion('${c['Nombre']}',this.value)" style="font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid #ddd;">
-          <option value="" ${!c['Facturación']?'selected':''}>Diaria</option>
+          <option value="Diaria" ${(!c['Facturación']||c['Facturación']==='Diaria')?'selected':''}>Diaria</option>
           <option value="Semanal" ${c['Facturación']==='Semanal'?'selected':''}>Semanal</option>
           <option value="Mensual" ${c['Facturación']==='Mensual'?'selected':''}>Mensual</option>
         </select>
