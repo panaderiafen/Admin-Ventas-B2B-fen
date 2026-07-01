@@ -444,26 +444,11 @@ tr:last-child td { border-bottom: none; }
 
     <div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <span style="font-size:13px;font-weight:700;color:#003a79;">📊 Estado de las hojas</span>
+        <span style="font-size:13px;font-weight:700;color:#003a79;">📊 Estado de sincronización</span>
         <button class="btn btn-secondary btn-sm" onclick="cargarEstadisticas()">🔄 Actualizar</button>
       </div>
-      <div id="panel-estadisticas" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div style="background:#f0f7ff;border-radius:8px;padding:10px;text-align:center;">
-          <div style="font-size:11px;color:#888;margin-bottom:2px;">Órdenes activas</div>
-          <div id="stat-ordenes-activas" style="font-size:22px;font-weight:800;color:#003a79;">—</div>
-        </div>
-        <div style="background:#f0fff4;border-radius:8px;padding:10px;text-align:center;">
-          <div style="font-size:11px;color:#888;margin-bottom:2px;">Órdenes históricas</div>
-          <div id="stat-ordenes-historico" style="font-size:22px;font-weight:800;color:#1D9E75;">—</div>
-        </div>
-        <div style="background:#f0f7ff;border-radius:8px;padding:10px;text-align:center;">
-          <div style="font-size:11px;color:#888;margin-bottom:2px;">Líneas detalle activas</div>
-          <div id="stat-lineas-activas" style="font-size:22px;font-weight:800;color:#003a79;">—</div>
-        </div>
-        <div style="background:#f0fff4;border-radius:8px;padding:10px;text-align:center;">
-          <div style="font-size:11px;color:#888;margin-bottom:2px;">Líneas detalle históricas</div>
-          <div id="stat-lineas-historico" style="font-size:22px;font-weight:800;color:#1D9E75;">—</div>
-        </div>
+      <div id="panel-estadisticas">
+        <div style="text-align:center;color:#888;font-size:13px;padding:16px;">Presiona 🔄 para verificar</div>
       </div>
       <div id="stat-ultimo" style="font-size:12px;color:#888;margin-top:8px;text-align:center;"></div>
     </div>
@@ -757,17 +742,35 @@ async function verificarRecordatorioArchivado() {
 function hoy_() { return new Date().toISOString().slice(0,10); }
 
 async function cargarEstadisticas() {
+  const panel = document.getElementById('panel-estadisticas');
+  panel.innerHTML = '<div style="text-align:center;color:#888;font-size:13px;padding:16px;">⏳ Verificando...</div>';
   try {
     const res = await gsCall('getEstadisticasArchivado');
-    if (!res.ok) return;
-    document.getElementById('stat-ordenes-activas').textContent = res.ordenesActivas.toLocaleString('es-CL');
-    document.getElementById('stat-ordenes-historico').textContent = res.ordenesHistorico.toLocaleString('es-CL');
-    document.getElementById('stat-lineas-activas').textContent = res.lineasActivas.toLocaleString('es-CL');
-    document.getElementById('stat-lineas-historico').textContent = res.lineasHistorico.toLocaleString('es-CL');
+    if (!res.ok) { panel.innerHTML = '<div style="color:#e74c3c;">Error al cargar</div>'; return; }
+
+    function bloque(titulo, data, color) {
+      const ok = data.sincronizado;
+      const icono = ok ? '✅' : '⚠️';
+      const bgColor = ok ? '#f0fff4' : '#fff8e1';
+      const borderColor = ok ? '#1D9E75' : '#ffc107';
+      let detalle = '';
+      if (!ok) {
+        if (data.soloEnDetalle.length) detalle += `<div style="font-size:11px;color:#856404;margin-top:4px;">En Detalle pero no en Resumen: ${data.soloEnDetalle.slice(0,5).join(', ')}${data.soloEnDetalle.length>5?' ...':''}</div>`;
+        if (data.soloEnResumen.length) detalle += `<div style="font-size:11px;color:#856404;margin-top:2px;">En Resumen pero no en Detalle: ${data.soloEnResumen.slice(0,5).join(', ')}${data.soloEnResumen.length>5?' ...':''}</div>`;
+      }
+      return `<div style="background:${bgColor};border:1px solid ${borderColor};border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:#003a79;margin-bottom:4px;">${titulo} ${icono}</div>
+        <div style="font-size:13px;color:#333;">Resumen: <strong>${data.resumen}</strong> órdenes &nbsp;·&nbsp; Detalle: <strong>${data.detalle}</strong> filas</div>
+        ${ok ? '' : detalle}
+      </div>`;
+    }
+
+    panel.innerHTML = bloque('Hojas activas', res.activo, '#003a79') +
+                      bloque('Hojas históricas', res.historico, '#1D9E75');
     document.getElementById('stat-ultimo').textContent = res.ultimoArchivado
       ? 'Último archivado: ' + fechaCorta(res.ultimoArchivado)
       : 'Sin archivados previos';
-  } catch(e) { /* silencioso */ }
+  } catch(e) { panel.innerHTML = '<div style="color:#e74c3c;">Error de conexión</div>'; }
 }
 
 async function verificarArchivado() {
