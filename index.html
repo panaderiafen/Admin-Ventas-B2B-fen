@@ -441,6 +441,32 @@ tr:last-child td { border-bottom: none; }
     <button class="btn btn-secondary" onclick="verificarArchivado()" style="margin-right:8px;">🔍 Verificar</button>
     <button class="btn btn-secondary" onclick="ejecutarArchivado()">🗄️ Archivar ahora</button>
     <div id="verificar-resultado" style="margin-top:10px;font-size:13px;display:none;"></div>
+
+    <div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:13px;font-weight:700;color:#003a79;">📊 Estado de las hojas</span>
+        <button class="btn btn-secondary btn-sm" onclick="cargarEstadisticas()">🔄 Actualizar</button>
+      </div>
+      <div id="panel-estadisticas" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="background:#f0f7ff;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:11px;color:#888;margin-bottom:2px;">Órdenes activas</div>
+          <div id="stat-ordenes-activas" style="font-size:22px;font-weight:800;color:#003a79;">—</div>
+        </div>
+        <div style="background:#f0fff4;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:11px;color:#888;margin-bottom:2px;">Órdenes históricas</div>
+          <div id="stat-ordenes-historico" style="font-size:22px;font-weight:800;color:#1D9E75;">—</div>
+        </div>
+        <div style="background:#f0f7ff;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:11px;color:#888;margin-bottom:2px;">Líneas detalle activas</div>
+          <div id="stat-lineas-activas" style="font-size:22px;font-weight:800;color:#003a79;">—</div>
+        </div>
+        <div style="background:#f0fff4;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:11px;color:#888;margin-bottom:2px;">Líneas detalle históricas</div>
+          <div id="stat-lineas-historico" style="font-size:22px;font-weight:800;color:#1D9E75;">—</div>
+        </div>
+      </div>
+      <div id="stat-ultimo" style="font-size:12px;color:#888;margin-top:8px;text-align:center;"></div>
+    </div>
     <button class="btn btn-secondary" style="margin-top:8px;" onclick="sincronizarDetalle()">🔧 Sincronizar Detalle Histórico</button>
   </div>
 </div>
@@ -730,6 +756,20 @@ async function verificarRecordatorioArchivado() {
 
 function hoy_() { return new Date().toISOString().slice(0,10); }
 
+async function cargarEstadisticas() {
+  try {
+    const res = await gsCall('getEstadisticasArchivado');
+    if (!res.ok) return;
+    document.getElementById('stat-ordenes-activas').textContent = res.ordenesActivas.toLocaleString('es-CL');
+    document.getElementById('stat-ordenes-historico').textContent = res.ordenesHistorico.toLocaleString('es-CL');
+    document.getElementById('stat-lineas-activas').textContent = res.lineasActivas.toLocaleString('es-CL');
+    document.getElementById('stat-lineas-historico').textContent = res.lineasHistorico.toLocaleString('es-CL');
+    document.getElementById('stat-ultimo').textContent = res.ultimoArchivado
+      ? 'Último archivado: ' + fechaCorta(res.ultimoArchivado)
+      : 'Sin archivados previos';
+  } catch(e) { /* silencioso */ }
+}
+
 async function verificarArchivado() {
   const div = document.getElementById('verificar-resultado');
   div.style.display = 'block';
@@ -772,6 +812,7 @@ async function ejecutarArchivado() {
     DB.historico.cargado = false;
     verificarRecordatorioArchivado();
     showToast(`✅ ${res.archivadas} órdenes archivadas correctamente`,'success');
+    await cargarEstadisticas();
   } catch(e) { showToast('Error: '+e.message,'err'); }
 }
 
@@ -874,7 +915,7 @@ function showSec(id,btn){
   if(id==='clientes')renderClientes();
   if(id==='productos')renderProductos();
   if(id==='precios'){populateModalSelects();renderPrecios();}
-  if(id==='config')document.getElementById('cfg-url').value=GS;
+  if(id==='config'){document.getElementById('cfg-url').value=GS; cargarEstadisticas();}
 }
 
 function showTab(sec,tab,btn){
