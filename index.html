@@ -627,78 +627,84 @@ function calcularProximoArchivado(ultimoStr) {
 }
 
 function verificarRecordatoriosFacturacion(){
-  const hoyStr=hoy();
-  const fecha=new Date(); // usar hora local, no UTC
-  const diaSemana=fecha.getDay(); // 0=dom, 6=sab (hora local)
-  const esSabado=diaSemana===6;
-  const ultimoDiaMes=new Date(fecha.getFullYear(),fecha.getMonth()+1,0).getDate();
-  const esUltimoDiaMes=fecha.getDate()===ultimoDiaMes;
+  const fecha = new Date();
+  const hoyStr = hoy();
+  const diaSemana = fecha.getDay(); // 0=dom, 6=sab
+  const esSabado = diaSemana === 6;
+  const ultimoDiaMes = new Date(fecha.getFullYear(), fecha.getMonth()+1, 0).getDate();
+  const esUltimoDiaMes = fecha.getDate() === ultimoDiaMes;
 
-  const banner=document.getElementById('fact-recordatorio');
-  if(!banner)return;
+  const banner = document.getElementById('fact-recordatorio');
+  if (!banner) return;
 
-  let mensajes=[];
+  // Helper: órdenes sin folio de un cliente
+  function ordenesSinFolio(nombreCliente) {
+    return DB.ordenes.filter(o =>
+      norm(o['Cliente']||'') === norm(nombreCliente) &&
+      (!o['Folio SII'] || String(o['Folio SII']).trim() === '' || o['Folio SII'] === 'Pendiente')
+    );
+  }
 
-  if(esSabado){
-    // Clientes con Facturación=Semanal que tienen órdenes sin folio esta semana
-    const inicioSem=inicioSemana(hoyStr);
-    const finSem=finSemana(hoyStr);
-    const clientesSemanales=DB.clientes
-      .filter(c=>c['Facturación']==='Semanal')
-      .filter(c=>{
-        return DB.ordenes.some(o=>
-          norm(o['Cliente']||'')===norm(c['Nombre'])&&
-          (!o['Folio SII']||o['Folio SII']==='Pendiente')&&
-          parseFecha(o['Fecha'])>=inicioSem&&
-          parseFecha(o['Fecha'])<=finSem
-        );
-      });
-    if(clientesSemanales.length){
-      mensajes.push({
-        tipo:'semanal',
-        titulo:`🗓️ Facturación semanal pendiente — ${clientesSemanales.length} cliente${clientesSemanales.length>1?'s':''}`,
-        clientes:clientesSemanales
-      });
+  let secciones = [];
+
+  // ── DIARIA: todos los días, todas las órdenes sin folio acumuladas ──
+  const clientesDiarios = DB.clientes
+    .filter(c => (c['Facturación']||'') === 'Diaria')
+    .map(c => ({ cliente: c, ordenes: ordenesSinFolio(c['Nombre']) }))
+    .filter(x => x.ordenes.length > 0);
+
+  if (clientesDiarios.length) {
+    secciones.push({ tipo: 'diaria', clientes: clientesDiarios });
+  }
+
+  // ── SEMANAL: desde el sábado, órdenes sin folio acumuladas ──
+  if (esSabado) {
+    const clientesSemanales = DB.clientes
+      .filter(c => c['Facturación'] === 'Semanal')
+      .map(c => ({ cliente: c, ordenes: ordenesSinFolio(c['Nombre']) }))
+      .filter(x => x.ordenes.length > 0);
+    if (clientesSemanales.length) {
+      secciones.push({ tipo: 'semanal', clientes: clientesSemanales });
     }
   }
 
-  if(esUltimoDiaMes){
-    // Clientes con Facturación=Mensual que tienen órdenes sin folio este mes
-    const mesActual=hoyStr.slice(0,7);
-    const clientesMensuales=DB.clientes
-      .filter(c=>c['Facturación']==='Mensual')
-      .filter(c=>{
-        return DB.ordenes.some(o=>
-          norm(o['Cliente']||'')===norm(c['Nombre'])&&
-          (!o['Folio SII']||o['Folio SII']==='Pendiente')&&
-          parseFecha(o['Fecha']).slice(0,7)===mesActual
-        );
-      });
-    if(clientesMensuales.length){
-      mensajes.push({
-        tipo:'mensual',
-        titulo:`📅 Facturación mensual pendiente — ${clientesMensuales.length} cliente${clientesMensuales.length>1?'s':''}`,
-        clientes:clientesMensuales
-      });
+  // ── MENSUAL: desde el último día del mes, órdenes sin folio acumuladas ──
+  if (esUltimoDiaMes) {
+    const clientesMensuales = DB.clientes
+      .filter(c => c['Facturación'] === 'Mensual')
+      .map(c => ({ cliente: c, ordenes: ordenesSinFolio(c['Nombre']) }))
+      .filter(x => x.ordenes.length > 0);
+    if (clientesMensuales.length) {
+      secciones.push({ tipo: 'mensual', clientes: clientesMensuales });
     }
   }
 
-  if(!mensajes.length){
-    banner.className='hidden';
-    banner.innerHTML='';
+  if (!secciones.length) {
+    banner.className = 'hidden';
+    banner.innerHTML = '';
     return;
   }
 
-  banner.className='';
-  banner.style.cssText='background:#fff8e1;border:2px solid #ffc107;border-radius:10px;padding:14px;margin:0 0 14px 0;';
-  banner.innerHTML=mensajes.map(m=>`
-    <div style="margin-bottom:${mensajes.length>1?'12px':'0'};">
-      <strong style="color:#856404;font-size:14px;">${m.titulo}</strong>
-      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">
-        ${m.clientes.map(c=>`<span style="background:#003a79;color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">${c['Nombre']}</span>`).join('')}
-      </div>
-    </div>
-  `).join('<hr style="border-color:#ffc107;margin:8px 0;"/>');
+  const config = {
+    diaria:  { color: '#e3f0ff', borde: '#2980b9', texto: '#1a5f8a', icono: '📋', label: 'Facturación diaria pendiente' },
+    semanal: { color: '#fff8e1', borde: '#ffc107', texto: '#856404', icono: '🗓️', label: 'Facturación semanal pendiente' },
+    mensual: { color: '#fff3e0', borde: '#ff9800', texto: '#7c4a00', icono: '📅', label: 'Facturación mensual pendiente' }
+  };
+
+  banner.className = '';
+  banner.style.cssText = 'margin:0 0 14px 0;';
+  banner.innerHTML = secciones.map(sec => {
+    const cfg = config[sec.tipo];
+    return `<div style="background:${cfg.color};border:1.5px solid ${cfg.borde};border-radius:10px;padding:12px 14px;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:700;color:${cfg.texto};margin-bottom:8px;">${cfg.icono} ${cfg.label} — ${sec.clientes.length} cliente${sec.clientes.length!==1?'s':''}</div>
+      ${sec.clientes.map(x => `
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:${cfg.texto};min-width:120px;">${x.cliente['Nombre']}</span>
+          <span style="font-size:11px;color:#555;">${x.ordenes.length} orden${x.ordenes.length!==1?'es':''} sin folio:</span>
+          <span style="font-size:11px;color:#333;">${x.ordenes.map(o=>'N°'+o['N° Orden']).join(', ')}</span>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
 }
 
 async function verificarRecordatorioArchivado() {
