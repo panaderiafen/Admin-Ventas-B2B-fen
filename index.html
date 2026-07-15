@@ -2595,8 +2595,8 @@ function generarEstadoCuenta() {
   const desde = document.getElementById('ec-desde').value;
   const hasta = document.getElementById('ec-hasta').value;
 
-  // Filtrar órdenes
-  let ordenes = [...todasOrdenes];
+  // Filtrar órdenes desde DB
+  let ordenes = [...DB.ordenes, ...(DB.historico.ordenes||[])];
   if (cliente) ordenes = ordenes.filter(o => norm(o['Cliente']||'') === norm(cliente));
   if (desde) ordenes = ordenes.filter(o => parseFecha(o['Fecha']) >= desde);
   if (hasta) ordenes = ordenes.filter(o => parseFecha(o['Fecha']) <= hasta);
