@@ -144,6 +144,7 @@ tr:last-child td { border-bottom: none; }
   <button class="nav-btn" onclick="showSec('productos',this)">📦 Productos</button>
   <button class="nav-btn" onclick="showSec('precios',this)">🏷️ Precios</button>
   <button class="nav-btn" onclick="showSec('config',this)">⚙️ Config</button>
+  <button class="nav-btn" onclick="showSec('estadocuenta',this)">📄 Estado Cta.</button>
 </div>
 
 <div id="config-banner" class="config-banner hidden">
@@ -627,84 +628,78 @@ function calcularProximoArchivado(ultimoStr) {
 }
 
 function verificarRecordatoriosFacturacion(){
-  const fecha = new Date();
-  const hoyStr = hoy();
-  const diaSemana = fecha.getDay(); // 0=dom, 6=sab
-  const esSabado = diaSemana === 6;
-  const ultimoDiaMes = new Date(fecha.getFullYear(), fecha.getMonth()+1, 0).getDate();
-  const esUltimoDiaMes = fecha.getDate() === ultimoDiaMes;
+  const hoyStr=hoy();
+  const fecha=new Date(); // usar hora local, no UTC
+  const diaSemana=fecha.getDay(); // 0=dom, 6=sab (hora local)
+  const esSabado=diaSemana===6;
+  const ultimoDiaMes=new Date(fecha.getFullYear(),fecha.getMonth()+1,0).getDate();
+  const esUltimoDiaMes=fecha.getDate()===ultimoDiaMes;
 
-  const banner = document.getElementById('fact-recordatorio');
-  if (!banner) return;
+  const banner=document.getElementById('fact-recordatorio');
+  if(!banner)return;
 
-  // Helper: órdenes sin folio de un cliente
-  function ordenesSinFolio(nombreCliente) {
-    return DB.ordenes.filter(o =>
-      norm(o['Cliente']||'') === norm(nombreCliente) &&
-      (!o['Folio SII'] || String(o['Folio SII']).trim() === '' || o['Folio SII'] === 'Pendiente')
-    );
-  }
+  let mensajes=[];
 
-  let secciones = [];
-
-  // ── DIARIA: todos los días, todas las órdenes sin folio acumuladas ──
-  const clientesDiarios = DB.clientes
-    .filter(c => (c['Facturación']||'') === 'Diaria')
-    .map(c => ({ cliente: c, ordenes: ordenesSinFolio(c['Nombre']) }))
-    .filter(x => x.ordenes.length > 0);
-
-  if (clientesDiarios.length) {
-    secciones.push({ tipo: 'diaria', clientes: clientesDiarios });
-  }
-
-  // ── SEMANAL: desde el sábado, órdenes sin folio acumuladas ──
-  if (esSabado) {
-    const clientesSemanales = DB.clientes
-      .filter(c => c['Facturación'] === 'Semanal')
-      .map(c => ({ cliente: c, ordenes: ordenesSinFolio(c['Nombre']) }))
-      .filter(x => x.ordenes.length > 0);
-    if (clientesSemanales.length) {
-      secciones.push({ tipo: 'semanal', clientes: clientesSemanales });
+  if(esSabado){
+    // Clientes con Facturación=Semanal que tienen órdenes sin folio esta semana
+    const inicioSem=inicioSemana(hoyStr);
+    const finSem=finSemana(hoyStr);
+    const clientesSemanales=DB.clientes
+      .filter(c=>c['Facturación']==='Semanal')
+      .filter(c=>{
+        return DB.ordenes.some(o=>
+          norm(o['Cliente']||'')===norm(c['Nombre'])&&
+          (!o['Folio SII']||o['Folio SII']==='Pendiente')&&
+          parseFecha(o['Fecha'])>=inicioSem&&
+          parseFecha(o['Fecha'])<=finSem
+        );
+      });
+    if(clientesSemanales.length){
+      mensajes.push({
+        tipo:'semanal',
+        titulo:`🗓️ Facturación semanal pendiente — ${clientesSemanales.length} cliente${clientesSemanales.length>1?'s':''}`,
+        clientes:clientesSemanales
+      });
     }
   }
 
-  // ── MENSUAL: desde el último día del mes, órdenes sin folio acumuladas ──
-  if (esUltimoDiaMes) {
-    const clientesMensuales = DB.clientes
-      .filter(c => c['Facturación'] === 'Mensual')
-      .map(c => ({ cliente: c, ordenes: ordenesSinFolio(c['Nombre']) }))
-      .filter(x => x.ordenes.length > 0);
-    if (clientesMensuales.length) {
-      secciones.push({ tipo: 'mensual', clientes: clientesMensuales });
+  if(esUltimoDiaMes){
+    // Clientes con Facturación=Mensual que tienen órdenes sin folio este mes
+    const mesActual=hoyStr.slice(0,7);
+    const clientesMensuales=DB.clientes
+      .filter(c=>c['Facturación']==='Mensual')
+      .filter(c=>{
+        return DB.ordenes.some(o=>
+          norm(o['Cliente']||'')===norm(c['Nombre'])&&
+          (!o['Folio SII']||o['Folio SII']==='Pendiente')&&
+          parseFecha(o['Fecha']).slice(0,7)===mesActual
+        );
+      });
+    if(clientesMensuales.length){
+      mensajes.push({
+        tipo:'mensual',
+        titulo:`📅 Facturación mensual pendiente — ${clientesMensuales.length} cliente${clientesMensuales.length>1?'s':''}`,
+        clientes:clientesMensuales
+      });
     }
   }
 
-  if (!secciones.length) {
-    banner.className = 'hidden';
-    banner.innerHTML = '';
+  if(!mensajes.length){
+    banner.className='hidden';
+    banner.innerHTML='';
     return;
   }
 
-  const config = {
-    diaria:  { color: '#e3f0ff', borde: '#2980b9', texto: '#1a5f8a', icono: '📋', label: 'Facturación diaria pendiente' },
-    semanal: { color: '#fff8e1', borde: '#ffc107', texto: '#856404', icono: '🗓️', label: 'Facturación semanal pendiente' },
-    mensual: { color: '#fff3e0', borde: '#ff9800', texto: '#7c4a00', icono: '📅', label: 'Facturación mensual pendiente' }
-  };
-
-  banner.className = '';
-  banner.style.cssText = 'margin:0 0 14px 0;';
-  banner.innerHTML = secciones.map(sec => {
-    const cfg = config[sec.tipo];
-    return `<div style="background:${cfg.color};border:1.5px solid ${cfg.borde};border-radius:10px;padding:12px 14px;margin-bottom:8px;">
-      <div style="font-size:13px;font-weight:700;color:${cfg.texto};margin-bottom:8px;">${cfg.icono} ${cfg.label} — ${sec.clientes.length} cliente${sec.clientes.length!==1?'s':''}</div>
-      ${sec.clientes.map(x => `
-        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
-          <span style="font-size:12px;font-weight:700;color:${cfg.texto};min-width:120px;">${x.cliente['Nombre']}</span>
-          <span style="font-size:11px;color:#555;">${x.ordenes.length} orden${x.ordenes.length!==1?'es':''} sin folio:</span>
-          <span style="font-size:11px;color:#333;">${x.ordenes.map(o=>'N°'+o['N° Orden']).join(', ')}</span>
-        </div>`).join('')}
-    </div>`;
-  }).join('');
+  banner.className='';
+  banner.style.cssText='background:#fff8e1;border:2px solid #ffc107;border-radius:10px;padding:14px;margin:0 0 14px 0;';
+  banner.innerHTML=mensajes.map(m=>`
+    <div style="margin-bottom:${mensajes.length>1?'12px':'0'};">
+      <strong style="color:#856404;font-size:14px;">${m.titulo}</strong>
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">
+        ${m.clientes.map(c=>`<span style="background:#003a79;color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">${c['Nombre']}</span>`).join('')}
+      </div>
+    </div>
+  `).join('<hr style="border-color:#ffc107;margin:8px 0;"/>');
 }
 
 async function verificarRecordatorioArchivado() {
@@ -925,6 +920,7 @@ function showSec(id,btn){
   if(id==='productos')renderProductos();
   if(id==='precios'){populateModalSelects();renderPrecios();}
   if(id==='config'){document.getElementById('cfg-url').value=GS; cargarEstadisticas();}
+  if(id==='estadocuenta'){poblarSelectorEC();}
 }
 
 function showTab(sec,tab,btn){
@@ -2530,6 +2526,250 @@ if(!GS){
   syncAll();
 }
 initNuevaOrden();
+</script>
+
+<!-- ESTADO DE CUENTA SECTION -->
+<div id="sec-estadocuenta" class="section">
+  <h2 style="margin-bottom:16px;color:#003a79;">📄 Estado de Cuenta</h2>
+  <div class="card" style="padding:16px;margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end;flex-wrap:wrap;">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Cliente</label>
+        <select id="ec-cliente" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+          <option value="">— Todos los clientes —</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Desde</label>
+        <input type="date" id="ec-desde" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;"/>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Hasta</label>
+        <input type="date" id="ec-hasta" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;"/>
+      </div>
+      <button onclick="generarEstadoCuenta()" class="btn btn-primary" style="white-space:nowrap;">📄 Generar</button>
+    </div>
+  </div>
+  <div id="ec-preview" style="display:none;">
+    <div class="card" style="padding:16px;margin-bottom:12px;background:#f0f7ff;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center;">
+        <div>
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">Total comprado</div>
+          <div id="ec-total-comprado" style="font-size:22px;font-weight:800;color:#003a79;">$0</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">Total pagado</div>
+          <div id="ec-total-pagado" style="font-size:22px;font-weight:800;color:#1D9E75;">$0</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">Pendiente de pago</div>
+          <div id="ec-total-pendiente" style="font-size:22px;font-weight:800;color:#c0392b;">$0</div>
+        </div>
+      </div>
+    </div>
+    <div id="ec-tabla" style="overflow-x:auto;"></div>
+    <div style="margin-top:12px;text-align:right;">
+      <button onclick="descargarEstadoCuentaPDF()" class="btn btn-primary">⬇️ Descargar PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── ESTADO DE CUENTA ─────────────────────────
+function poblarSelectorEC() {
+  const sel = document.getElementById('ec-cliente');
+  if (!sel) return;
+  const val = sel.value;
+  sel.innerHTML = '<option value="">— Todos los clientes —</option>';
+  DB.clientes.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c['Nombre'] || '';
+    opt.textContent = c['Nombre'] || '';
+    sel.appendChild(opt);
+  });
+  if (val) sel.value = val;
+}
+
+function generarEstadoCuenta() {
+  const cliente = document.getElementById('ec-cliente').value;
+  const desde = document.getElementById('ec-desde').value;
+  const hasta = document.getElementById('ec-hasta').value;
+
+  // Filtrar órdenes
+  let ordenes = [...todasOrdenes];
+  if (cliente) ordenes = ordenes.filter(o => norm(o['Cliente']||'') === norm(cliente));
+  if (desde) ordenes = ordenes.filter(o => parseFecha(o['Fecha']) >= desde);
+  if (hasta) ordenes = ordenes.filter(o => parseFecha(o['Fecha']) <= hasta);
+
+  if (!ordenes.length) { showToast('No hay órdenes para los filtros seleccionados','err'); return; }
+
+  // Calcular totales
+  let totalComprado = 0, totalPagado = 0;
+  ordenes.forEach(o => {
+    const tot = parseFloat(o['Total']||0);
+    totalComprado += tot;
+    const estado = String(o['Estado Pago']||'').toUpperCase();
+    if (estado !== 'PENDIENTE') totalPagado += tot;
+  });
+  const totalPendiente = totalComprado - totalPagado;
+
+  document.getElementById('ec-total-comprado').textContent = fmtCLP(Math.round(totalComprado));
+  document.getElementById('ec-total-pagado').textContent = fmtCLP(Math.round(totalPagado));
+  document.getElementById('ec-total-pendiente').textContent = fmtCLP(Math.round(totalPendiente));
+
+  // Tabla preview
+  const tbody = ordenes.map(o => {
+    const estado = String(o['Estado Pago']||'PENDIENTE').toUpperCase();
+    const esPendiente = estado === 'PENDIENTE';
+    const colorEst = esPendiente ? '#c0392b' : '#1D9E75';
+    return `<tr>
+      <td>${o['N° Orden']||''}</td>
+      <td>${fechaCorta(o['Fecha'])}</td>
+      <td>${o['Cliente']||''}</td>
+      <td>${o['Folio SII']||'Pendiente'}</td>
+      <td style="text-align:right;">${fmtCLP(Math.round(o['Total Neto']||0))}</td>
+      <td style="text-align:right;font-weight:700;">${fmtCLP(Math.round(o['Total']||0))}</td>
+      <td style="text-align:center;color:${colorEst};font-weight:700;">${estado}</td>
+      <td>${esPendiente ? '—' : fechaCorta(o['Fecha Pago'])}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('ec-tabla').innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead style="background:#003a79;color:white;">
+        <tr>
+          <th style="padding:8px 10px;text-align:left;">N° Orden</th>
+          <th style="padding:8px 10px;text-align:left;">Fecha</th>
+          <th style="padding:8px 10px;text-align:left;">Cliente</th>
+          <th style="padding:8px 10px;text-align:left;">Folio SII</th>
+          <th style="padding:8px 10px;text-align:right;">Neto</th>
+          <th style="padding:8px 10px;text-align:right;">Total</th>
+          <th style="padding:8px 10px;text-align:center;">Estado</th>
+          <th style="padding:8px 10px;text-align:left;">Fecha Pago</th>
+        </tr>
+      </thead>
+      <tbody>${tbody}</tbody>
+    </table>`;
+
+  document.getElementById('ec-preview').style.display = 'block';
+  window._ecData = { ordenes, cliente, desde, hasta, totalComprado, totalPagado, totalPendiente };
+}
+
+function descargarEstadoCuentaPDF() {
+  if (!window._ecData) { showToast('Genera primero el estado de cuenta','err'); return; }
+  const { ordenes, cliente, desde, hasta, totalComprado, totalPagado, totalPendiente } = window._ecData;
+
+  const cliData = cliente ? DB.clientes.find(c => norm(c['Nombre']||'') === norm(cliente)) : null;
+  const periodoStr = (desde || hasta) ? `${desde ? 'Desde ' + fechaCorta(desde) : ''}${desde && hasta ? ' al ' : ''}${hasta ? fechaCorta(hasta) : ''}` : 'Todo el período';
+
+  const filasPendientes = ordenes.filter(o => String(o['Estado Pago']||'').toUpperCase() === 'PENDIENTE');
+  const filasPagadas = ordenes.filter(o => String(o['Estado Pago']||'').toUpperCase() !== 'PENDIENTE');
+
+  function tablaOrdenes(lista, titulo, colorTitulo) {
+    if (!lista.length) return '';
+    const rows = lista.map(o => `
+      <tr>
+        <td>${o['N° Orden']||''}</td>
+        <td>${fechaCorta(o['Fecha'])}</td>
+        <td>${o['Folio SII']||'Pendiente'}</td>
+        <td style="text-align:right;">${fmtCLP(Math.round(o['Total Neto']||0))}</td>
+        <td style="text-align:right;font-weight:700;">${fmtCLP(Math.round(o['Total']||0))}</td>
+        <td>${String(o['Estado Pago']||'').toUpperCase() === 'PENDIENTE' ? '—' : fechaCorta(o['Fecha Pago'])}</td>
+      </tr>`).join('');
+    return `
+      <h3 style="font-size:13px;font-weight:800;color:${colorTitulo};margin:18px 0 8px;text-transform:uppercase;letter-spacing:1px;">${titulo}</h3>
+      <table>
+        <thead><tr>
+          <th>N° Orden</th><th>Fecha</th><th>Folio SII</th>
+          <th style="text-align:right;">Neto</th><th style="text-align:right;">Total</th><th>Fecha Pago</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  const docHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Estado de Cuenta</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Barlow Condensed',sans-serif;color:#1a1a2e;background:white;padding:40px 48px;max-width:760px;margin:auto;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;}
+  .logo img{width:110px;height:auto;}
+  .title-area{text-align:right;}
+  .ec-title{font-size:26px;font-weight:900;color:#003a79;letter-spacing:2px;text-transform:uppercase;}
+  .ec-sub{font-size:13px;color:#555;margin-top:4px;font-family:'Barlow',sans-serif;}
+  hr.top{border:none;border-top:2px solid #003a79;margin:18px 0;}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+  .box{border:1px solid #dde4ef;border-radius:6px;padding:14px 16px;background:#fafbff;}
+  .box-label{font-size:9px;font-weight:800;color:#003a79;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
+  .box-val{font-size:13px;color:#222;line-height:1.85;font-family:'Barlow',sans-serif;}
+  .box-val strong{font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;}
+  .resumen{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;}
+  .res-box{text-align:center;border-radius:8px;padding:14px;border:1px solid #dde4ef;}
+  .res-label{font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.8px;}
+  .res-val{font-size:20px;font-weight:900;}
+  table{width:100%;border-collapse:collapse;margin-bottom:8px;}
+  th{background:#003a79;color:white;padding:8px 10px;font-size:10px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  td{padding:9px 10px;font-size:12px;font-family:'Barlow',sans-serif;border-bottom:1px solid #eef0f5;}
+  tbody tr:last-child td{border-bottom:none;}
+  .footer{display:flex;justify-content:space-between;font-size:10px;color:#777;margin-top:32px;border-top:1px solid #e0e0e0;padding-top:14px;font-family:'Barlow',sans-serif;letter-spacing:0.5px;}
+  .footer strong{color:#003a79;}
+</style>
+</head><body>
+<div class="header">
+  <div class="logo"><img src="${LOGO}" alt="Logo Fën"/></div>
+  <div class="title-area">
+    <div class="ec-title">Estado de Cuenta</div>
+    <div class="ec-sub">${periodoStr}</div>
+    <div class="ec-sub" style="margin-top:6px;">Ainavillo 764, Concepción · panaderiafen@gmail.com</div>
+  </div>
+</div>
+<hr class="top"/>
+<div class="two-col">
+  <div class="box">
+    <div class="box-label">Cliente</div>
+    <div class="box-val">
+      ${cliData ? `<strong>${cliData['Nombre']||'—'}</strong><br>${cliData['Razón Social']||''}<br>RUT: ${cliData['RUT']||'—'}<br>${cliData['Dirección']||''}` : '<strong>Todos los clientes</strong>'}
+    </div>
+  </div>
+  <div class="box">
+    <div class="box-label">Resumen</div>
+    <div class="box-val">
+      <strong>Período:</strong> ${periodoStr}<br>
+      <strong>N° de órdenes:</strong> ${ordenes.length}<br>
+      <strong>Generado:</strong> ${fechaCorta(hoy())}
+    </div>
+  </div>
+</div>
+<div class="resumen">
+  <div class="res-box" style="background:#f0f7ff;">
+    <div class="res-label">Total comprado</div>
+    <div class="res-val" style="color:#003a79;">${fmtCLP(Math.round(totalComprado))}</div>
+  </div>
+  <div class="res-box" style="background:#f0fff4;">
+    <div class="res-label">Total pagado</div>
+    <div class="res-val" style="color:#1D9E75;">${fmtCLP(Math.round(totalPagado))}</div>
+  </div>
+  <div class="res-box" style="background:#fff5f5;">
+    <div class="res-label">Pendiente de pago</div>
+    <div class="res-val" style="color:#c0392b;">${fmtCLP(Math.round(totalPendiente))}</div>
+  </div>
+</div>
+${tablaOrdenes(filasPendientes, '🔴 Órdenes pendientes de pago', '#c0392b')}
+${tablaOrdenes(filasPagadas, '✅ Órdenes pagadas', '#1D9E75')}
+<div class="footer">
+  <span><strong>FËN</strong> · PANADERÍA MASA MADRE · CAFETERÍA</span>
+  <span>WWW.PANADERIAFEN.CL · @PANADERIAFEN</span>
+</div>
+</body></html>`;
+
+  const nombreCliente = cliente ? cliente.replace(/[^a-zA-Z0-9]+/g, '_') : 'Todos';
+  const nombreArchivo = `EstadoCuenta_${nombreCliente}_${hoy()}.pdf`;
+  generarYDescargarPDF(docHtml, nombreArchivo);
+}
+
+// Poblar selector al cargar clientes
+const _origSyncAll = syncAll;
 </script>
 </body>
 </html>
