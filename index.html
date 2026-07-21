@@ -634,78 +634,69 @@ function verificarRecordatoriosFacturacion(){
   if(!banner)return;
 
   // Helper: clientes de una modalidad de facturación con órdenes sin folio SII
-  // dentro del rango correspondiente (o sin restricción de fecha para Diaria).
+  // dentro del rango correspondiente (o sin restricción de fecha para Diaria),
+  // junto con el detalle de esas órdenes.
   function clientesConPendientes(modalidad, dentroDeRango){
     return DB.clientes
       .filter(c=>{
         const f=c['Facturación']||'Diaria'; // Diaria es el valor por defecto
         return f===modalidad;
       })
-      .filter(c=>{
-        return DB.ordenes.some(o=>
+      .map(c=>{
+        const ordenes=DB.ordenes.filter(o=>
           norm(o['Cliente']||'')===norm(c['Nombre'])&&
           (!o['Folio SII']||o['Folio SII']==='Pendiente')&&
           dentroDeRango(o)
         );
-      });
+        return {cliente:c,ordenes};
+      })
+      .filter(x=>x.ordenes.length);
   }
 
   const inicioSem=inicioSemana(hoyStr);
   const finSem=finSemana(hoyStr);
   const mesActual=hoyStr.slice(0,7);
 
-  let mensajes=[];
+  let grupos=[];
 
   // Diaria: cualquier orden sin folio, sin restricción de fecha (se factura todos los días)
-  const clientesDiarios=clientesConPendientes('Diaria', ()=>true);
-  if(clientesDiarios.length){
-    mensajes.push({
-      tipo:'diaria',
-      titulo:`☀️ Facturación diaria pendiente — ${clientesDiarios.length} cliente${clientesDiarios.length>1?'s':''}`,
-      clientes:clientesDiarios
-    });
-  }
+  const diarios=clientesConPendientes('Diaria', ()=>true);
+  if(diarios.length) grupos.push({titulo:'Facturación diaria',items:diarios});
 
   // Semanal: órdenes sin folio dentro de la semana actual
-  const clientesSemanales=clientesConPendientes('Semanal', o=>
+  const semanales=clientesConPendientes('Semanal', o=>
     parseFecha(o['Fecha'])>=inicioSem&&parseFecha(o['Fecha'])<=finSem
   );
-  if(clientesSemanales.length){
-    mensajes.push({
-      tipo:'semanal',
-      titulo:`🗓️ Facturación semanal pendiente — ${clientesSemanales.length} cliente${clientesSemanales.length>1?'s':''}`,
-      clientes:clientesSemanales
-    });
-  }
+  if(semanales.length) grupos.push({titulo:'Facturación semanal',items:semanales});
 
   // Mensual: órdenes sin folio dentro del mes actual
-  const clientesMensuales=clientesConPendientes('Mensual', o=>
+  const mensuales=clientesConPendientes('Mensual', o=>
     parseFecha(o['Fecha']).slice(0,7)===mesActual
   );
-  if(clientesMensuales.length){
-    mensajes.push({
-      tipo:'mensual',
-      titulo:`📅 Facturación mensual pendiente — ${clientesMensuales.length} cliente${clientesMensuales.length>1?'s':''}`,
-      clientes:clientesMensuales
-    });
-  }
+  if(mensuales.length) grupos.push({titulo:'Facturación mensual',items:mensuales});
 
-  if(!mensajes.length){
+  if(!grupos.length){
     banner.className='hidden';
     banner.innerHTML='';
     return;
   }
 
   banner.className='';
-  banner.style.cssText='background:#fff8e1;border:2px solid #ffc107;border-radius:10px;padding:14px;margin:0 0 14px 0;';
-  banner.innerHTML=mensajes.map(m=>`
-    <div style="margin-bottom:${mensajes.length>1?'12px':'0'};">
-      <strong style="color:#856404;font-size:14px;">${m.titulo}</strong>
-      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">
-        ${m.clientes.map(c=>`<span style="background:#003a79;color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">${c['Nombre']}</span>`).join('')}
+  banner.style.cssText='background:#f0f7ff;border-radius:10px;padding:16px;margin:0 0 14px 0;';
+  banner.innerHTML=grupos.map(g=>`
+    <div style="margin-bottom:${grupos.length>1?'14px':'0'};">
+      <div style="font-size:11px;color:#8a9bb0;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">${g.titulo}</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${g.items.map(x=>`
+          <div style="font-size:13px;color:#5a6b7e;line-height:1.5;">
+            <strong style="color:#003a79;font-weight:700;">${x.cliente['Nombre']}</strong>
+            — ${x.ordenes.length} orden${x.ordenes.length>1?'es':''} pendiente${x.ordenes.length>1?'s':''}
+            <span style="color:#8a9bb0;">(N° ${x.ordenes.map(o=>o['N° Orden']).join(', ')})</span>
+          </div>
+        `).join('')}
       </div>
     </div>
-  `).join('<hr style="border-color:#ffc107;margin:8px 0;"/>');
+  `).join(grupos.length>1?'<hr style="border:none;border-top:1px solid #d8e6f5;margin:10px 0;"/>':'');
 }
 
 async function verificarRecordatorioArchivado() {
