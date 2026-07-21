@@ -2323,7 +2323,7 @@ function descargarMultiPDF(){
   <div class="logo"><img src="${LOGO}" alt="Logo Fen"/></div>
   <div class="title-area">
     <div class="doc-title">Resumen de \xd3rdenes</div>
-    <div class="doc-sub">Factura M\xfaltiple</div>
+    <div class="doc-sub">Documento base para la emisi\xf3n de tu factura</div>
     <div class="doc-info">Ainavillo 764, Concepci\xf3n<br>+56 9 4147 3683<br>panaderiafen@gmail.com<br>Fecha: ${fechaES(hoy())}</div>
   </div>
 </div>
@@ -2371,7 +2371,7 @@ ${usaDetalles?`<table>
 <p class="nota">Documento de referencia para facturaci\xf3n. No constituye una orden de compra ni una factura electr\xf3nica.</p>
 </body></html>`;
   const clienteSlug=(cli||'cliente').replace(/[^a-zA-Z0-9]+/g,'_');
-  const nombreArchivo='resumen_ordenes_'+clienteSlug+'_'+fechaDesde+'_al_'+fechaHasta+'.pdf';
+  const nombreArchivo='resumen_ordenes_'+clienteSlug+'_'+fechaDesde.slice(0,10)+'_al_'+fechaHasta.slice(0,10)+'.pdf';
   generarYDescargarPDF(docHtml,nombreArchivo);
 }
 
