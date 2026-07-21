@@ -2285,7 +2285,7 @@ function descargarMultiPDF(){
   const fechaHasta=sel.reduce((mx,o)=>(String(o['Fecha'])>mx)?String(o['Fecha']):mx,'');
 
   const docHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Resumen Facturaci\xf3n M\xfaltiple</title>
+<title>Resumen de \xd3rdenes</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -2322,7 +2322,7 @@ function descargarMultiPDF(){
 <div class="header">
   <div class="logo"><img src="${LOGO}" alt="Logo Fen"/></div>
   <div class="title-area">
-    <div class="doc-title">Resumen Facturaci\xf3n</div>
+    <div class="doc-title">Resumen de \xd3rdenes</div>
     <div class="doc-sub">Factura M\xfaltiple</div>
     <div class="doc-info">Ainavillo 764, Concepci\xf3n<br>+56 9 4147 3683<br>panaderiafen@gmail.com<br>Fecha: ${fechaES(hoy())}</div>
   </div>
@@ -2370,7 +2370,8 @@ ${usaDetalles?`<table>
 </div>
 <p class="nota">Documento de referencia para facturaci\xf3n. No constituye una orden de compra ni una factura electr\xf3nica.</p>
 </body></html>`;
-  const nombreArchivo='Facturacion_Multiple_'+(cli||'cliente').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf';
+  const clienteSlug=(cli||'cliente').replace(/[^a-zA-Z0-9]+/g,'_');
+  const nombreArchivo='resumen_ordenes_'+clienteSlug+'_'+fechaDesde+'_al_'+fechaHasta+'.pdf';
   generarYDescargarPDF(docHtml,nombreArchivo);
 }
 
