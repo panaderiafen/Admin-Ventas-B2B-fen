@@ -633,46 +633,41 @@ function verificarRecordatoriosFacturacion(){
   const banner=document.getElementById('fact-recordatorio');
   if(!banner)return;
 
-  // Helper: clientes de una modalidad de facturación con órdenes sin folio SII
-  // dentro del rango correspondiente (o sin restricción de fecha para Diaria),
-  // junto con el detalle de esas órdenes.
-  function clientesConPendientes(modalidad, dentroDeRango){
+  const inicioSem=inicioSemana(hoyStr);
+  const mesActual=hoyStr.slice(0,7);
+
+  // Umbral de "atrasada" por modalidad: si la fecha de la orden es anterior
+  // al inicio del período actual, ya superó su propia frecuencia de facturación.
+  function esAtrasada(modalidad, fechaOrden){
+    if(modalidad==='Diaria') return fechaOrden!==hoyStr;
+    if(modalidad==='Semanal') return fechaOrden<inicioSem;
+    if(modalidad==='Mensual') return fechaOrden.slice(0,7)<mesActual;
+    return false;
+  }
+
+  // Helper: clientes de una modalidad de facturación con TODAS sus órdenes
+  // sin folio SII (sin restricción de fecha), marcando cuáles ya están atrasadas.
+  function clientesConPendientes(modalidad){
     return DB.clientes
-      .filter(c=>{
-        const f=c['Facturación']||'Diaria'; // Diaria es el valor por defecto
-        return f===modalidad;
-      })
+      .filter(c=>(c['Facturación']||'Diaria')===modalidad)
       .map(c=>{
-        const ordenes=DB.ordenes.filter(o=>
-          norm(o['Cliente']||'')===norm(c['Nombre'])&&
-          (!o['Folio SII']||o['Folio SII']==='Pendiente')&&
-          dentroDeRango(o)
-        );
+        const ordenes=DB.ordenes
+          .filter(o=>
+            norm(o['Cliente']||'')===norm(c['Nombre'])&&
+            (!o['Folio SII']||o['Folio SII']==='Pendiente')
+          )
+          .map(o=>({orden:o,atrasada:esAtrasada(modalidad,parseFecha(o['Fecha']))}));
         return {cliente:c,ordenes};
       })
       .filter(x=>x.ordenes.length);
   }
 
-  const inicioSem=inicioSemana(hoyStr);
-  const finSem=finSemana(hoyStr);
-  const mesActual=hoyStr.slice(0,7);
-
   let grupos=[];
-
-  // Diaria: cualquier orden sin folio, sin restricción de fecha (se factura todos los días)
-  const diarios=clientesConPendientes('Diaria', ()=>true);
+  const diarios=clientesConPendientes('Diaria');
   if(diarios.length) grupos.push({titulo:'Facturación diaria',items:diarios});
-
-  // Semanal: órdenes sin folio dentro de la semana actual
-  const semanales=clientesConPendientes('Semanal', o=>
-    parseFecha(o['Fecha'])>=inicioSem&&parseFecha(o['Fecha'])<=finSem
-  );
+  const semanales=clientesConPendientes('Semanal');
   if(semanales.length) grupos.push({titulo:'Facturación semanal',items:semanales});
-
-  // Mensual: órdenes sin folio dentro del mes actual
-  const mensuales=clientesConPendientes('Mensual', o=>
-    parseFecha(o['Fecha']).slice(0,7)===mesActual
-  );
+  const mensuales=clientesConPendientes('Mensual');
   if(mensuales.length) grupos.push({titulo:'Facturación mensual',items:mensuales});
 
   if(!grupos.length){
@@ -691,7 +686,9 @@ function verificarRecordatoriosFacturacion(){
           <div style="font-size:13px;color:#5a6b7e;line-height:1.5;">
             <strong style="color:#003a79;font-weight:700;">${x.cliente['Nombre']}</strong>
             — ${x.ordenes.length} orden${x.ordenes.length>1?'es':''} pendiente${x.ordenes.length>1?'s':''}
-            <span style="color:#8a9bb0;">(N° ${x.ordenes.map(o=>o['N° Orden']).join(', ')})</span>
+            <span style="color:#8a9bb0;">(N°
+              ${x.ordenes.map(r=>`<span style="${r.atrasada?'color:#b56464;':''}">${r.orden['N° Orden']}</span>`).join(', ')}
+            )</span>
           </div>
         `).join('')}
       </div>
