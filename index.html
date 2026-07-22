@@ -1743,6 +1743,7 @@ function generarYDescargarPDF(docHtml,nombreArchivo){
         }
       },45000);
 
+      try{
       // Antes de rasterizar, registramos el borde inferior (en px, escala x2) de cada
       // <tr> del contenido. Así, al paginar, cortamos siempre entre filas y nunca
       // a mitad de una fila de la tabla.
@@ -1758,6 +1759,13 @@ function generarYDescargarPDF(docHtml,nombreArchivo){
         resuelto=true;
         clearTimeout(timeoutId);
         limpiar();
+        // Si en este navegador/equipo html2canvas no logró capturar el contenido
+        // (canvas vacío o con tamaño 0), avisamos en vez de seguir: continuar con
+        // un canvas inválido es lo que puede colgar el proceso sin ningún error.
+        if(!canvas || !canvas.width || !canvas.height){
+          showToast('No se pudo capturar el contenido para el PDF en este navegador/equipo. Prueba con otro navegador (Chrome/Edge actualizado) o desde otro dispositivo.','err');
+          return;
+        }
         // Página carta en puntos (612 x 792), con margen de 36pt en cada lado
         const anchoPagina=612,altoPagina=792,margen=36;
         const anchoUtil=anchoPagina-margen*2;
@@ -1778,10 +1786,16 @@ function generarYDescargarPDF(docHtml,nombreArchivo){
           // El contenido es más alto que una página: lo cortamos en franjas
           // horizontales (canvas-slicing) y agregamos una página por cada franja,
           // en vez de comprimirlo o dejarlo cortado en una sola hoja.
-          const altoFranjaCanvas=Math.floor(altoUtil/escala);
+          // altoFranjaCanvas debe ser un número entero positivo: si por cualquier
+          // motivo (escala rara, canvas atípico) resultara 0 o negativo, usamos un
+          // mínimo seguro para que el avance de página SIEMPRE sea positivo y el
+          // bucle no pueda quedar congelado.
+          const altoFranjaCanvas=Math.max(1,Math.floor(altoUtil/escala));
           let offsetY=0;
           let primera=true;
-          while(offsetY<canvas.height){
+          let paginas=0;
+          const MAX_PAGINAS=300; // límite duro de seguridad, nunca debería alcanzarse en uso normal
+          while(offsetY<canvas.height && paginas<MAX_PAGINAS){
             let finFranja=Math.min(offsetY+altoFranjaCanvas,canvas.height);
             // Si no es la última franja, retrocedemos el corte hasta el límite
             // de fila más cercano (sin pasarse) para no partir una fila por la mitad.
@@ -1789,7 +1803,9 @@ function generarYDescargarPDF(docHtml,nombreArchivo){
               const candidatos=limitesFila.filter(l=>l>offsetY&&l<=finFranja);
               if(candidatos.length) finFranja=candidatos[candidatos.length-1];
             }
-            const alturaFranja=finFranja-offsetY;
+            // Aseguramos que cada franja avance al menos 1px, para que offsetY
+            // siempre crezca y el bucle termine sin importar el caso.
+            const alturaFranja=Math.max(1,finFranja-offsetY);
             const canvasFranja=document.createElement('canvas');
             canvasFranja.width=canvas.width;
             canvasFranja.height=alturaFranja;
@@ -1803,6 +1819,7 @@ function generarYDescargarPDF(docHtml,nombreArchivo){
             pdf.addImage(imgFranja,'JPEG',margen,margen,anchoUtil,altoFranjaPt);
             primera=false;
             offsetY+=alturaFranja;
+            paginas++;
           }
         }
         const blob=pdf.output('blob');
@@ -1814,6 +1831,18 @@ function generarYDescargarPDF(docHtml,nombreArchivo){
         limpiar();
         showToast('Error generando PDF: '+e.message,'err');
       });
+      }catch(e){
+        // Error síncrono inesperado dentro del callback (ej. getBoundingClientRect,
+        // o html2canvas lanzando en vez de rechazar la promesa en este navegador/equipo).
+        // El try/catch externo NO alcanza a capturar esto porque el callback corre
+        // en un stack asíncrono distinto; por eso necesitamos este propio.
+        if(!resuelto){
+          resuelto=true;
+          clearTimeout(timeoutId);
+          limpiar();
+          showToast('Error generando PDF: '+e.message,'err');
+        }
+      }
     },1200);
   }catch(e){
     // Cualquier error síncrono (DOM, regex, etc.) también limpia el toast y el DOM,
