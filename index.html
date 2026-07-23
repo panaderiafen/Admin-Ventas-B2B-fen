@@ -1854,14 +1854,21 @@ function generarYDescargarPDF(docHtml,nombreArchivo){
 
 function compartirOdescargarPDF(blob,nombreArchivo){
   const file=new File([blob],nombreArchivo,{type:'application/pdf'});
-  if(navigator.canShare&&navigator.canShare({files:[file]})){
+  // Solo usamos el panel de "Compartir" del sistema en celulares/tablets reales.
+  // Windows 10/11 con Chrome también reporta soporte para navigator.share en
+  // computadores de escritorio, pero ahí puede abrir un panel que no se ve o
+  // queda esperando una respuesta que nunca llega (según la configuración del
+  // equipo), dejando la descarga "colgada" sin ningún error. En computadores
+  // vamos siempre directo a la descarga, igual que hace el sistema B2C.
+  const esMovil=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if(esMovil&&navigator.canShare&&navigator.canShare({files:[file]})){
     navigator.share({files:[file],title:nombreArchivo}).then(()=>{
       showToast('✅ Compartido','success');
     }).catch(()=>{
       // Si el usuario cancela el share, no mostramos error
     });
   }else{
-    // Respaldo: descarga directa (navegadores de escritorio o sin soporte de Web Share)
+    // Descarga directa (computadores de escritorio, o celulares sin soporte de Web Share)
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;
