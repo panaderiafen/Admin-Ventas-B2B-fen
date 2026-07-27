@@ -1420,6 +1420,13 @@ function fechaCorta(d){
   const M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   return `${parseInt(dd)} ${M[parseInt(m)-1]} ${y}`;
 }
+function fechaDM(d){
+  if(!d)return'—';
+  const s=parseFecha(d);
+  if(!s||s.length<10)return'—';
+  const [,m,dd]=s.split('-');
+  return `${dd}/${m}`;
+}
 function mesAnio(d){
   const s=parseFecha(d);
   if(!s||s.length<7)return'—';
@@ -2495,33 +2502,53 @@ function buscarOrdenPago(){
     kEl.value='';
     return;
   }
-  // Detectar si la búsqueda es por folio SII (todas comparten el mismo folio exacto)
-  const foliosUnicos = [...new Set(coincidencias.map(o=>norm(o['Folio SII']||'')))];
-  const esBusquedaPorFolio = coincidencias.length>1 &&
-    foliosUnicos.length===1 &&
-    foliosUnicos[0]!=='' &&
-    foliosUnicos[0]!=='pendiente' &&
-    foliosUnicos[0]===q;
   if(coincidencias.length===1){
     seleccionarOrdenPago(coincidencias[0]['N° Orden']);
-  }else if(esBusquedaPorFolio){
-    // Mostrar todas las órdenes del folio con opción de seleccionar todas
-    const totalFolio=coincidencias.reduce((s,o)=>s+(Number(o['Total'])||0),0);
-    el.className='hint';
-    const nordenes=coincidencias.map(o=>o['N° Orden']).join(',');
-    el.innerHTML=`<strong>Folio ${coincidencias[0]['Folio SII']} — ${coincidencias.length} órdenes</strong><br>`+
-      coincidencias.map(o=>`<a href="javascript:void(0)" onclick="seleccionarOrdenPago('${o['N° Orden']}')" style="color:#003a79;font-weight:600;text-decoration:underline;">N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])}</a> ${estadoBadge(o['Estado Pago'])}`).join('<br>')+
-      `<br><hr style="margin:8px 0;border-color:#ddd;"/>`+
-      `<strong style="color:#1D9E75;">Total combinado: ${fmtCLP(totalFolio)}</strong><br>`+
-      `<a href="javascript:void(0)" onclick="seleccionarTodasOrdenPago('${nordenes}')" style="color:#003a79;font-weight:700;text-decoration:underline;">✅ Seleccionar todas (${coincidencias.length} órdenes)</a>`;
-    kEl.value='';
   }else{
+    // Varias coincidencias (por cliente, por folio, o texto): mostramos una lista
+    // con checkboxes para poder seleccionar varias órdenes y registrar un solo pago
+    // para todas juntas (ej. cuando el cliente transfiere de una vez varias órdenes).
     el.className='hint';
-    el.innerHTML='Varias coincidencias, elige una:<br>'+coincidencias.slice(0,8).map(o=>
-      `<a href="javascript:void(0)" onclick="seleccionarOrdenPago('${o['N° Orden']}')" style="color:#003a79;font-weight:600;text-decoration:underline;">N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])}</a> ${estadoBadge(o['Estado Pago'])}`
-    ).join('<br>');
+    el.innerHTML=`<div id="pg-check-list">`+
+      coincidencias.map(o=>{
+        const folioTxt = o['Folio SII'] && o['Folio SII']!=='Pendiente' ? `Folio ${o['Folio SII']}` : 'Sin folio';
+        return `<div class="check-row">
+          <input type="checkbox" id="pgck-${o['N° Orden']}" value="${o['N° Orden']}" onchange="actualizarSeleccionPago()"/>
+          <label for="pgck-${o['N° Orden']}">
+            <strong>N°${o['N° Orden']}</strong> — ${fechaDM(o['Fecha'])} — ${o['Cliente']} —
+            <span style="color:#1D9E75;font-weight:700;">${fmtCLP(o['Total'])}</span>
+            ${estadoBadge(o['Estado Pago'])} <span style="color:#8a9bb0;">${folioTxt}</span>
+          </label>
+        </div>`;
+      }).join('')+
+      `</div>`+
+      `<div style="margin-top:8px;"><a href="javascript:void(0)" onclick="seleccionarTodasCheckPago()" style="color:#003a79;font-weight:700;text-decoration:underline;">✅ Seleccionar todas (${coincidencias.length} órdenes)</a></div>`+
+      `<div id="pg-check-resumen" style="margin-top:6px;"></div>`;
     kEl.value='';
   }
+}
+
+function actualizarSeleccionPago(){
+  const checks=[...document.querySelectorAll('#pg-check-list input[type="checkbox"]:checked')];
+  const kEl=document.getElementById('pg-key');
+  const resumen=document.getElementById('pg-check-resumen');
+  if(!checks.length){
+    kEl.value='';
+    if(resumen)resumen.innerHTML='';
+    return;
+  }
+  const nordenes=checks.map(c=>c.value);
+  const ordenes=nordenes.map(n=>DB.ordenes.find(o=>String(o['N° Orden'])===String(n))).filter(Boolean);
+  const total=ordenes.reduce((s,o)=>s+(Number(o['Total'])||0),0);
+  kEl.value=nordenes.join(',');
+  if(resumen)resumen.innerHTML=`<strong style="color:#003a79;">${ordenes.length} orden${ordenes.length>1?'es':''} seleccionada${ordenes.length>1?'s':''} — Total a registrar: ${fmtCLP(total)}</strong>`;
+}
+
+function seleccionarTodasCheckPago(){
+  const checks=[...document.querySelectorAll('#pg-check-list input[type="checkbox"]')];
+  const todasMarcadas=checks.every(c=>c.checked);
+  checks.forEach(c=>c.checked=!todasMarcadas);
+  actualizarSeleccionPago();
 }
 
 function seleccionarOrdenPago(nOrden){
@@ -2530,7 +2557,7 @@ function seleccionarOrdenPago(nOrden){
   const kEl=document.getElementById('pg-key');
   if(!found){el.className='hint error';el.textContent='No se encontró la orden.';kEl.value='';return;}
   el.className='hint ok';
-  el.innerHTML=`✅ N°${found['N° Orden']} — ${found['Cliente']} — ${fmtCLP(found['Total'])} — Estado actual: ${estadoBadge(found['Estado Pago'])}${found['Fecha Pago']?' — Fecha pago actual: '+fechaCorta(found['Fecha Pago']):''}`;
+  el.innerHTML=`✅ N°${found['N° Orden']} — ${fechaDM(found['Fecha'])} — ${found['Cliente']} — ${fmtCLP(found['Total'])} — Estado actual: ${estadoBadge(found['Estado Pago'])}${found['Fecha Pago']?' — Fecha pago actual: '+fechaCorta(found['Fecha Pago']):''}`;
   kEl.value=found['N° Orden'];
 }
 
