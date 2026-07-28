@@ -2281,12 +2281,15 @@ function calcularCobranza(){
       const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
       const clave=tieneFolio?('Folio '+o['Folio SII']):('N° '+o['N° Orden']+' — sin factura');
       const monto=Number(o['Total'])||0;
-      if(!data[frecuencia][nombreCli].grupos[clave])data[frecuencia][nombreCli].grupos[clave]={monto:0,nordenes:[],fecha:o['Fecha']};
+      // Con folio: fecha en que se asignó el folio. Sin folio: fecha de la orden.
+      const fechaGrupo=tieneFolio?(o['Fecha Folio']||o['Fecha']):o['Fecha'];
+      if(!data[frecuencia][nombreCli].grupos[clave])data[frecuencia][nombreCli].grupos[clave]={monto:0,nordenes:[],fecha:fechaGrupo};
       data[frecuencia][nombreCli].grupos[clave].monto+=monto;
       data[frecuencia][nombreCli].grupos[clave].nordenes.push(o['N° Orden']);
-      // Nos quedamos con la fecha más antigua del grupo (fecha de emisión real)
-      if(parseFecha(o['Fecha'])<parseFecha(data[frecuencia][nombreCli].grupos[clave].fecha)){
-        data[frecuencia][nombreCli].grupos[clave].fecha=o['Fecha'];
+      // Nos quedamos con la fecha más antigua del grupo (por si el folio se asignó
+      // en momentos ligeramente distintos entre órdenes del mismo folio)
+      if(parseFecha(fechaGrupo)<parseFecha(data[frecuencia][nombreCli].grupos[clave].fecha)){
+        data[frecuencia][nombreCli].grupos[clave].fecha=fechaGrupo;
       }
       data[frecuencia][nombreCli].total+=monto;
     });
