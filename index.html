@@ -1219,7 +1219,19 @@ async function verificarArchivado() {
     const res = await gsCall('verificarArchivado');
     if (res.error) { div.textContent = '⚠️ Error: ' + res.error; return; }
     if (res.total === 0) {
-      div.innerHTML = '✅ No hay órdenes que cumplan los 3 criterios (pagada + folio SII + más de 45 días). <br><span style="color:#888;">Fecha límite: ' + res.fechaLimite + '</span>';
+      const d = res.diagnostico;
+      let html = '✅ No hay órdenes que cumplan los 3 criterios (pagada + folio SII + más de 45 días). <br><span style="color:#888;">Fecha límite: ' + res.fechaLimite + '</span>';
+      if (d) {
+        html += `<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ddd;font-size:12px;color:#555;">
+          <strong>Diagnóstico</strong> (${d.totalFilas} órdenes evaluadas):<br>
+          Columnas encontradas: Fecha=${d.columnasEncontradas['Fecha']} · Estado Pago=${d.columnasEncontradas['Estado Pago']} · Folio SII=${d.columnasEncontradas['Folio SII']} · Total=${d.columnasEncontradas['Total']}<br>
+          Pasan "pagada": ${d.pasaPagada} · Pasan "con folio": ${d.pasaFolio} · Pasan "antigüedad": ${d.pasaAntigua} · Pasan "saldo $0": ${d.pasaSaldo}<br>
+          Estados de pago encontrados en la hoja: ${Object.entries(d.estadosVistos).map(([e,n])=>`"${e||'(vacío)'}" (${n})`).join(', ')}<br>
+          <div style="margin-top:6px;"><strong>Ejemplos rechazados:</strong><br>
+          ${d.ejemplosRechazados.map(m=>`N°${m.nOrden} — estado="${m.estadoCrudo}"(pagada:${m.esPagada}) · folio="${m.folioCrudo}"(tieneFolio:${m.tieneFolio}) · fecha=${m.fecha}(antigua:${m.esAntigua}) · saldoOk:${m.saldoOk}`).join('<br>')}
+          </div></div>`;
+      }
+      div.innerHTML = html;
     } else {
       div.innerHTML = `<strong style="color:#003a79;">📦 ${res.total} orden${res.total!==1?'es':''} listas para archivar</strong><br>
         <span style="color:#888;font-size:12px;">Fecha límite: ${res.fechaLimite}</span><br>
