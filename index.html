@@ -897,6 +897,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     </div>
     <button class="btn btn-secondary" style="margin-top:8px;" onclick="sincronizarDetalle()">🔧 Sincronizar Detalle Histórico</button>
   </div>
+  <div class="card">
+    <div class="card-title">🔐 Edición avanzada (admin)</div>
+    <p style="font-size:13px;color:#555;margin-bottom:12px;">Corrige órdenes históricas que ya tienen folio SII asignado (bloqueadas en la lista normal de Órdenes para evitar errores del equipo). Esto NO modifica la factura ya emitida en el SII — solo corrige los datos internos de la orden (líneas, montos, fecha, cliente) para que coincidan con lo real.</p>
+    <label>Buscar por N° de orden o Folio SII</label>
+    <input type="text" id="admin-ed-buscar" placeholder="Ej: 1849 o 3123" oninput="buscarOrdenAdmin()"/>
+    <div id="admin-ed-res"></div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════ MODALES ═══ -->
@@ -965,6 +972,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <div id="modal-edit" class="modal-overlay">
   <div class="modal">
     <div class="modal-title">✏️ Editar orden</div>
+    <div id="ed-admin-aviso" class="hidden" style="background:#fff3cd;color:#856404;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;">🔐 Edición avanzada: esta orden ya tiene folio SII asignado. Se conservará el folio, el estado de pago y la fecha de pago tal como están — esto no modifica la factura ya emitida en el SII.</div>
     <input type="hidden" id="ed-key"/>
     <label>Fecha</label><input type="date" id="ed-fecha"/>
     <label>Cliente</label>
@@ -2019,14 +2027,17 @@ function pdfDesdeDetalle(){
 }
 
 // ─── EDITAR ORDEN ────────────────────────
-function abrirEditar(nOrden){
+function abrirEditar(nOrden, modoAdmin){
   const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(nOrden));
   if(!o)return;
-  // Bloquear edición si tiene folio SII
-  if(o['Folio SII']&&o['Folio SII']!=='Pendiente'){
+  const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
+  // Bloquear edición si tiene folio SII, salvo que venga del modo admin
+  if(tieneFolio&&!modoAdmin){
     showToast('No se puede editar una orden con folio SII asignado','err');
     return;
   }
+  window._edicionAdminActivo=!!modoAdmin;
+  document.getElementById('ed-admin-aviso').classList.toggle('hidden',!(modoAdmin&&tieneFolio));
   document.getElementById('ed-key').value=nOrden;
   populateSelects();
   document.getElementById('ed-cli').value=o['Cliente']||'';
@@ -2067,16 +2078,54 @@ async function guardarEdicion(){
   const cliente=document.getElementById('ed-cli').value;
   const lineas=getLineas('ed-lineas');
   if(!cliente||!lineas.length){showToast('Completa datos','err');return;}
+  const accion=window._edicionAdminActivo?'updateOrdenAdmin':'updateOrden';
   showToast('Actualizando en Sheets...','loading');
   try{
-    await gsCall('updateOrden',{nOrden,fecha:document.getElementById('ed-fecha').value,cliente,lineas,condPago:'',notas:document.getElementById('ed-notas').value.trim()});
+    await gsCall(accion,{nOrden,fecha:document.getElementById('ed-fecha').value,cliente,lineas,condPago:'',notas:document.getElementById('ed-notas').value.trim()});
     closeModal('modal-edit');
+    window._edicionAdminActivo=false;
     await syncAll();
     showToast('✅ Orden actualizada','success');
+    if(typeof buscarOrdenAdmin==='function')buscarOrdenAdmin();
   }catch(e){showToast('Error: '+e.message,'err');}
 }
 
-// ─── ELIMINAR ────────────────────────────
+// ─── EDICIÓN AVANZADA (ADMIN) ────────────
+function buscarOrdenAdmin(){
+  const q=document.getElementById('admin-ed-buscar').value.trim();
+  const cont=document.getElementById('admin-ed-res');
+  if(!q){cont.innerHTML='';return;}
+  const coincidencias=DB.ordenes.filter(o=>
+    String(o['N° Orden'])===q || norm(o['Folio SII']||'')===norm(q)
+  );
+  if(!coincidencias.length){
+    cont.innerHTML='<p class="hint error" style="margin-top:10px;">No se encontró ninguna orden con ese N° o Folio SII.</p>';
+    return;
+  }
+  cont.innerHTML='<div style="margin-top:10px;">'+coincidencias.map(o=>{
+    const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
+    return `<div class="check-row" style="align-items:center;">
+      <div style="flex:1;">
+        <strong>N° ${o['N° Orden']}</strong> — ${fechaCorta(o['Fecha'])} — ${o['Cliente']||''} — ${fmtCLP(o['Total'])}
+        ${estadoBadge(o['Estado Pago']||'PENDIENTE')}
+        ${tieneFolio?`<span class="badge badge-facturado">Folio ${o['Folio SII']}</span>`:''}
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="confirmarEditarAdmin('${o['N° Orden']}')">✏️ Editar</button>
+    </div>`;
+  }).join('')+'</div>';
+}
+
+function confirmarEditarAdmin(nOrden){
+  const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(nOrden));
+  if(!o)return;
+  const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
+  if(tieneFolio){
+    if(!confirm(`Esta orden ya tiene el Folio SII ${o['Folio SII']} asignado.\n\nVas a editar sus datos internos (líneas, montos, fecha, cliente). El folio, el estado de pago y la fecha de pago se van a conservar tal como están.\n\nEsto NO modifica la factura ya emitida en el SII, solo corrige los datos de la orden en el sistema.\n\n¿Confirmas que quieres continuar?`)) return;
+  }
+  abrirEditar(nOrden, true);
+}
+
+
 function abrirDel(nOrden){
   const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(nOrden));
   _delKey=nOrden;
