@@ -2248,57 +2248,117 @@ function renderPagosPendientes(mostrarTodos){
 // ─── COBRANZA ────────────────────────────
 // Identifica clientes con órdenes pendientes de pago que ya superaron el plazo
 // definido por su "Frecuencia Pago" (Diaria / Semanal (sábado) / Fin de mes).
+const COBRANZA_CATS=['Diaria','Semanal','Mensual','30dias'];
+const COBRANZA_ETIQUETAS={Diaria:'Diaria',Semanal:'Semanal (sábado)',Mensual:'Fin de mes','30dias':'A 30 días'};
+
 function cobranzaAtrasada(frecuencia, fechaOrdenRaw){
   const fechaOrden=parseFecha(fechaOrdenRaw);
   if(!fechaOrden)return false;
   const hoyStr=hoy();
   if(frecuencia==='Semanal') return fechaOrden<inicioSemana(hoyStr);
   if(frecuencia==='Mensual') return fechaOrden.slice(0,7)<hoyStr.slice(0,7);
+  if(frecuencia==='30dias'){
+    const dOrden=new Date(fechaOrden+'T00:00:00');
+    const dHoy=new Date(hoyStr+'T00:00:00');
+    const dias=Math.floor((dHoy-dOrden)/86400000);
+    return dias>30;
+  }
   // Diaria (o sin definir = Diaria por defecto)
   return fechaOrden!==hoyStr;
 }
 
 function calcularCobranza(){
-  const porCliente={};
+  const data={}; COBRANZA_CATS.forEach(c=>data[c]={});
   DB.ordenes
     .filter(o=>o['Estado Pago']==='PENDIENTE'||!o['Estado Pago'])
     .forEach(o=>{
       const cli=DB.clientes.find(c=>norm(c['Nombre']||'')===norm(o['Cliente']||''));
-      const frecuencia=cli?(cli['Frecuencia Pago']||'Diaria'):'Diaria';
+      let frecuencia=cli?(cli['Frecuencia Pago']||'Diaria'):'Diaria';
+      if(!COBRANZA_CATS.includes(frecuencia))frecuencia='Diaria';
       if(!cobranzaAtrasada(frecuencia,o['Fecha']))return;
       const nombreCli=o['Cliente']||'—';
-      if(!porCliente[nombreCli])porCliente[nombreCli]={grupos:{},total:0};
+      if(!data[frecuencia][nombreCli])data[frecuencia][nombreCli]={grupos:{},total:0};
       const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
       const clave=tieneFolio?('Folio '+o['Folio SII']):('N° '+o['N° Orden']+' — sin factura');
       const monto=Number(o['Total'])||0;
-      porCliente[nombreCli].grupos[clave]=(porCliente[nombreCli].grupos[clave]||0)+monto;
-      porCliente[nombreCli].total+=monto;
+      if(!data[frecuencia][nombreCli].grupos[clave])data[frecuencia][nombreCli].grupos[clave]={monto:0,nordenes:[]};
+      data[frecuencia][nombreCli].grupos[clave].monto+=monto;
+      data[frecuencia][nombreCli].grupos[clave].nordenes.push(o['N° Orden']);
+      data[frecuencia][nombreCli].total+=monto;
     });
-  return Object.entries(porCliente)
-    .map(([cliente,d])=>({cliente,grupos:Object.entries(d.grupos).map(([etiqueta,monto])=>({etiqueta,monto})),total:d.total}))
-    .sort((a,b)=>b.total-a.total);
+  // Orden fijo: Diaria, Semanal, Mensual, A 30 días — solo se incluyen categorías con datos
+  return COBRANZA_CATS.map(cat=>{
+    const clientes=Object.entries(data[cat]).map(([cliente,d])=>({
+      cliente,
+      grupos:Object.entries(d.grupos).map(([etiqueta,g])=>({etiqueta,monto:g.monto,nordenes:g.nordenes})),
+      total:d.total
+    })).sort((a,b)=>b.total-a.total);
+    return {cat, etiqueta:COBRANZA_ETIQUETAS[cat], clientes, total:clientes.reduce((s,c)=>s+c.total,0)};
+  }).filter(c=>c.clientes.length>0);
 }
 
 function renderCobranza(){
   const cont=document.getElementById('cobranza-card');
   if(!cont)return;
-  const datos=calcularCobranza();
-  if(!datos.length){cont.style.display='none';cont.innerHTML='';return;}
+  const categorias=calcularCobranza();
+  if(!categorias.length){cont.style.display='none';cont.innerHTML='';return;}
   cont.style.display='block';
-  const totalGeneral=datos.reduce((s,d)=>s+d.total,0);
+  const totalGeneral=categorias.reduce((s,c)=>s+c.total,0);
   cont.innerHTML=`
     <div class="card-title">📞 Cobranza — clientes a contactar</div>
-    <p style="font-size:12px;color:#999;margin:-4px 0 14px;font-style:italic;">Órdenes pendientes de pago que superaron el plazo según su frecuencia de pago.</p>
-    ${datos.map(d=>`
-      <div style="padding:9px 0;border-bottom:0.5px solid #f0f0f0;">
-        <div style="font-weight:800;color:#003a79;font-size:14px;margin-bottom:3px;">${d.cliente}</div>
-        ${d.grupos.map(g=>`<div style="font-size:12.5px;font-style:italic;color:#9aa8bd;margin-bottom:1px;">${g.etiqueta} <span style="font-style:normal;color:#c0392b;font-weight:600;">${fmtCLP(g.monto)}</span></div>`).join('')}
-        ${d.grupos.length>1?`<div style="font-size:13px;font-weight:700;color:#1D9E75;margin-top:3px;">Total ${d.cliente}: ${fmtCLP(d.total)}</div>`:''}
-      </div>
+    <p style="font-size:12px;color:#999;margin:-4px 0 14px;">Órdenes pendientes de pago que superaron el plazo según su frecuencia de pago. Haz clic en un folio/orden para ir a registrar el pago.</p>
+    ${categorias.map(cat=>`
+      <details style="margin-bottom:6px;border:0.5px solid #eee;border-radius:8px;overflow:hidden;">
+        <summary style="cursor:pointer;padding:10px 12px;background:#f7f9fc;display:flex;justify-content:space-between;align-items:center;font-weight:700;color:#003a79;font-size:13px;">
+          <span>${cat.etiqueta} <span style="font-weight:400;color:#999;font-size:12px;">(${cat.clientes.length} cliente${cat.clientes.length>1?'s':''})</span></span>
+          <span style="color:#c0392b;">${fmtCLP(cat.total)}</span>
+        </summary>
+        <div style="padding:2px 12px 8px;">
+          ${cat.clientes.map(c=>`
+            <details style="margin:4px 0;">
+              <summary style="cursor:pointer;padding:7px 0;display:flex;justify-content:space-between;align-items:center;border-bottom:0.5px solid #f0f0f0;">
+                <span style="color:#003a79;font-size:13.5px;">${c.cliente}</span>
+                <span style="color:#1D9E75;font-size:13px;">${fmtCLP(c.total)}</span>
+              </summary>
+              <div style="padding:4px 4px 4px 12px;">
+                ${c.grupos.map(g=>`
+                  <div onclick="irARegistrarPago('${g.nordenes.join(',')}')" style="cursor:pointer;padding:5px 0;font-size:12.5px;display:flex;justify-content:space-between;color:#9aa8bd;" title="Clic para registrar el pago">
+                    <span>${g.etiqueta}</span>
+                    <span style="color:#c0392b;">${fmtCLP(g.monto)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </details>
+          `).join('')}
+        </div>
+      </details>
     `).join('')}
     <div style="margin-top:10px;padding-top:10px;border-top:1.5px solid #003a79;text-align:right;">
-      <span style="font-weight:800;color:#003a79;font-size:15px;">Total por cobrar: ${fmtCLP(totalGeneral)}</span>
+      <span style="color:#003a79;font-size:15px;">Total por cobrar: ${fmtCLP(totalGeneral)}</span>
     </div>`;
+}
+
+// Desde la tarjeta de Cobranza, lleva directo al formulario de Registrar pago
+// con la(s) orden(es) ya seleccionadas, listo para completar fecha/estado.
+function irARegistrarPago(nordenesCsv){
+  const nordenes=nordenesCsv.split(',').filter(Boolean);
+  if(!nordenes.length)return;
+  const btnPagos=document.querySelector(".nav-btn[onclick*=\"'pagos'\"]");
+  showSec('pagos', btnPagos);
+  const ordenes=nordenes.map(n=>DB.ordenes.find(o=>String(o['N° Orden'])===String(n))).filter(Boolean);
+  if(!ordenes.length)return;
+  const kEl=document.getElementById('pg-key');
+  const el=document.getElementById('pg-res');
+  const buscarEl=document.getElementById('pg-buscar');
+  const total=ordenes.reduce((s,o)=>s+(Number(o['Total'])||0),0);
+  const tieneFolio=!!(ordenes[0]['Folio SII']&&ordenes[0]['Folio SII']!=='Pendiente');
+  if(buscarEl)buscarEl.value=tieneFolio?ordenes[0]['Folio SII']:String(ordenes[0]['N° Orden']);
+  el.className='hint ok';
+  el.innerHTML=(ordenes.length>1?`✅ ${ordenes.length} órdenes seleccionadas${tieneFolio?' — Folio '+ordenes[0]['Folio SII']:''}<br>`:'✅ ')+
+    ordenes.map(o=>`N°${o['N° Orden']} — ${o['Cliente']} — ${fmtCLP(o['Total'])}`).join('<br>')+
+    `<br>Total a registrar: ${fmtCLP(total)}`;
+  kEl.value=nordenesCsv;
+  document.getElementById('pg-buscar')?.scrollIntoView({behavior:'smooth',block:'center'});
 }
 
 function seleccionarDesdePendiente(nOrden){
@@ -2992,6 +3052,7 @@ function renderClientes(){
           <option value="Diaria" ${(!c['Frecuencia Pago']||c['Frecuencia Pago']==='Diaria')?'selected':''}>Diaria</option>
           <option value="Semanal" ${c['Frecuencia Pago']==='Semanal'?'selected':''}>Semanal (sábado)</option>
           <option value="Mensual" ${c['Frecuencia Pago']==='Mensual'?'selected':''}>Fin de mes</option>
+          <option value="30dias" ${c['Frecuencia Pago']==='30dias'?'selected':''}>A 30 días</option>
         </select>
       </td>
     </tr>`).join('')+'</tbody></table></div>';
