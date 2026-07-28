@@ -718,6 +718,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
 <!-- ═══════════════════════════════════════ PAGOS ═══ -->
 <div id="sec-pagos" class="section">
+  <div class="card" id="cobranza-card" style="display:none;"></div>
   <div class="card">
     <div class="card-title">➕ Registrar pago</div>
     <label>Buscar por Folio SII, N° orden o cliente</label>
@@ -1331,7 +1332,7 @@ function showSec(id,btn){
   if(btn)btn.classList.add('active');
   if(id==='ordenes'){populateSelects();renderOrdenes();}
   if(id==='facturacion'){populateSelects();renderFact();verificarRecordatoriosFacturacion();}
-  if(id==='pagos'){renderPagos();renderPagosPendientes();}
+  if(id==='pagos'){renderPagos();renderPagosPendientes();renderCobranza();}
   if(id==='analisis')renderAnalisis();
   if(id==='clientes')renderClientes();
   if(id==='productos')renderProductos();
@@ -1889,7 +1890,7 @@ function compartirOdescargarPDF(blob,nombreArchivo){
 
 
 // ─── LISTA ÓRDENES ───────────────────────
-function renderAll(){renderOrdenes();renderFact();renderPagos();renderPagosPendientes();renderClientes();renderProductos();renderPrecios();}
+function renderAll(){renderOrdenes();renderFact();renderPagos();renderPagosPendientes();renderCobranza();renderClientes();renderProductos();renderPrecios();}
 
 function renderOrdenes(){
   const w=document.getElementById('ord-list');
@@ -2242,6 +2243,62 @@ function renderPagosPendientes(mostrarTodos){
       <td><button class="btn btn-primary btn-sm" onclick="seleccionarDesdePendiente('${o['N° Orden']}')">Registrar pago</button></td>
     </tr>`).join('')+'</tbody></table></div>'+
     (hayMas?`<div style="text-align:center;margin-top:10px;"><a href="javascript:void(0)" onclick="renderPagosPendientes(true)" style="color:#e74c3c;font-weight:600;font-size:13px;">Ver todas (${lista.length} pendientes de pago)</a></div>`:'');
+}
+
+// ─── COBRANZA ────────────────────────────
+// Identifica clientes con órdenes pendientes de pago que ya superaron el plazo
+// definido por su "Frecuencia Pago" (Diaria / Semanal (sábado) / Fin de mes).
+function cobranzaAtrasada(frecuencia, fechaOrdenRaw){
+  const fechaOrden=parseFecha(fechaOrdenRaw);
+  if(!fechaOrden)return false;
+  const hoyStr=hoy();
+  if(frecuencia==='Semanal') return fechaOrden<inicioSemana(hoyStr);
+  if(frecuencia==='Mensual') return fechaOrden.slice(0,7)<hoyStr.slice(0,7);
+  // Diaria (o sin definir = Diaria por defecto)
+  return fechaOrden!==hoyStr;
+}
+
+function calcularCobranza(){
+  const porCliente={};
+  DB.ordenes
+    .filter(o=>o['Estado Pago']==='PENDIENTE'||!o['Estado Pago'])
+    .forEach(o=>{
+      const cli=DB.clientes.find(c=>norm(c['Nombre']||'')===norm(o['Cliente']||''));
+      const frecuencia=cli?(cli['Frecuencia Pago']||'Diaria'):'Diaria';
+      if(!cobranzaAtrasada(frecuencia,o['Fecha']))return;
+      const nombreCli=o['Cliente']||'—';
+      if(!porCliente[nombreCli])porCliente[nombreCli]={grupos:{},total:0};
+      const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
+      const clave=tieneFolio?('Folio '+o['Folio SII']):('N° '+o['N° Orden']+' — sin factura');
+      const monto=Number(o['Total'])||0;
+      porCliente[nombreCli].grupos[clave]=(porCliente[nombreCli].grupos[clave]||0)+monto;
+      porCliente[nombreCli].total+=monto;
+    });
+  return Object.entries(porCliente)
+    .map(([cliente,d])=>({cliente,grupos:Object.entries(d.grupos).map(([etiqueta,monto])=>({etiqueta,monto})),total:d.total}))
+    .sort((a,b)=>b.total-a.total);
+}
+
+function renderCobranza(){
+  const cont=document.getElementById('cobranza-card');
+  if(!cont)return;
+  const datos=calcularCobranza();
+  if(!datos.length){cont.style.display='none';cont.innerHTML='';return;}
+  cont.style.display='block';
+  const totalGeneral=datos.reduce((s,d)=>s+d.total,0);
+  cont.innerHTML=`
+    <div class="card-title">📞 Cobranza — clientes a contactar</div>
+    <p style="font-size:12px;color:#999;margin:-4px 0 14px;font-style:italic;">Órdenes pendientes de pago que superaron el plazo según su frecuencia de pago.</p>
+    ${datos.map(d=>`
+      <div style="padding:9px 0;border-bottom:0.5px solid #f0f0f0;">
+        <div style="font-weight:800;color:#003a79;font-size:14px;margin-bottom:3px;">${d.cliente}</div>
+        ${d.grupos.map(g=>`<div style="font-size:12.5px;font-style:italic;color:#9aa8bd;margin-bottom:1px;">${g.etiqueta} <span style="font-style:normal;color:#c0392b;font-weight:600;">${fmtCLP(g.monto)}</span></div>`).join('')}
+        ${d.grupos.length>1?`<div style="font-size:13px;font-weight:700;color:#1D9E75;margin-top:3px;">Total ${d.cliente}: ${fmtCLP(d.total)}</div>`:''}
+      </div>
+    `).join('')}
+    <div style="margin-top:10px;padding-top:10px;border-top:1.5px solid #003a79;text-align:right;">
+      <span style="font-weight:800;color:#003a79;font-size:15px;">Total por cobrar: ${fmtCLP(totalGeneral)}</span>
+    </div>`;
 }
 
 function seleccionarDesdePendiente(nOrden){
@@ -2917,7 +2974,7 @@ function renderClientes(){
   const q=norm(document.getElementById('cli-q')?.value||'');
   const lista=DB.clientes.filter(c=>!q||norm(c['Nombre']).includes(q)||norm(c['RUT']||'').includes(q));
   if(!lista.length){w.innerHTML='<div class="empty">Sin clientes</div>';return;}
-  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>RUT</th><th>Giro</th><th>Contacto</th><th>Facturación</th></tr></thead><tbody>'+
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>RUT</th><th>Giro</th><th>Contacto</th><th>Facturación</th><th>Frecuencia Pago</th></tr></thead><tbody>'+
     lista.map(c=>`<tr>
       <td><strong>${c['Nombre']}</strong><br><small style="color:#888">${c['Razón Social']||''}</small></td>
       <td>${c['RUT']||'—'}</td>
@@ -2930,7 +2987,25 @@ function renderClientes(){
           <option value="Mensual" ${c['Facturación']==='Mensual'?'selected':''}>Mensual</option>
         </select>
       </td>
+      <td>
+        <select onchange="actualizarFrecuenciaPago('${c['Nombre']}',this.value)" style="font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid #ddd;">
+          <option value="Diaria" ${(!c['Frecuencia Pago']||c['Frecuencia Pago']==='Diaria')?'selected':''}>Diaria</option>
+          <option value="Semanal" ${c['Frecuencia Pago']==='Semanal'?'selected':''}>Semanal (sábado)</option>
+          <option value="Mensual" ${c['Frecuencia Pago']==='Mensual'?'selected':''}>Fin de mes</option>
+        </select>
+      </td>
     </tr>`).join('')+'</tbody></table></div>';
+}
+
+async function actualizarFrecuenciaPago(nombre, valor){
+  try{
+    await gsCall('updateClienteFrecuenciaPago',{nombre, frecuenciaPago: valor});
+    // Actualizar en memoria sin re-sincronizar todo
+    const cli=DB.clientes.find(c=>c['Nombre']===nombre);
+    if(cli)cli['Frecuencia Pago']=valor;
+    showToast('✅ Frecuencia de pago actualizada','success');
+    renderCobranza();
+  }catch(e){showToast('Error: '+e.message,'err');}
 }
 
 async function actualizarFacturacion(nombre, valor){
