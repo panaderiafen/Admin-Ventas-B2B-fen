@@ -59,6 +59,7 @@ tr:last-child td { border-bottom: none; }
 
 .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
 .badge-pendiente { background: #fff3cd; color: #856404; }
+.badge-parcial { background: #ffe4c4; color: #9a5b00; }
 .badge-pagado { background: #d4edda; color: #155724; }
 .badge-vencido { background: #f8d7da; color: #721c24; }
 .badge-facturado { background: #d1ecf1; color: #0c5460; }
@@ -720,6 +721,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <div id="sec-pagos" class="section">
   <div class="card" id="cobranza-card" style="display:none;"></div>
   <div class="card">
+    <div class="card-title">💰 Registrar abono</div>
+    <p style="font-size:12px;color:#666;margin-bottom:10px;">Para folios que el cliente paga en más de una parte. Busca el Folio SII e ingresa el nuevo abono.</p>
+    <label>Folio SII</label>
+    <input type="text" id="ab-folio" placeholder="Ej: 2902" oninput="buscarFolioAbono()"/>
+    <div id="ab-info" class="hint"></div>
+    <div id="ab-form" class="hidden">
+      <label>Monto del abono</label>
+      <input type="number" id="ab-monto" placeholder="Ej: 50000"/>
+      <label>Fecha del abono</label>
+      <input type="date" id="ab-fecha"/>
+      <label>Referencia / comprobante</label>
+      <input type="text" id="ab-ref" placeholder="N° operación, transferencia..."/>
+      <button class="btn btn-primary btn-full" style="margin-top:14px;" onclick="registrarAbono()">Registrar abono</button>
+    </div>
+  </div>
+  <div class="card" id="historial-abonos-card" style="display:none;"></div>
+  <div class="card">
     <div class="card-title">➕ Registrar pago</div>
     <label>Buscar por Folio SII, N° orden o cliente</label>
     <input type="text" id="pg-buscar" placeholder="Ej: 2902, 18 o nombre del cliente" oninput="buscarOrdenPago()"/>
@@ -1037,7 +1055,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <script>
 // ─── ESTADO ───────────────────────────────
 let GS = localStorage.getItem('fen_gs') || '';
-const DB = {clientes:[],productos:[],precios:[],ordenes:[],detalles:[],historico:{ordenes:[],detalles:[],cargado:false}};
+const DB = {clientes:[],productos:[],precios:[],ordenes:[],detalles:[],abonos:[],historico:{ordenes:[],detalles:[],cargado:false}};
 
 // ─── ARCHIVADO: RECORDATORIO Y EJECUCIÓN ──────────────
 const FECHA_PRIMER_ARCHIVADO = '2026-08-14'; // primer archivado programado
@@ -1295,14 +1313,14 @@ async function syncAll() {
   if (!GS) { document.getElementById('config-banner').classList.remove('hidden'); return; }
   showToast('Sincronizando...','loading');
   try {
-    const [cl,pr,pc,or,det] = await Promise.all([
+    const [cl,pr,pc,or,det,ab] = await Promise.all([
       gsCall('getClientes'), gsCall('getProductos'),
       gsCall('getPrecios'),  gsCall('getOrdenes'),
-      gsCall('getDetalles')
+      gsCall('getDetalles'), gsCall('getAbonos')
     ]);
     DB.clientes=cl||[]; DB.productos=pr||[];
     DB.precios=pc||[];   DB.ordenes=or||[];
-    DB.detalles=det||[];
+    DB.detalles=det||[]; DB.abonos=ab||[];
     populateSelects();
     renderAll();
     document.getElementById('sync-status').textContent =
@@ -1332,7 +1350,7 @@ function showSec(id,btn){
   if(btn)btn.classList.add('active');
   if(id==='ordenes'){populateSelects();renderOrdenes();}
   if(id==='facturacion'){populateSelects();renderFact();verificarRecordatoriosFacturacion();}
-  if(id==='pagos'){renderPagos();renderPagosPendientes();renderCobranza();}
+  if(id==='pagos'){renderPagos();renderPagosPendientes();renderCobranza();renderHistorialAbonos();}
   if(id==='analisis')renderAnalisis();
   if(id==='clientes')renderClientes();
   if(id==='productos')renderProductos();
@@ -1438,6 +1456,7 @@ function mesAnio(d){
 function badgeClass(e){
   if(!e||e==='PENDIENTE')return'pendiente';
   if(e.includes('VENCIDO'))return'vencido';
+  if(e==='PARCIAL')return'parcial';
   if(e.includes('PAGADO'))return'pagado';
   return'facturado';
 }
@@ -1890,7 +1909,7 @@ function compartirOdescargarPDF(blob,nombreArchivo){
 
 
 // ─── LISTA ÓRDENES ───────────────────────
-function renderAll(){renderOrdenes();renderFact();renderPagos();renderPagosPendientes();renderCobranza();renderClientes();renderProductos();renderPrecios();}
+function renderAll(){renderOrdenes();renderFact();renderPagos();renderPagosPendientes();renderCobranza();renderHistorialAbonos();renderClientes();renderProductos();renderPrecios();}
 
 function renderOrdenes(){
   const w=document.getElementById('ord-list');
@@ -2221,7 +2240,7 @@ function renderPagosPendientes(mostrarTodos){
   const ppFecha=document.getElementById('pp-fecha')?.value||'';
   const esNumerico=/^\d+$/.test(q.trim());
   const lista=DB.ordenes
-    .filter(o=>o['Estado Pago']==='PENDIENTE'||!o['Estado Pago'])
+    .filter(o=>{const e=o['Estado Pago'];return e==='PENDIENTE'||e==='PARCIAL'||!e;})
     .filter(o=>{
       if(!q)return true;
       if(esNumerico)return String(o['N° Orden'])===q.trim()||norm(o['Folio SII']||'')===q.trim();
@@ -2233,13 +2252,14 @@ function renderPagosPendientes(mostrarTodos){
   const limite=(!mostrarTodos&&!q&&!ppFecha)?3:lista.length;
   const visible=lista.slice(0,limite);
   const hayMas=lista.length>limite;
-  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>N°</th><th>Folio</th><th>Cliente</th><th>Fecha</th><th>Total</th><th></th></tr></thead><tbody>'+
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>N°</th><th>Folio</th><th>Cliente</th><th>Fecha</th><th>Saldo</th><th>Estado</th><th></th></tr></thead><tbody>'+
     visible.map(o=>`<tr>
       <td><strong>${o['N° Orden']}</strong></td>
       <td>${o['Folio SII']&&o['Folio SII']!=='Pendiente'?o['Folio SII']:'—'}</td>
       <td>${o['Cliente']||'—'}</td>
       <td>${fechaCorta(o['Fecha'])}</td>
-      <td style="color:#e74c3c;font-weight:700;">${fmtCLP(o['Total'])}</td>
+      <td style="color:#e74c3c;font-weight:700;">${fmtCLP(saldoOrden(o))}</td>
+      <td>${estadoBadge(o['Estado Pago'])}</td>
       <td><button class="btn btn-primary btn-sm" onclick="seleccionarDesdePendiente('${o['N° Orden']}')">Registrar pago</button></td>
     </tr>`).join('')+'</tbody></table></div>'+
     (hayMas?`<div style="text-align:center;margin-top:10px;"><a href="javascript:void(0)" onclick="renderPagosPendientes(true)" style="color:#e74c3c;font-weight:600;font-size:13px;">Ver todas (${lista.length} pendientes de pago)</a></div>`:'');
@@ -2248,6 +2268,34 @@ function renderPagosPendientes(mostrarTodos){
 // ─── COBRANZA ────────────────────────────
 // Identifica clientes con órdenes pendientes de pago que ya superaron el plazo
 // definido por su "Frecuencia Pago" (Diaria / Semanal (sábado) / Fin de mes).
+// ─── ABONOS / SALDO POR FOLIO ────────────
+// Los abonos parciales se registran por Folio SII (no por orden individual),
+// así que el saldo real de una orden depende de si comparte folio con otras.
+function totalFolio(folio){
+  return DB.ordenes.filter(o=>norm(o['Folio SII']||'')===norm(folio)).reduce((s,o)=>s+(Number(o['Total'])||0),0);
+}
+function abonadoFolio(folio){
+  return DB.abonos.filter(a=>norm(a['Folio SII']||'')===norm(folio)).reduce((s,a)=>s+(Number(a['Monto'])||0),0);
+}
+function saldoFolio(folio){
+  return Math.max(0, totalFolio(folio)-abonadoFolio(folio));
+}
+// Saldo pendiente real de una orden. Prioriza el campo "Estado Pago" (ya sea
+// que se haya pagado por la vía simple o por abonos): si dice PAGADO, el saldo
+// es $0. Solo se consulta la bitácora de abonos cuando el estado es PARCIAL.
+function saldoOrden(o){
+  const estado=String(o['Estado Pago']||'').toUpperCase();
+  if(estado.includes('PAGADO'))return 0;
+  const folio=o['Folio SII'];
+  const tieneFolio=!!(folio&&folio!=='Pendiente');
+  if(!tieneFolio||estado!=='PARCIAL')return Number(o['Total'])||0;
+  const total=totalFolio(folio);
+  if(total<=0)return 0;
+  const saldo=saldoFolio(folio);
+  const peso=(Number(o['Total'])||0)/total;
+  return Math.round(saldo*peso);
+}
+
 const COBRANZA_CATS=['Diaria','Semanal','Mensual','30dias'];
 const COBRANZA_ETIQUETAS={Diaria:'Diaria',Semanal:'Semanal (sábado)',Mensual:'Fin de mes','30dias':'A 30 días'};
 
@@ -2270,7 +2318,7 @@ function cobranzaAtrasada(frecuencia, fechaOrdenRaw){
 function calcularCobranza(){
   const data={}; COBRANZA_CATS.forEach(c=>data[c]={});
   DB.ordenes
-    .filter(o=>o['Estado Pago']==='PENDIENTE'||!o['Estado Pago'])
+    .filter(o=>{const e=o['Estado Pago'];return e==='PENDIENTE'||e==='PARCIAL'||!e;})
     .forEach(o=>{
       const cli=DB.clientes.find(c=>norm(c['Nombre']||'')===norm(o['Cliente']||''));
       let frecuencia=cli?(cli['Frecuencia Pago']||'Diaria'):'Diaria';
@@ -2280,7 +2328,8 @@ function calcularCobranza(){
       if(!data[frecuencia][nombreCli])data[frecuencia][nombreCli]={grupos:{},total:0};
       const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
       const clave=tieneFolio?('Folio '+o['Folio SII']):('N° '+o['N° Orden']+' — sin factura');
-      const monto=Number(o['Total'])||0;
+      const monto=saldoOrden(o); // saldo real: descuenta abonos parciales ya registrados
+      if(monto<=0)return; // ya saldado por abonos, aunque el estado siga PARCIAL por redondeo
       // Con folio: fecha en que se asignó el folio. Sin folio: fecha de la orden.
       const fechaGrupo=tieneFolio?(o['Fecha Folio']||o['Fecha']):o['Fecha'];
       if(!data[frecuencia][nombreCli].grupos[clave])data[frecuencia][nombreCli].grupos[clave]={monto:0,nordenes:[],fecha:fechaGrupo};
@@ -2435,7 +2484,7 @@ function renderDia(){
   let ordenesDia=todasOrdenes.filter(o=>parseFecha(o['Fecha'])===dia);
   if(cliente)ordenesDia=ordenesDia.filter(o=>o['Cliente']===cliente);
   const totalDia=ordenesDia.reduce((s,o)=>s+(Number(o['Total'])||0),0);
-  const cobradoDia=ordenesDia.filter(o=>esFechaValida(o['Fecha Pago'])).reduce((s,o)=>s+(Number(o['Total'])||0),0);
+  const cobradoDia=ordenesDia.reduce((s,o)=>s+((Number(o['Total'])||0)-saldoOrden(o)),0);
   const pendienteDia=totalDia-cobradoDia;
   const el=document.getElementById('an-dia-res');
   if(!el)return;
@@ -2764,6 +2813,107 @@ async function registrarPago(){
   }catch(e){showToast('Error: '+e.message,'err');}
 }
 
+// ─── ABONOS PARCIALES ────────────────────
+function buscarFolioAbono(){
+  const folio=document.getElementById('ab-folio').value.trim();
+  const info=document.getElementById('ab-info');
+  const form=document.getElementById('ab-form');
+  if(!folio){info.innerHTML='';form.classList.add('hidden');return;}
+  const ordenes=DB.ordenes.filter(o=>norm(o['Folio SII']||'')===norm(folio));
+  if(!ordenes.length){
+    info.className='hint error';
+    info.innerHTML='No se encontró ninguna orden con ese folio.';
+    form.classList.add('hidden');
+    return;
+  }
+  const total=totalFolio(folio);
+  const abonado=abonadoFolio(folio);
+  const saldo=saldoFolio(folio);
+  const cliente=ordenes[0]['Cliente']||'—';
+  info.className='hint ok';
+  info.innerHTML=`✅ <strong>Folio ${folio}</strong> — ${cliente} — ${ordenes.length} orden${ordenes.length>1?'es':''}<br>`+
+    `Total: ${fmtCLP(total)} · Abonado: ${fmtCLP(abonado)} · <span style="color:#c0392b;">Saldo: ${fmtCLP(saldo)}</span>`;
+  if(saldo<=0){
+    info.innerHTML+='<br><span style="color:#1D9E75;">Este folio ya está pagado en su totalidad.</span>';
+    form.classList.add('hidden');
+  }else{
+    form.classList.remove('hidden');
+    document.getElementById('ab-fecha').value=hoy();
+  }
+}
+
+async function registrarAbono(){
+  const folio=document.getElementById('ab-folio').value.trim();
+  const monto=parseFloat(document.getElementById('ab-monto').value)||0;
+  const fecha=document.getElementById('ab-fecha').value;
+  const referencia=document.getElementById('ab-ref').value.trim();
+  if(!folio){showToast('Busca un folio primero','err');return;}
+  if(!monto||monto<=0){showToast('Ingresa un monto de abono válido','err');return;}
+  if(!fecha){showToast('Ingresa la fecha del abono','err');return;}
+  const saldo=saldoFolio(folio);
+  if(monto>saldo+1){ // pequeño margen por redondeo
+    showToast(`El abono ($${monto.toLocaleString('es-CL')}) supera el saldo pendiente (${fmtCLP(saldo)})`,'err');
+    return;
+  }
+  showToast('Registrando abono en Sheets...','loading');
+  try{
+    const res=await gsCall('registrarAbono',{folio,monto,fecha,referencia});
+    await syncAll();
+    showToast(res.estado==='PAGADO'?'✅ Folio saldado por completo':`✅ Abono registrado — saldo restante: ${fmtCLP(res.saldo)}`,'success');
+    ['ab-folio','ab-monto','ab-ref'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ab-info').innerHTML='';
+    document.getElementById('ab-form').classList.add('hidden');
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+function renderHistorialAbonos(){
+  const cont=document.getElementById('historial-abonos-card');
+  if(!cont)return;
+  if(!DB.abonos.length){cont.style.display='none';cont.innerHTML='';return;}
+  cont.style.display='block';
+  // Agrupamos los abonos por folio, del más reciente al más antiguo
+  const porFolio={};
+  DB.abonos.forEach(a=>{
+    const folio=a['Folio SII'];
+    if(!folio)return;
+    if(!porFolio[folio])porFolio[folio]=[];
+    porFolio[folio].push(a);
+  });
+  const folios=Object.keys(porFolio).sort((a,b)=>{
+    const fa=porFolio[a].map(x=>parseFecha(x['Fecha'])).sort().pop()||'';
+    const fb=porFolio[b].map(x=>parseFecha(x['Fecha'])).sort().pop()||'';
+    return fb.localeCompare(fa);
+  });
+  cont.innerHTML=`
+    <div class="card-title">🧾 Historial de abonos</div>
+    <p style="font-size:12px;color:#999;margin:-4px 0 12px;">Detalle de cada abono registrado por folio.</p>
+    ${folios.map(folio=>{
+      const abonos=porFolio[folio].slice().sort((a,b)=>parseFecha(b['Fecha']).localeCompare(parseFecha(a['Fecha'])));
+      const cliOrden=DB.ordenes.find(o=>norm(o['Folio SII']||'')===norm(folio));
+      const cliente=cliOrden?cliOrden['Cliente']:'';
+      const total=totalFolio(folio);
+      const abonado=abonadoFolio(folio);
+      const saldo=saldoFolio(folio);
+      return `
+      <details style="margin-bottom:6px;border:0.5px solid #eee;border-radius:8px;overflow:hidden;">
+        <summary style="cursor:pointer;padding:9px 12px;background:#f7f9fc;display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+          <span style="color:#003a79;">Folio ${folio}${cliente?' — '+cliente:''}</span>
+          <span style="color:${saldo<=0?'#1D9E75':'#c0392b'};">${saldo<=0?'Pagado':'Saldo '+fmtCLP(saldo)}</span>
+        </summary>
+        <div style="padding:6px 12px 10px;">
+          <div style="font-size:12px;color:#9aa8bd;margin-bottom:6px;">Total ${fmtCLP(total)} · Abonado ${fmtCLP(abonado)}</div>
+          ${abonos.map(a=>`
+            <div style="padding:5px 0;font-size:12.5px;display:flex;justify-content:space-between;border-top:0.5px solid #f5f5f5;color:#666;">
+              <span>${fechaCorta(a['Fecha'])}${a['Referencia']?' · '+a['Referencia']:''}</span>
+              <span style="color:#1D9E75;">${fmtCLP(a['Monto'])}</span>
+            </div>
+          `).join('')}
+        </div>
+      </details>`;
+    }).join('')}`;
+}
+
+
 // ─── FACTURA MÚLTIPLE ────────────────────
 function cargarMulti(){
   const cli=document.getElementById('m-cli').value;
@@ -2789,14 +2939,13 @@ function renderMulti(){
   if(!ords.length){lista.innerHTML='<div class="empty">Sin órdenes en este rango</div>';return;}
   lista.innerHTML=ords.map(o=>{
     const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
-    const esCobrada=esFechaValida(o['Fecha Pago']);
     return `
     <div class="check-row">
       <input type="checkbox" id="mck-${o['N° Orden']}" value="${o['N° Orden']}" onchange="calcMulti()" ${tieneFolio?'disabled title="Esta orden ya tiene folio SII asignado y no puede incluirse en una nueva factura múltiple"':''}/>
       <label for="mck-${o['N° Orden']}" style="${tieneFolio?'opacity:0.55;cursor:not-allowed;':''}">
         <strong>N° ${o['N° Orden']}</strong> — ${fechaCorta(o['Fecha'])} — 
         <span style="color:#1D9E75;font-weight:700;">${fmtCLP(o['Total'])}</span>
-        ${estadoBadge(esCobrada?'PAGADO':'PENDIENTE')}
+        ${estadoBadge(o['Estado Pago']||'PENDIENTE')}
         ${tieneFolio?`<span class="badge badge-facturado" style="margin-left:4px;">Folio ${o['Folio SII']}</span>`:''}
       </label>
     </div>`;
@@ -3313,7 +3462,8 @@ function agruparOrdenesEC(ordenes, modo) {
     const lista = grupos[folio];
     const neto = lista.reduce((s,o) => s + (parseFloat(o['Total Neto'])||0), 0);
     const total = lista.reduce((s,o) => s + (parseFloat(o['Total'])||0), 0);
-    const pendiente = lista.some(o => String(o['Estado Pago']||'').toUpperCase() === 'PENDIENTE');
+    const pendiente = lista.some(o => String(o['Estado Pago']||'').toUpperCase() === 'PENDIENTE' || !o['Estado Pago']);
+    const parcial = !pendiente && lista.some(o => String(o['Estado Pago']||'').toUpperCase() === 'PARCIAL');
     const fechasPago = lista.map(o => o['Fecha Pago']).filter(Boolean).sort();
     const fechas = lista.map(o => o['Fecha']).filter(Boolean).sort();
     return {
@@ -3322,8 +3472,8 @@ function agruparOrdenesEC(ordenes, modo) {
       fecha: fechas[0],
       cliente: lista[0]['Cliente'] || '',
       neto, total,
-      estado: pendiente ? 'PENDIENTE' : 'PAGADO',
-      fechaPago: pendiente ? '' : fechasPago[fechasPago.length-1],
+      estado: pendiente ? 'PENDIENTE' : (parcial ? 'PARCIAL' : 'PAGADO'),
+      fechaPago: (pendiente||parcial) ? '' : fechasPago[fechasPago.length-1],
       ordenes: lista
     };
   });
@@ -3362,8 +3512,7 @@ function generarEstadoCuenta() {
   ordenes.forEach(o => {
     const tot = parseFloat(o['Total']||0);
     totalComprado += tot;
-    const estado = String(o['Estado Pago']||'').toUpperCase();
-    if (estado !== 'PENDIENTE') totalPagado += tot;
+    totalPagado += tot - saldoOrden(o);
   });
   const totalPendiente = totalComprado - totalPagado;
 
@@ -3379,8 +3528,8 @@ function generarEstadoCuenta() {
 
   // Tabla preview
   const tbody = filas.map(f => {
-    const esPendiente = f.estado === 'PENDIENTE';
-    const colorEst = esPendiente ? '#c0392b' : '#1D9E75';
+    const esPendiente = f.estado !== 'PAGADO';
+    const colorEst = f.estado==='PAGADO'?'#1D9E75':(f.estado==='PARCIAL'?'#b8860b':'#c0392b');
     return `<tr>
       <td>${f.etiquetaPrincipal||''}</td>
       <td>${fechaCorta(f.fecha)}</td>
@@ -3434,8 +3583,8 @@ function descargarEstadoCuentaPDF() {
   // así el PDF y la pantalla siempre coinciden.
   const colPrincipal = modo === 'folio' ? 'Folio SII' : 'N° Orden';
   const colSecundaria = modo === 'folio' ? 'Órdenes' : 'Folio SII';
-  const filasPendientes = filas.filter(f => f.estado === 'PENDIENTE');
-  const filasPagadas = filas.filter(f => f.estado !== 'PENDIENTE');
+  const filasPendientes = filas.filter(f => f.estado !== 'PAGADO');
+  const filasPagadas = filas.filter(f => f.estado === 'PAGADO');
 
   function tablaOrdenes(lista, titulo, colorTitulo) {
     if (!lista.length) return '';
@@ -3446,7 +3595,7 @@ function descargarEstadoCuentaPDF() {
         <td>${f.etiquetaSecundaria||'Pendiente'}</td>
         <td style="text-align:right;">${fmtCLP(Math.round(f.neto||0))}</td>
         <td style="text-align:right;font-weight:700;">${fmtCLP(Math.round(f.total||0))}</td>
-        <td>${f.estado === 'PENDIENTE' ? '—' : fechaCorta(f.fechaPago)}</td>
+        <td>${f.estado === 'PAGADO' ? fechaCorta(f.fechaPago) : '—'}</td>
       </tr>`).join('');
     return `
       <h3 style="font-size:13px;font-weight:800;color:${colorTitulo};margin:18px 0 8px;text-transform:uppercase;letter-spacing:1px;">${titulo}</h3>
