@@ -2281,16 +2281,20 @@ function calcularCobranza(){
       const tieneFolio=!!(o['Folio SII']&&o['Folio SII']!=='Pendiente');
       const clave=tieneFolio?('Folio '+o['Folio SII']):('N° '+o['N° Orden']+' — sin factura');
       const monto=Number(o['Total'])||0;
-      if(!data[frecuencia][nombreCli].grupos[clave])data[frecuencia][nombreCli].grupos[clave]={monto:0,nordenes:[]};
+      if(!data[frecuencia][nombreCli].grupos[clave])data[frecuencia][nombreCli].grupos[clave]={monto:0,nordenes:[],fecha:o['Fecha']};
       data[frecuencia][nombreCli].grupos[clave].monto+=monto;
       data[frecuencia][nombreCli].grupos[clave].nordenes.push(o['N° Orden']);
+      // Nos quedamos con la fecha más antigua del grupo (fecha de emisión real)
+      if(parseFecha(o['Fecha'])<parseFecha(data[frecuencia][nombreCli].grupos[clave].fecha)){
+        data[frecuencia][nombreCli].grupos[clave].fecha=o['Fecha'];
+      }
       data[frecuencia][nombreCli].total+=monto;
     });
   // Orden fijo: Diaria, Semanal, Mensual, A 30 días — solo se incluyen categorías con datos
   return COBRANZA_CATS.map(cat=>{
     const clientes=Object.entries(data[cat]).map(([cliente,d])=>({
       cliente,
-      grupos:Object.entries(d.grupos).map(([etiqueta,g])=>({etiqueta,monto:g.monto,nordenes:g.nordenes})),
+      grupos:Object.entries(d.grupos).map(([etiqueta,g])=>({etiqueta,monto:g.monto,nordenes:g.nordenes,fecha:g.fecha})),
       total:d.total
     })).sort((a,b)=>b.total-a.total);
     return {cat, etiqueta:COBRANZA_ETIQUETAS[cat], clientes, total:clientes.reduce((s,c)=>s+c.total,0)};
@@ -2323,7 +2327,7 @@ function renderCobranza(){
               <div style="padding:4px 4px 4px 12px;">
                 ${c.grupos.map(g=>`
                   <div onclick="irARegistrarPago('${g.nordenes.join(',')}')" style="cursor:pointer;padding:5px 0;font-size:12.5px;display:flex;justify-content:space-between;color:#9aa8bd;" title="Clic para registrar el pago">
-                    <span>${g.etiqueta}</span>
+                    <span>${g.etiqueta} · ${fechaDM(g.fecha)}</span>
                     <span style="color:#c0392b;">${fmtCLP(g.monto)}</span>
                   </div>
                 `).join('')}
