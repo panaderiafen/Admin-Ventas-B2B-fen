@@ -721,23 +721,6 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <div id="sec-pagos" class="section">
   <div class="card" id="cobranza-card" style="display:none;"></div>
   <div class="card">
-    <div class="card-title">💰 Registrar abono</div>
-    <p style="font-size:12px;color:#666;margin-bottom:10px;">Para folios que el cliente paga en más de una parte. Busca el Folio SII e ingresa el nuevo abono.</p>
-    <label>Folio SII</label>
-    <input type="text" id="ab-folio" placeholder="Ej: 2902" oninput="buscarFolioAbono()"/>
-    <div id="ab-info" class="hint"></div>
-    <div id="ab-form" class="hidden">
-      <label>Monto del abono</label>
-      <input type="number" id="ab-monto" placeholder="Ej: 50000"/>
-      <label>Fecha del abono</label>
-      <input type="date" id="ab-fecha"/>
-      <label>Referencia / comprobante</label>
-      <input type="text" id="ab-ref" placeholder="N° operación, transferencia..."/>
-      <button class="btn btn-primary btn-full" style="margin-top:14px;" onclick="registrarAbono()">Registrar abono</button>
-    </div>
-  </div>
-  <div class="card" id="historial-abonos-card" style="display:none;"></div>
-  <div class="card">
     <div class="card-title">➕ Registrar pago</div>
     <label>Buscar por Folio SII, N° orden o cliente</label>
     <input type="text" id="pg-buscar" placeholder="Ej: 2902, 18 o nombre del cliente" oninput="buscarOrdenPago()"/>
@@ -756,6 +739,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <input type="text" id="pg-ref" placeholder="N° operación, cheque..."/>
     <button class="btn btn-primary btn-full" style="margin-top:14px;" onclick="registrarPago()">Registrar pago</button>
   </div>
+  <div class="card">
+    <div class="card-title">💰 Registrar abono</div>
+    <p style="font-size:12px;color:#666;margin-bottom:10px;">Para folios que el cliente paga en más de una parte. Busca el Folio SII e ingresa el nuevo abono.</p>
+    <label>Folio SII</label>
+    <input type="text" id="ab-folio" placeholder="Ej: 2902" oninput="buscarFolioAbono()"/>
+    <div id="ab-info" class="hint"></div>
+    <div id="ab-form" class="hidden">
+      <label>Monto del abono</label>
+      <input type="number" id="ab-monto" placeholder="Ej: 50000"/>
+      <label>Fecha del abono</label>
+      <input type="date" id="ab-fecha"/>
+      <label>Referencia / comprobante</label>
+      <input type="text" id="ab-ref" placeholder="N° operación, transferencia..."/>
+      <button class="btn btn-primary btn-full" style="margin-top:14px;" onclick="registrarAbono()">Registrar abono</button>
+    </div>
+  </div>
+  <div class="card" id="historial-abonos-card" style="display:none;"></div>
   <div class="card">
     <div class="card-title">🕓 Pagos pendientes</div>
     <div class="search-box" style="display:flex;gap:8px;align-items:flex-end;">
@@ -2330,10 +2330,12 @@ function calcularCobranza(){
       const clave=tieneFolio?('Folio '+o['Folio SII']):('N° '+o['N° Orden']+' — sin factura');
       const monto=saldoOrden(o); // saldo real: descuenta abonos parciales ya registrados
       if(monto<=0)return; // ya saldado por abonos, aunque el estado siga PARCIAL por redondeo
+      const montoOriginal=Number(o['Total'])||0;
       // Con folio: fecha en que se asignó el folio. Sin folio: fecha de la orden.
       const fechaGrupo=tieneFolio?(o['Fecha Folio']||o['Fecha']):o['Fecha'];
-      if(!data[frecuencia][nombreCli].grupos[clave])data[frecuencia][nombreCli].grupos[clave]={monto:0,nordenes:[],fecha:fechaGrupo};
+      if(!data[frecuencia][nombreCli].grupos[clave])data[frecuencia][nombreCli].grupos[clave]={monto:0,montoOriginal:0,nordenes:[],fecha:fechaGrupo};
       data[frecuencia][nombreCli].grupos[clave].monto+=monto;
+      data[frecuencia][nombreCli].grupos[clave].montoOriginal+=montoOriginal;
       data[frecuencia][nombreCli].grupos[clave].nordenes.push(o['N° Orden']);
       // Nos quedamos con la fecha más antigua del grupo (por si el folio se asignó
       // en momentos ligeramente distintos entre órdenes del mismo folio)
@@ -2346,7 +2348,7 @@ function calcularCobranza(){
   return COBRANZA_CATS.map(cat=>{
     const clientes=Object.entries(data[cat]).map(([cliente,d])=>({
       cliente,
-      grupos:Object.entries(d.grupos).map(([etiqueta,g])=>({etiqueta,monto:g.monto,nordenes:g.nordenes,fecha:g.fecha})),
+      grupos:Object.entries(d.grupos).map(([etiqueta,g])=>({etiqueta,monto:g.monto,montoOriginal:g.montoOriginal,abonado:g.montoOriginal-g.monto,nordenes:g.nordenes,fecha:g.fecha})),
       total:d.total
     })).sort((a,b)=>b.total-a.total);
     return {cat, etiqueta:COBRANZA_ETIQUETAS[cat], clientes, total:clientes.reduce((s,c)=>s+c.total,0)};
@@ -2380,7 +2382,7 @@ function renderCobranza(){
                 ${c.grupos.map(g=>`
                   <div onclick="irARegistrarPago('${g.nordenes.join(',')}')" style="cursor:pointer;padding:5px 0;font-size:12.5px;display:flex;justify-content:space-between;color:#9aa8bd;" title="Clic para registrar el pago">
                     <span>${g.etiqueta} · ${fechaDM(g.fecha)}</span>
-                    <span style="color:#c0392b;">${fmtCLP(g.monto)}</span>
+                    <span>${g.abonado>0.5?`<span style="color:#9aa8bd;">${fmtCLP(g.montoOriginal)}</span> <span style="color:#9a5b00;">− ${fmtCLP(g.abonado)} abonado</span> · `:''}<span style="color:#c0392b;">${fmtCLP(g.monto)}</span></span>
                   </div>
                 `).join('')}
               </div>
@@ -3435,17 +3437,29 @@ function setModoEC(modo) {
 //   las órdenes aún sin folio (no facturadas) quedan como filas individuales.
 function agruparOrdenesEC(ordenes, modo) {
   if (modo !== 'folio') {
-    return ordenes.map(o => ({
-      etiquetaPrincipal: o['N° Orden'] || '',
-      etiquetaSecundaria: o['Folio SII'] || 'Pendiente',
-      fecha: o['Fecha'],
-      cliente: o['Cliente'] || '',
-      neto: parseFloat(o['Total Neto']||0),
-      total: parseFloat(o['Total']||0),
-      estado: String(o['Estado Pago']||'PENDIENTE').toUpperCase(),
-      fechaPago: o['Fecha Pago'],
-      ordenes: [o]
-    }));
+    return ordenes.map(o => {
+      const total = parseFloat(o['Total']||0);
+      const estado = String(o['Estado Pago']||'PENDIENTE').toUpperCase();
+      const esParcial = estado === 'PARCIAL';
+      const saldo = esParcial ? saldoOrden(o) : total;
+      const abonado = esParcial ? (total-saldo) : 0;
+      let ultimoAbonoFecha = null;
+      if (esParcial && o['Folio SII']) {
+        const abonosFolio = DB.abonos.filter(a=>norm(a['Folio SII']||'')===norm(o['Folio SII'])).sort((a,b)=>parseFecha(b['Fecha']).localeCompare(parseFecha(a['Fecha'])));
+        if (abonosFolio.length) ultimoAbonoFecha = abonosFolio[0]['Fecha'];
+      }
+      return {
+        etiquetaPrincipal: o['N° Orden'] || '',
+        etiquetaSecundaria: o['Folio SII'] || 'Pendiente',
+        fecha: o['Fecha'],
+        cliente: o['Cliente'] || '',
+        neto: parseFloat(o['Total Neto']||0),
+        total, abonado, saldo, ultimoAbonoFecha,
+        estado,
+        fechaPago: o['Fecha Pago'],
+        ordenes: [o]
+      };
+    });
   }
   const grupos = {};
   const sinFolio = [];
@@ -3466,25 +3480,33 @@ function agruparOrdenesEC(ordenes, modo) {
     const parcial = !pendiente && lista.some(o => String(o['Estado Pago']||'').toUpperCase() === 'PARCIAL');
     const fechasPago = lista.map(o => o['Fecha Pago']).filter(Boolean).sort();
     const fechas = lista.map(o => o['Fecha']).filter(Boolean).sort();
+    let abonado=0, saldo=total, ultimoAbonoFecha=null;
+    if(parcial){
+      abonado=abonadoFolio(folio);
+      saldo=saldoFolio(folio);
+      const abonosFolio=DB.abonos.filter(a=>norm(a['Folio SII']||'')===norm(folio)).sort((a,b)=>parseFecha(b['Fecha']).localeCompare(parseFecha(a['Fecha'])));
+      if(abonosFolio.length)ultimoAbonoFecha=abonosFolio[0]['Fecha'];
+    }
     return {
       etiquetaPrincipal: folio,
       etiquetaSecundaria: lista.map(o => o['N° Orden']).join(', '),
       fecha: fechas[0],
       cliente: lista[0]['Cliente'] || '',
-      neto, total,
+      neto, total, abonado, saldo, ultimoAbonoFecha,
       estado: pendiente ? 'PENDIENTE' : (parcial ? 'PARCIAL' : 'PAGADO'),
       fechaPago: (pendiente||parcial) ? '' : fechasPago[fechasPago.length-1],
       ordenes: lista
     };
   });
   sinFolio.forEach(o => {
+    const total = parseFloat(o['Total']||0);
     filas.push({
       etiquetaPrincipal: o['N° Orden'] || '',
       etiquetaSecundaria: 'Pendiente',
       fecha: o['Fecha'],
       cliente: o['Cliente'] || '',
       neto: parseFloat(o['Total Neto']||0),
-      total: parseFloat(o['Total']||0),
+      total, abonado: 0, saldo: total, ultimoAbonoFecha: null,
       estado: String(o['Estado Pago']||'PENDIENTE').toUpperCase(),
       fechaPago: o['Fecha Pago'],
       ordenes: [o]
@@ -3588,15 +3610,24 @@ function descargarEstadoCuentaPDF() {
 
   function tablaOrdenes(lista, titulo, colorTitulo) {
     if (!lista.length) return '';
-    const rows = lista.map(f => `
-      <tr>
+    const rows = lista.map(f => {
+      const esParcial = f.estado === 'PARCIAL';
+      const totalCell = esParcial
+        ? `<span style="font-size:10px;color:#999;text-decoration:line-through;">${fmtCLP(Math.round(f.total||0))}</span><br><span style="font-weight:700;color:#c0392b;">${fmtCLP(Math.round(f.saldo||0))}</span>`
+        : fmtCLP(Math.round(f.total||0));
+      const notaAbono = (esParcial && f.abonado>0)
+        ? `<tr><td colspan="6" style="padding:0 12px 8px;font-size:10px;color:#9a5b00;">Abonado: ${fmtCLP(Math.round(f.abonado))}${f.ultimoAbonoFecha?' el '+fechaDM(f.ultimoAbonoFecha):''}</td></tr>`
+        : '';
+      return `
+      <tr${esParcial?' style="color:#9a5b00;"':''}>
         <td>${f.etiquetaPrincipal||''}</td>
         <td>${fechaCorta(f.fecha)}</td>
         <td>${f.etiquetaSecundaria||'Pendiente'}</td>
         <td style="text-align:right;">${fmtCLP(Math.round(f.neto||0))}</td>
-        <td style="text-align:right;font-weight:700;">${fmtCLP(Math.round(f.total||0))}</td>
+        <td style="text-align:right;font-weight:700;">${totalCell}</td>
         <td>${f.estado === 'PAGADO' ? fechaCorta(f.fechaPago) : '—'}</td>
-      </tr>`).join('');
+      </tr>${notaAbono}`;
+    }).join('');
     return `
       <h3 style="font-size:13px;font-weight:800;color:${colorTitulo};margin:18px 0 8px;text-transform:uppercase;letter-spacing:1px;">${titulo}</h3>
       <table>
