@@ -1137,7 +1137,10 @@ function verificarRecordatoriosFacturacion(){
             <strong style="color:#003a79;font-weight:700;">${x.cliente['Nombre']}</strong>
             — ${x.ordenes.length} orden${x.ordenes.length>1?'es':''} pendiente${x.ordenes.length>1?'s':''}
             <span style="color:#8a9bb0;">(N°
-              ${x.ordenes.map(r=>`<span style="${r.atrasada?'color:#b56464;':''}">${r.orden['N° Orden']}</span>`).join(', ')}
+              ${x.ordenes.map(r=>g.titulo==='Facturación diaria'
+                ?`<span onclick="abrirFolio('${r.orden['N° Orden']}')" style="cursor:pointer;text-decoration:underline;${r.atrasada?'color:#b56464;':'color:#003a79;'}" title="Clic para asignar folio a esta orden">${r.orden['N° Orden']}</span>`
+                :`<span style="${r.atrasada?'color:#b56464;':''}">${r.orden['N° Orden']}</span>`
+              ).join(', ')}
             )</span>
           </div>
         `).join('')}
@@ -2258,6 +2261,13 @@ async function guardarFolio(){
     );
     if(!confirmar)return;
   }
+  const o=DB.ordenes.find(x=>String(x['N° Orden'])===String(_folKey));
+  const confirmarFinal=confirm(
+    `Vas a asignar el folio ${folio} a la orden N°${_folKey}` +
+    (o?` — ${o['Cliente']||'—'} — ${fmtCLP(o['Total'])}`:'') +
+    `.\n\nEsta acción no se puede deshacer fácilmente desde la app (requiere edición avanzada en Config). ¿Confirmas?`
+  );
+  if(!confirmarFinal)return;
   showToast('Guardando folio en Sheets...','loading');
   try{
     await gsCall('asignarFolio',{nOrden:_folKey,folioSII:folio,fechaFolio:document.getElementById('fol-fecha').value});
@@ -3083,6 +3093,13 @@ async function asignarFolioMulti(){
     const confirmar=confirm(`⚠️ El folio ${folio} ya está asignado a:\n\n${detalle}\n\n¿Confirmas asignarlo también a estas ${sel.length} órdenes?`);
     if(!confirmar)return;
   }
+  const ordenesSelPrevio=sel.map(n=>DB.ordenes.find(o=>String(o['N° Orden'])===n)).filter(Boolean);
+  const totalSelPrevio=ordenesSelPrevio.reduce((s,o)=>s+(Number(o['Total'])||0),0);
+  const confirmarFinal=confirm(
+    `Vas a asignar el folio ${folio} a ${sel.length} orden${sel.length>1?'es':''} (N° ${sel.join(', ')}) por un total de ${fmtCLP(totalSelPrevio)}.\n\n` +
+    `Esta acción no se puede deshacer fácilmente desde la app (requiere edición avanzada en Config). ¿Confirmas?`
+  );
+  if(!confirmarFinal)return;
   showToast('Asignando folio a '+sel.length+' órdenes...','loading');
   try{
     for(const nOrden of sel){
