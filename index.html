@@ -3557,7 +3557,12 @@ function agruparOrdenesEC(ordenes, modo) {
     const pendiente = lista.some(o => String(o['Estado Pago']||'').toUpperCase() === 'PENDIENTE' || !o['Estado Pago']);
     const parcial = !pendiente && lista.some(o => String(o['Estado Pago']||'').toUpperCase() === 'PARCIAL');
     const fechasPago = lista.map(o => o['Fecha Pago']).filter(Boolean).sort();
-    const fechas = lista.map(o => o['Fecha']).filter(Boolean).sort();
+    // Al agrupar por Folio SII, la fecha mostrada debe ser la de asignación del
+    // folio (fecha de emisión del documento), no la fecha de la orden — si por
+    // algún motivo no hay 'Fecha Folio' guardada (folios asignados antes de que
+    // existiera esta columna), usamos la fecha de orden más antigua como respaldo.
+    const fechasFolio = lista.map(o => o['Fecha Folio']).filter(Boolean).sort();
+    const fechas = fechasFolio.length ? fechasFolio : lista.map(o => o['Fecha']).filter(Boolean).sort();
     let abonado=0, saldo=total, ultimoAbonoFecha=null;
     if(parcial){
       abonado=abonadoFolio(folio);
