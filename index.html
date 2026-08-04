@@ -972,7 +972,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <div id="modal-edit" class="modal-overlay">
   <div class="modal">
     <div class="modal-title">✏️ Editar orden</div>
-    <div id="ed-admin-aviso" class="hidden" style="background:#fff3cd;color:#856404;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;">🔐 Edición avanzada: esta orden ya tiene folio SII asignado. Se conservará el folio, el estado de pago y la fecha de pago tal como están — esto no modifica la factura ya emitida en el SII.</div>
+    <div id="ed-admin-aviso" class="hidden" style="background:#fff3cd;color:#856404;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;">🔐 Edición avanzada: esta orden ya tiene folio SII asignado. El folio se conserva tal como está — esto no modifica la factura ya emitida en el SII. Puedes corregir el estado/fecha de pago abajo si es necesario.</div>
     <input type="hidden" id="ed-key"/>
     <label>Fecha</label><input type="date" id="ed-fecha"/>
     <label>Cliente</label>
@@ -987,6 +987,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       <div class="resumen-row"><span>Neto</span><span id="ed-neto">$0</span></div>
       <div class="resumen-row"><span>IVA</span><span id="ed-iva">$0</span></div>
       <div class="resumen-row total"><span>Total</span><span id="ed-tot">$0</span></div>
+    </div>
+    <div id="ed-admin-pago" class="hidden" style="background:#f7f9fc;border-radius:8px;padding:10px 12px;margin-top:4px;">
+      <label style="margin-top:0;">Fecha de pago</label>
+      <input type="date" id="ed-fecha-pago"/>
+      <p class="hint" style="margin-top:4px;">Corrige la fecha de pago si está mal registrada. Déjala vacía si la orden no está pagada.</p>
     </div>
     <label>Notas</label><textarea id="ed-notas"></textarea>
     <div class="modal-btns">
@@ -2041,6 +2046,10 @@ function abrirEditar(nOrden, modoAdmin){
   }
   window._edicionAdminActivo=!!modoAdmin;
   document.getElementById('ed-admin-aviso').classList.toggle('hidden',!(modoAdmin&&tieneFolio));
+  document.getElementById('ed-admin-pago').classList.toggle('hidden',!modoAdmin);
+  if(modoAdmin){
+    document.getElementById('ed-fecha-pago').value=parseFecha(o['Fecha Pago'])||'';
+  }
   document.getElementById('ed-key').value=nOrden;
   populateSelects();
   document.getElementById('ed-cli').value=o['Cliente']||'';
@@ -2081,10 +2090,13 @@ async function guardarEdicion(){
   const cliente=document.getElementById('ed-cli').value;
   const lineas=getLineas('ed-lineas');
   if(!cliente||!lineas.length){showToast('Completa datos','err');return;}
-  const accion=window._edicionAdminActivo?'updateOrdenAdmin':'updateOrden';
+  const esAdmin=window._edicionAdminActivo;
+  const accion=esAdmin?'updateOrdenAdmin':'updateOrden';
+  const body={nOrden,fecha:document.getElementById('ed-fecha').value,cliente,lineas,condPago:'',notas:document.getElementById('ed-notas').value.trim()};
+  if(esAdmin) body.fechaPagoAdmin=document.getElementById('ed-fecha-pago').value||'';
   showToast('Actualizando en Sheets...','loading');
   try{
-    await gsCall(accion,{nOrden,fecha:document.getElementById('ed-fecha').value,cliente,lineas,condPago:'',notas:document.getElementById('ed-notas').value.trim()});
+    await gsCall(accion,body);
     closeModal('modal-edit');
     window._edicionAdminActivo=false;
     await syncAll();
