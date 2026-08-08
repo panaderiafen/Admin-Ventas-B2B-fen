@@ -836,6 +836,22 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <div class="card-title">📋 Detalle de órdenes en el periodo</div>
     <div id="an-detalle"></div>
   </div>
+  <div class="card">
+    <div class="card-title">📅 Top 3 productos por día de la semana</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <p style="font-size:12px;color:#666;margin:0;">Los 3 productos más vendidos de cada día, del periodo seleccionado.</p>
+      <button class="btn btn-secondary btn-sm" onclick="toggleModoRankingProductos()" style="white-space:nowrap;">🔀 <span id="an-rank-modo-btn-1">Ver por cantidad</span></button>
+    </div>
+    <div id="an-rank-dias"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🏆 Top 3 productos del periodo</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <p style="font-size:12px;color:#666;margin:0;">Los 3 productos más vendidos en todo el periodo seleccionado.</p>
+      <button class="btn btn-secondary btn-sm" onclick="toggleModoRankingProductos()" style="white-space:nowrap;">🔀 <span id="an-rank-modo-btn-2">Ver por cantidad</span></button>
+    </div>
+    <div id="an-rank-periodo"></div>
+  </div>
 </div>
 <div id="sec-clientes" class="section">
   <div class="card">
@@ -2584,6 +2600,99 @@ function renderDia(){
   </div>`;
 }
 
+// ─── RANKING DE PRODUCTOS ─────────────────
+function toggleModoRankingProductos(){
+  window._modoRankingProductos = (window._modoRankingProductos==='cantidad') ? 'ingreso' : 'cantidad';
+  renderAnalisis();
+}
+
+function renderRankingProductos(ordenes, incluirHistorico){
+  const modo = window._modoRankingProductos || 'ingreso';
+  const textoBtn = modo==='ingreso' ? 'Ver por cantidad' : 'Ver por monto';
+  const btn1=document.getElementById('an-rank-modo-btn-1');
+  const btn2=document.getElementById('an-rank-modo-btn-2');
+  if(btn1)btn1.textContent=textoBtn;
+  if(btn2)btn2.textContent=textoBtn;
+
+  const nordenesSet=new Set(ordenes.map(o=>String(o['N° Orden'])));
+  const todosDetalles = incluirHistorico ? [...DB.detalles, ...DB.historico.detalles] : DB.detalles;
+  const lineas = todosDetalles.filter(d=>nordenesSet.has(String(d['N° Orden'])));
+
+  // Fecha de cada orden (para determinar el día de semana), reutilizando las
+  // órdenes ya filtradas por periodo/cliente/histórico — así el ranking siempre
+  // coincide exactamente con el resto de las tarjetas de Análisis.
+  const fechaPorOrden={};
+  ordenes.forEach(o=>{fechaPorOrden[String(o['N° Orden'])]=o['Fecha'];});
+
+  const DIAS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+  const porDia={}; DIAS.forEach(d=>porDia[d]={});
+  const porProducto={};
+
+  lineas.forEach(l=>{
+    const nOrden=String(l['N° Orden']);
+    const fechaOrden=fechaPorOrden[nOrden];
+    if(!fechaOrden)return;
+    const fechaISO=parseFecha(fechaOrden);
+    if(!fechaISO)return;
+    const d=new Date(fechaISO+'T00:00:00');
+    const diaIdx=(d.getDay()+6)%7; // JS: 0=domingo..6=sábado → convertimos a 0=lunes..6=domingo
+    const diaNombre=DIAS[diaIdx];
+    const producto=l['Producto']||'—';
+    const cantidad=Number(l['Cantidad'])||0;
+    const monto=Number(l['Neto Total'])||0;
+
+    if(!porDia[diaNombre][producto])porDia[diaNombre][producto]={cantidad:0,monto:0};
+    porDia[diaNombre][producto].cantidad+=cantidad;
+    porDia[diaNombre][producto].monto+=monto;
+
+    if(!porProducto[producto])porProducto[producto]={cantidad:0,monto:0};
+    porProducto[producto].cantidad+=cantidad;
+    porProducto[producto].monto+=monto;
+  });
+
+  function top3(obj){
+    return Object.entries(obj)
+      .map(([nombre,v])=>({nombre,cantidad:v.cantidad,monto:v.monto}))
+      .sort((a,b)=> modo==='cantidad' ? b.cantidad-a.cantidad : b.monto-a.monto)
+      .slice(0,3);
+  }
+
+  const medallas=['🥇','🥈','🥉'];
+
+  const contDias=document.getElementById('an-rank-dias');
+  if(contDias){
+    const hayDatos=DIAS.some(dia=>Object.keys(porDia[dia]).length);
+    if(!hayDatos){
+      contDias.innerHTML='<div class="empty">Sin ventas en este periodo</div>';
+    }else{
+      contDias.innerHTML=DIAS.map(dia=>{
+        const top=top3(porDia[dia]);
+        if(!top.length)return '';
+        return `<div style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;">
+          <div style="font-weight:700;color:#003a79;font-size:13px;margin-bottom:4px;">${dia}</div>
+          ${top.map((p,i)=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;">
+            <span>${medallas[i]} ${p.nombre}</span>
+            <span style="color:#1D9E75;">${modo==='cantidad'?p.cantidad+' un.':fmtCLP(p.monto)}</span>
+          </div>`).join('')}
+        </div>`;
+      }).join('');
+    }
+  }
+
+  const contPeriodo=document.getElementById('an-rank-periodo');
+  if(contPeriodo){
+    const top=top3(porProducto);
+    if(!top.length){
+      contPeriodo.innerHTML='<div class="empty">Sin ventas en este periodo</div>';
+    }else{
+      contPeriodo.innerHTML=top.map((p,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid #f0f0f0;font-size:13.5px;">
+        <span>${medallas[i]} <strong>${p.nombre}</strong></span>
+        <span style="color:#1D9E75;font-weight:700;">${modo==='cantidad'?p.cantidad+' unidades':fmtCLP(p.monto)}</span>
+      </div>`).join('');
+    }
+  }
+}
+
 function renderAnalisis(mostrarTodoDetalle){
   const selCli=document.getElementById('an-cliente');
   if(selCli&&selCli.options.length<=1){
@@ -2613,11 +2722,26 @@ function renderAnalisis(mostrarTodoDetalle){
   let ordenes=todasOrdenes.filter(o=>enPeriodo(o['Fecha'],periodo));
   if(cliente)ordenes=ordenes.filter(o=>o['Cliente']===cliente);
 
-  // Resumen simplificado: Total facturado / Cobrado (por fecha pago) / Pendiente
-  let totalFacturado=0,totalCobrado=0,totalPendiente=0;
+  renderRankingProductos(ordenes, incluirHistorico);
+
+  // Resumen: proyección (todas las órdenes del periodo) vs. lo ya facturado (con folio SII)
+  let totalNetoProyectado=0,totalIvaProyectado=0;
+  ordenes.forEach(o=>{
+    totalNetoProyectado+=Number(o['Total Neto'])||0;
+    totalIvaProyectado+=Number(o['IVA'])||0;
+  });
+
+  const ordenesFacturadas=ordenes.filter(o=>o['Folio SII']&&o['Folio SII']!=='Pendiente');
+  let totalFacturado=0,netoFacturado=0,ivaFacturado=0;
+  ordenesFacturadas.forEach(o=>{
+    totalFacturado+=Number(o['Total'])||0;
+    netoFacturado+=Number(o['Total Neto'])||0;
+    ivaFacturado+=Number(o['IVA'])||0;
+  });
+
+  let totalCobrado=0,totalPendiente=0;
   ordenes.forEach(o=>{
     const t=Number(o['Total'])||0;
-    totalFacturado+=t;
     if(esFechaValida(o['Fecha Pago'])){
       totalCobrado+=t;
     }else{
@@ -2628,7 +2752,13 @@ function renderAnalisis(mostrarTodoDetalle){
   document.getElementById('an-resumen').innerHTML=`
     <div class="resumen-box">
       <div class="resumen-row"><span>N° de órdenes en el periodo</span><span>${ordenes.length}</span></div>
-      <div class="resumen-row total"><span>Total facturado</span><span>${fmtCLP(totalFacturado)}</span></div>
+      <div class="resumen-row"><span>Proyección Neto</span><span>${fmtCLP(totalNetoProyectado)}</span></div>
+      <div class="resumen-row total"><span>Proyección IVA</span><span>${fmtCLP(totalIvaProyectado)}</span></div>
+    </div>
+    <div class="resumen-box" style="margin-top:10px;">
+      <div class="resumen-row total"><span>🧾 Total facturado en el periodo</span><span>${fmtCLP(totalFacturado)}</span></div>
+      <div class="resumen-row"><span>Neto facturado</span><span>${fmtCLP(netoFacturado)}</span></div>
+      <div class="resumen-row"><span>IVA a pagar (de lo facturado)</span><span style="color:#c0392b;font-weight:700;">${fmtCLP(ivaFacturado)}</span></div>
     </div>
     <div class="resumen-box" style="margin-top:10px;">
       <div class="resumen-row"><span>✅ Cobrado</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(totalCobrado)}</span></div>
