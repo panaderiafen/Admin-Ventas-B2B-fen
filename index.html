@@ -2606,6 +2606,45 @@ function toggleModoRankingProductos(){
   renderAnalisis();
 }
 
+// Cuenta cuántas veces cae cada día de la semana dentro de un rango de fechas
+// (inclusive). Se usa para promediar el ranking por día — así "los lunes se
+// vende en promedio X", en vez de sumar todos los lunes del periodo.
+function contarOcurrenciasPorDia(desde,hasta){
+  const DIAS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+  const conteo={}; DIAS.forEach(d=>conteo[d]=0);
+  if(!desde||!hasta)return conteo;
+  let cur=new Date(desde+'T00:00:00');
+  const fin=new Date(hasta+'T00:00:00');
+  if(isNaN(cur)||isNaN(fin)||cur>fin)return conteo;
+  while(cur<=fin){
+    conteo[DIAS[(cur.getDay()+6)%7]]++;
+    cur.setDate(cur.getDate()+1);
+  }
+  return conteo;
+}
+
+// Rango de fechas (desde/hasta) del periodo seleccionado en Análisis, para
+// poder contar ocurrencias de cada día de semana dentro de ese rango exacto.
+function rangoPeriodoActual(periodo,ordenes){
+  const h=hoy();
+  if(periodo==='semana')return{desde:inicioSemana(h),hasta:finSemana(h)};
+  if(periodo==='mes'){
+    const y=parseInt(h.slice(0,4)),m=parseInt(h.slice(5,7));
+    const ultimoDia=new Date(y,m,0).getDate();
+    return{desde:h.slice(0,7)+'-01',hasta:h.slice(0,7)+'-'+String(ultimoDia).padStart(2,'0')};
+  }
+  if(periodo==='personalizado'){
+    const desde=document.getElementById('an-desde')?.value||'';
+    const hasta=document.getElementById('an-hasta')?.value||'';
+    if(desde&&hasta)return{desde,hasta};
+  }
+  // 'todo', o personalizado sin ambas fechas: usamos el rango real de las
+  // órdenes encontradas como límites del promedio.
+  const fechas=ordenes.map(o=>parseFecha(o['Fecha'])).filter(Boolean).sort();
+  if(!fechas.length)return{desde:'',hasta:''};
+  return{desde:fechas[0],hasta:fechas[fechas.length-1]};
+}
+
 function renderRankingProductos(ordenes, incluirHistorico){
   const modo = window._modoRankingProductos || 'ingreso';
   const textoBtn = modo==='ingreso' ? 'Ver por cantidad' : 'Ver por monto';
@@ -2613,6 +2652,10 @@ function renderRankingProductos(ordenes, incluirHistorico){
   const btn2=document.getElementById('an-rank-modo-btn-2');
   if(btn1)btn1.textContent=textoBtn;
   if(btn2)btn2.textContent=textoBtn;
+
+  const periodo=document.getElementById('an-periodo')?.value||'semana';
+  const {desde,hasta}=rangoPeriodoActual(periodo,ordenes);
+  const ocurrenciasPorDia=contarOcurrenciasPorDia(desde,hasta);
 
   const nordenesSet=new Set(ordenes.map(o=>String(o['N° Orden'])));
   const todosDetalles = incluirHistorico ? [...DB.detalles, ...DB.historico.detalles] : DB.detalles;
@@ -2657,6 +2700,17 @@ function renderRankingProductos(ordenes, incluirHistorico){
       .slice(0,3);
   }
 
+  // Igual que top3, pero promedia cantidad/monto por la cantidad de veces que
+  // ese día de semana ocurrió dentro del periodo (ej. si hay 4 martes en el
+  // mes, se divide por 4) — da una estimación diaria realista, no la suma.
+  function top3Promedio(obj,ocurrencias){
+    if(!ocurrencias)ocurrencias=1;
+    return Object.entries(obj)
+      .map(([nombre,v])=>({nombre,cantidad:v.cantidad/ocurrencias,monto:v.monto/ocurrencias}))
+      .sort((a,b)=> modo==='cantidad' ? b.cantidad-a.cantidad : b.monto-a.monto)
+      .slice(0,3);
+  }
+
   const medallas=['🥇','🥈','🥉'];
 
   const contDias=document.getElementById('an-rank-dias');
@@ -2666,13 +2720,13 @@ function renderRankingProductos(ordenes, incluirHistorico){
       contDias.innerHTML='<div class="empty">Sin ventas en este periodo</div>';
     }else{
       contDias.innerHTML=DIAS.map(dia=>{
-        const top=top3(porDia[dia]);
+        const top=top3Promedio(porDia[dia],ocurrenciasPorDia[dia]);
         if(!top.length)return '';
         return `<div style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;">
-          <div style="font-weight:700;color:#003a79;font-size:13px;margin-bottom:4px;">${dia}</div>
+          <div style="font-weight:700;color:#003a79;font-size:13px;margin-bottom:4px;">${dia} <span style="font-weight:400;color:#999;font-size:11px;">(promedio de ${ocurrenciasPorDia[dia]||1} ${dia.toLowerCase()}${(ocurrenciasPorDia[dia]||1)>1?'es':''})</span></div>
           ${top.map((p,i)=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;">
             <span>${medallas[i]} ${p.nombre}</span>
-            <span style="color:#1D9E75;">${modo==='cantidad'?p.cantidad+' un.':fmtCLP(p.monto)}</span>
+            <span style="color:#1D9E75;">${modo==='cantidad'?p.cantidad.toFixed(1)+' un.':fmtCLP(Math.round(p.monto))}</span>
           </div>`).join('')}
         </div>`;
       }).join('');
@@ -2725,8 +2779,9 @@ function renderAnalisis(mostrarTodoDetalle){
   renderRankingProductos(ordenes, incluirHistorico);
 
   // Resumen: proyección (todas las órdenes del periodo) vs. lo ya facturado (con folio SII)
-  let totalNetoProyectado=0,totalIvaProyectado=0;
+  let totalBrutoProyectado=0,totalNetoProyectado=0,totalIvaProyectado=0;
   ordenes.forEach(o=>{
+    totalBrutoProyectado+=Number(o['Total'])||0;
     totalNetoProyectado+=Number(o['Total Neto'])||0;
     totalIvaProyectado+=Number(o['IVA'])||0;
   });
@@ -2752,8 +2807,9 @@ function renderAnalisis(mostrarTodoDetalle){
   document.getElementById('an-resumen').innerHTML=`
     <div class="resumen-box">
       <div class="resumen-row"><span>N° de órdenes en el periodo</span><span>${ordenes.length}</span></div>
-      <div class="resumen-row"><span>Proyección Neto</span><span>${fmtCLP(totalNetoProyectado)}</span></div>
-      <div class="resumen-row total"><span>Proyección IVA</span><span>${fmtCLP(totalIvaProyectado)}</span></div>
+      <div class="resumen-row"><span>Monto total emitido (bruto)</span><span>${fmtCLP(totalBrutoProyectado)}</span></div>
+      <div class="resumen-row"><span>Neto</span><span>${fmtCLP(totalNetoProyectado)}</span></div>
+      <div class="resumen-row total"><span>IVA</span><span>${fmtCLP(totalIvaProyectado)}</span></div>
     </div>
     <div class="resumen-box" style="margin-top:10px;">
       <div class="resumen-row total"><span>🧾 Total facturado en el periodo</span><span>${fmtCLP(totalFacturado)}</span></div>
