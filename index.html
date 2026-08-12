@@ -788,6 +788,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <select id="an-periodo" onchange="onPeriodoChange()">
       <option value="semana" selected>Semana actual</option>
       <option value="mes">Mes actual</option>
+      <option value="mesAnterior">Mes anterior</option>
       <option value="todo">Todo el historial</option>
       <option value="personalizado">Búsqueda personalizada...</option>
     </select>
@@ -2560,12 +2561,18 @@ function onPeriodoChange(){
   }
   renderAnalisis();
 }
+function mesAnteriorStr(h){
+  let y=parseInt(h.slice(0,4)),m=parseInt(h.slice(5,7));
+  m--; if(m===0){m=12;y--;}
+  return y+'-'+String(m).padStart(2,'0');
+}
 function enPeriodo(fechaStr,periodo){
   const f=parseFecha(fechaStr);
   if(!f)return false;
   const h=hoy();
   if(periodo==='todo')return true;
   if(periodo==='mes')return f.slice(0,7)===h.slice(0,7);
+  if(periodo==='mesAnterior')return f.slice(0,7)===mesAnteriorStr(h);
   if(periodo==='semana')return f>=inicioSemana(h)&&f<=finSemana(h);
   if(periodo==='personalizado'){
     const desde=document.getElementById('an-desde')?.value||'';
@@ -2632,6 +2639,12 @@ function rangoPeriodoActual(periodo,ordenes){
     const y=parseInt(h.slice(0,4)),m=parseInt(h.slice(5,7));
     const ultimoDia=new Date(y,m,0).getDate();
     return{desde:h.slice(0,7)+'-01',hasta:h.slice(0,7)+'-'+String(ultimoDia).padStart(2,'0')};
+  }
+  if(periodo==='mesAnterior'){
+    const mesAnt=mesAnteriorStr(h);
+    const y=parseInt(mesAnt.slice(0,4)),m=parseInt(mesAnt.slice(5,7));
+    const ultimoDia=new Date(y,m,0).getDate();
+    return{desde:mesAnt+'-01',hasta:mesAnt+'-'+String(ultimoDia).padStart(2,'0')};
   }
   if(periodo==='personalizado'){
     const desde=document.getElementById('an-desde')?.value||'';
@@ -2761,7 +2774,7 @@ function renderAnalisis(mostrarTodoDetalle){
   const periodo=document.getElementById('an-periodo')?.value||'semana';
   const cliente=document.getElementById('an-cliente')?.value||'';
   const incluirHistorico=document.getElementById('an-historico')?.checked||false;
-  let labelPeriodo={semana:'Semana actual',mes:'Mes actual',todo:'Todo el historial'}[periodo];
+  let labelPeriodo={semana:'Semana actual',mes:'Mes actual',mesAnterior:'Mes anterior',todo:'Todo el historial'}[periodo];
   if(periodo==='personalizado'){
     const desde=document.getElementById('an-desde')?.value||'';
     const hasta=document.getElementById('an-hasta')?.value||'';
@@ -2806,19 +2819,20 @@ function renderAnalisis(mostrarTodoDetalle){
 
   document.getElementById('an-resumen').innerHTML=`
     <div class="resumen-box">
-      <div class="resumen-row"><span>N° de órdenes en el periodo</span><span>${ordenes.length}</span></div>
-      <div class="resumen-row"><span>Monto total emitido (bruto)</span><span>${fmtCLP(totalBrutoProyectado)}</span></div>
-      <div class="resumen-row"><span>Neto</span><span>${fmtCLP(totalNetoProyectado)}</span></div>
-      <div class="resumen-row total"><span>IVA</span><span>${fmtCLP(totalIvaProyectado)}</span></div>
+      <div class="resumen-row" style="font-size:13px;"><span>N° de órdenes en el periodo</span><span>${ordenes.length}</span></div>
+      <div class="resumen-row" style="font-size:13px;"><span>Monto total emitido (bruto)</span><span style="font-weight:700;">${fmtCLP(totalBrutoProyectado)}</span></div>
+      <div class="resumen-row" style="font-size:13px;"><span>Neto</span><span>${fmtCLP(totalNetoProyectado)}</span></div>
+      <div class="resumen-row" style="font-size:13px;border-top:1px solid #ddd;margin-top:5px;padding-top:7px;"><span style="font-weight:700;">IVA</span><span style="font-weight:700;">${fmtCLP(totalIvaProyectado)}</span></div>
     </div>
     <div class="resumen-box" style="margin-top:10px;">
-      <div class="resumen-row total"><span>🧾 Total facturado en el periodo</span><span>${fmtCLP(totalFacturado)}</span></div>
-      <div class="resumen-row"><span>Neto facturado</span><span>${fmtCLP(netoFacturado)}</span></div>
-      <div class="resumen-row"><span>IVA a pagar (de lo facturado)</span><span style="color:#c0392b;font-weight:700;">${fmtCLP(ivaFacturado)}</span></div>
+      <div class="resumen-row" style="font-size:13px;"><span style="font-weight:700;color:#003a79;">Total facturado en el periodo</span><span style="font-weight:700;color:#003a79;">${fmtCLP(totalFacturado)}</span></div>
+      <div class="resumen-row" style="font-size:13px;"><span>Neto facturado</span><span>${fmtCLP(netoFacturado)}</span></div>
+      <div class="resumen-row" style="font-size:13px;"><span>IVA a pagar (de lo facturado)</span><span style="color:#c0392b;font-weight:700;">${fmtCLP(ivaFacturado)}</span></div>
     </div>
     <div class="resumen-box" style="margin-top:10px;">
-      <div class="resumen-row"><span>✅ Cobrado</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(totalCobrado)}</span></div>
-      <div class="resumen-row total"><span>🕓 Pendiente de cobro</span><span style="color:#e74c3c;">${fmtCLP(totalPendiente)}</span></div>
+      <p style="font-size:11px;color:#888;margin:0 0 8px;">Cobrado: de las ventas del periodo, cuánto ya está pagado (en cualquier fecha de pago).</p>
+      <div class="resumen-row" style="font-size:13px;"><span>Cobrado</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(totalCobrado)}</span></div>
+      <div class="resumen-row" style="font-size:13px;border-top:1px solid #ddd;margin-top:5px;padding-top:7px;"><span style="font-weight:700;">Pendiente de cobro</span><span style="color:#e74c3c;font-weight:700;">${fmtCLP(totalPendiente)}</span></div>
     </div>`;
 
   // ─── CAJA REAL DEL PERIODO (según Fecha Pago, no Fecha de venta) ───
@@ -2857,13 +2871,16 @@ function renderAnalisis(mostrarTodoDetalle){
         <div class="resumen-row total"><span>Total ingresado en el periodo</span><span>${fmtCLP(totalCaja)}</span></div>
       </div>`;
       if(gruposVencido.length){
-        html+=`<div style="font-size:11px;font-weight:700;color:#555;margin:12px 0 6px;text-transform:uppercase;letter-spacing:0.5px;">Origen del cobro de periodos anteriores</div>`;
+        html+=`<details style="margin-top:12px;">
+          <summary style="cursor:pointer;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;padding:4px 0;">Origen del cobro de periodos anteriores</summary>
+          <div style="margin-top:6px;">`;
         gruposVencido.forEach(g=>{
           html+=`<div class="resumen-box" style="margin-bottom:8px;">
             <div class="resumen-row" style="font-weight:700;color:#003a79;"><span>De ${g.label}</span><span>${fmtCLP(g.total)}</span></div>
             ${g.ordenes.map(o=>`<div class="oi-row"><span class="oi-label">N° ${o['N° Orden']} — ${o['Cliente']||'—'}</span><span class="oi-value">${fmtCLP(o['Total'])}</span></div>`).join('')}
           </div>`;
         });
+        html+=`</div></details>`;
       }
       cajaEl.innerHTML=html;
     }
