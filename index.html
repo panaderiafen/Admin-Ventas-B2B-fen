@@ -1070,6 +1070,22 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   </div>
 </div>
 
+<!-- Vincular producto con receta de fën -->
+<div id="modal-vincular-fen" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">🥐 Vincular con fën-producción</div>
+    <p style="font-size:12.5px;color:#666;margin:-4px 0 12px;">Producto: <strong id="vf-producto-nombre"></strong><br>Esto solo conecta el producto con su receta de producción — el nombre de venta no cambia.</p>
+    <input type="hidden" id="vf-producto-key"/>
+    <div id="vf-actual" class="hidden" style="background:#f0f7ff;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;"></div>
+    <label>Buscar receta (por nombre o ID)</label>
+    <input type="text" id="vf-buscar" placeholder="Ej: Ciabatta o BOL008" oninput="filtrarRecetasFen()"/>
+    <div id="vf-lista" style="max-height:280px;overflow-y:auto;margin-top:8px;"></div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal('modal-vincular-fen')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Precio especial -->
 <div id="modal-precio" class="modal-overlay">
   <div class="modal">
@@ -2188,6 +2204,86 @@ async function sincronizarConFen(){
     showToast('Error: '+e.message,'err');
   }
 }
+
+// ─── VINCULAR PRODUCTO CON RECETA DE FËN ─
+async function abrirVincularFen(nombreProducto){
+  document.getElementById('vf-producto-key').value=nombreProducto;
+  document.getElementById('vf-producto-nombre').textContent=nombreProducto;
+  document.getElementById('vf-buscar').value='';
+  openModal('modal-vincular-fen');
+
+  const p=DB.productos.find(x=>x['Nombre']===nombreProducto);
+  const actualDiv=document.getElementById('vf-actual');
+  if(p&&p['ID_receta_fen']){
+    actualDiv.classList.remove('hidden');
+    actualDiv.innerHTML=`Vinculado actualmente a: <strong>${p['Área (fën)']||p['ID_receta_fen']}</strong> (ID: ${p['ID_receta_fen']})<br><a href="javascript:void(0)" onclick="quitarVinculoFen()" style="color:#c0392b;text-decoration:underline;">Quitar vínculo</a>`;
+  }else{
+    actualDiv.classList.add('hidden');
+    actualDiv.innerHTML='';
+  }
+
+  // Si todavía no se ha sincronizado en esta sesión, traemos el listado antes
+  // de mostrar el buscador (sin esto no hay nada para elegir).
+  if(!DB.maestroRecetasFen||!DB.maestroRecetasFen.length){
+    document.getElementById('vf-lista').innerHTML='<div class="hint">Consultando fën-producción...</div>';
+    try{
+      const res=await gsCall('getMaestroRecetasFen');
+      if(res.error){ document.getElementById('vf-lista').innerHTML=`<p class="hint error">⚠️ ${res.error}</p>`; return; }
+      DB.maestroRecetasFen=res.recetas||[];
+    }catch(e){
+      document.getElementById('vf-lista').innerHTML=`<p class="hint error">⚠️ Error: ${e.message}</p>`;
+      return;
+    }
+  }
+  filtrarRecetasFen();
+}
+
+function filtrarRecetasFen(){
+  const q=norm(document.getElementById('vf-buscar').value||'');
+  const cont=document.getElementById('vf-lista');
+  const recetas=(DB.maestroRecetasFen||[]).filter(r=>
+    !q || norm(r.nombre).includes(q) || norm(r.ID_receta).includes(q)
+  );
+  if(!recetas.length){
+    cont.innerHTML='<div class="hint">Sin resultados.</div>';
+    return;
+  }
+  cont.innerHTML=recetas.map(r=>{
+    // Mostramos con qué otros productos ya comparte esta receta — útil para
+    // decidir si corresponde el mismo ID (ej. Ciabatta / Ciabatta Mini) o no.
+    const otros=DB.productos.filter(p=>p['ID_receta_fen']===r.ID_receta&&p['Nombre']!==document.getElementById('vf-producto-key').value);
+    return `<div class="check-row" style="cursor:pointer;" onclick="seleccionarRecetaFen('${r.ID_receta}','${(r.area||'').replace(/'/g,"\\'")}')">
+      <div style="flex:1;">
+        <strong>${r.nombre}</strong> <span style="color:#8a9bb0;font-size:11.5px;">(${r.ID_receta} — ${r.area||'sin área'})</span>
+        ${otros.length?`<br><span style="font-size:11px;color:#999;">También vinculado a: ${otros.map(o=>o['Nombre']).join(', ')}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function seleccionarRecetaFen(idReceta, area){
+  const nombreProducto=document.getElementById('vf-producto-key').value;
+  showToast('Vinculando...','loading');
+  try{
+    await gsCall('vincularProductoFen',{nombreProducto,idReceta,area});
+    closeModal('modal-vincular-fen');
+    await syncAll();
+    showToast('✅ Producto vinculado','success');
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+async function quitarVinculoFen(){
+  const nombreProducto=document.getElementById('vf-producto-key').value;
+  if(!confirm(`¿Quitar el vínculo de "${nombreProducto}" con fën-producción?`))return;
+  showToast('Quitando vínculo...','loading');
+  try{
+    await gsCall('vincularProductoFen',{nombreProducto,idReceta:'',area:''});
+    closeModal('modal-vincular-fen');
+    await syncAll();
+    showToast('✅ Vínculo quitado','success');
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
+
 
 
 function abrirDel(nOrden){
@@ -3589,16 +3685,20 @@ function renderProductos(){
   const w=document.getElementById('prod-list');
   if(!w)return;
   if(!DB.productos.length){w.innerHTML='<div class="empty">Sin productos</div>';return;}
-  const hayVinculados=DB.productos.some(p=>p['ID_receta_fen']);
-  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio Base</th>'+(hayVinculados?'<th>fën</th>':'')+'</tr></thead><tbody>'+
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio Base</th><th>fën</th></tr></thead><tbody>'+
     DB.productos.map(p=>{
       const idReceta=p['ID_receta_fen'];
       const areaFen=p['Área (fën)'];
+      const nombreEsc=String(p['Nombre']).replace(/'/g,"\\'");
       return `<tr>
       <td>${p['Nombre']}</td>
       <td>${p['Categoría']||'—'}</td>
       <td>${fmtCLP(p['Precio Base'])}</td>
-      ${hayVinculados?`<td>${idReceta?`<span class="badge badge-facturado" title="ID_receta_fen: ${idReceta}">${areaFen||idReceta}</span>`:'<span style="color:#ccc;">—</span>'}</td>`:''}
+      <td>
+        ${idReceta
+          ?`<span class="badge badge-facturado" style="cursor:pointer;" title="ID_receta_fen: ${idReceta} — clic para editar" onclick="abrirVincularFen('${nombreEsc}')">${areaFen||idReceta}</span>`
+          :`<a href="javascript:void(0)" onclick="abrirVincularFen('${nombreEsc}')" style="color:#8a9bb0;font-size:12px;text-decoration:underline;">🥐 Vincular</a>`}
+      </td>
     </tr>`;
     }).join('')+'</tbody></table></div>';
 }
