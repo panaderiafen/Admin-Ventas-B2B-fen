@@ -921,6 +921,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <input type="text" id="admin-ed-buscar" placeholder="Ej: 1849 o 3123" oninput="buscarOrdenAdmin()"/>
     <div id="admin-ed-res"></div>
   </div>
+  <div class="card">
+    <div class="card-title">🥐 Conexión con fën-producción</div>
+    <p style="font-size:13px;color:#555;margin-bottom:12px;">Trae el listado de recetas de fën-producción y actualiza el área de los productos ya vinculados (los que tienen ID_receta_fen asignado). El nombre de venta nunca se modifica acá — es independiente y a propósito. Es una sincronización aparte del botón "Sincronizar" de arriba, para que un problema del servidor de fën-producción nunca afecte el registro normal de ventas.</p>
+    <button class="btn btn-secondary" onclick="sincronizarConFen()">🔄 Sincronizar con fën-producción</button>
+    <div id="fen-sync-res" style="margin-top:12px;"></div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════ MODALES ═══ -->
@@ -1085,7 +1091,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <script>
 // ─── ESTADO ───────────────────────────────
 let GS = localStorage.getItem('fen_gs') || '';
-const DB = {clientes:[],productos:[],precios:[],ordenes:[],detalles:[],abonos:[],historico:{ordenes:[],detalles:[],cargado:false}};
+const DB = {clientes:[],productos:[],precios:[],ordenes:[],detalles:[],abonos:[],maestroRecetasFen:[],historico:{ordenes:[],detalles:[],cargado:false}};
 
 // ─── ARCHIVADO: RECORDATORIO Y EJECUCIÓN ──────────────
 const FECHA_PRIMER_ARCHIVADO = '2026-08-14'; // primer archivado programado
@@ -2155,6 +2161,32 @@ function confirmarEditarAdmin(nOrden){
     if(!confirm(`Esta orden ya tiene el Folio SII ${o['Folio SII']} asignado.\n\nVas a editar sus datos internos (líneas, montos, fecha, cliente). El folio, el estado de pago y la fecha de pago se van a conservar tal como están.\n\nEsto NO modifica la factura ya emitida en el SII, solo corrige los datos de la orden en el sistema.\n\n¿Confirmas que quieres continuar?`)) return;
   }
   abrirEditar(nOrden, true);
+}
+
+// ─── CONEXIÓN CON FËN-PRODUCCIÓN ─────────
+async function sincronizarConFen(){
+  const cont=document.getElementById('fen-sync-res');
+  cont.innerHTML='';
+  showToast('Consultando fën-producción...','loading');
+  try{
+    const res=await gsCall('sincronizarConFen');
+    if(res.error){ cont.innerHTML=`<p class="hint error">⚠️ ${res.error}</p>`; showToast('Error de sincronización','err'); return; }
+    // Cacheamos el maestro completo para reutilizarlo más adelante (picker de
+    // vinculación de productos, Parte 2), sin tener que volver a pedirlo.
+    DB.maestroRecetasFen=res.maestro||[];
+    let html=`<div class="hint ok">✅ Listado de fën-producción: ${res.totalMaestro} receta${res.totalMaestro===1?'':'s'} encontrada${res.totalMaestro===1?'':'s'}.<br>`+
+      `Productos actualizados (área): ${res.actualizados}</div>`;
+    if(res.noEncontrados&&res.noEncontrados.length){
+      html+=`<div class="hint" style="margin-top:8px;background:#fff3cd;color:#856404;">⚠️ ${res.noEncontrados.length} producto(s) con un ID_receta_fen que ya no aparece en el listado activo (puede estar descontinuada). No se tocó nada, solo revisa si corresponde:<br>`+
+        res.noEncontrados.map(n=>`— ${n.nombreProducto} (ID: ${n.idReceta})`).join('<br>')+`</div>`;
+    }
+    cont.innerHTML=html;
+    await syncAll();
+    showToast('✅ Sincronizado con fën-producción','success');
+  }catch(e){
+    cont.innerHTML=`<p class="hint error">⚠️ Error: ${e.message}</p>`;
+    showToast('Error: '+e.message,'err');
+  }
 }
 
 
@@ -3557,12 +3589,18 @@ function renderProductos(){
   const w=document.getElementById('prod-list');
   if(!w)return;
   if(!DB.productos.length){w.innerHTML='<div class="empty">Sin productos</div>';return;}
-  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio Base</th></tr></thead><tbody>'+
-    DB.productos.map(p=>`<tr>
+  const hayVinculados=DB.productos.some(p=>p['ID_receta_fen']);
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio Base</th>'+(hayVinculados?'<th>fën</th>':'')+'</tr></thead><tbody>'+
+    DB.productos.map(p=>{
+      const idReceta=p['ID_receta_fen'];
+      const areaFen=p['Área (fën)'];
+      return `<tr>
       <td>${p['Nombre']}</td>
       <td>${p['Categoría']||'—'}</td>
       <td>${fmtCLP(p['Precio Base'])}</td>
-    </tr>`).join('')+'</tbody></table></div>';
+      ${hayVinculados?`<td>${idReceta?`<span class="badge badge-facturado" title="ID_receta_fen: ${idReceta}">${areaFen||idReceta}</span>`:'<span style="color:#ccc;">—</span>'}</td>`:''}
+    </tr>`;
+    }).join('')+'</tbody></table></div>';
 }
 
 async function guardarProducto(){
