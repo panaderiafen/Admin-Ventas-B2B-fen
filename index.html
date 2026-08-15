@@ -839,17 +839,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   </div>
   <div class="card">
     <div class="card-title">📅 Top 3 productos por día de la semana</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
       <p style="font-size:12px;color:#666;margin:0;">Los 3 productos más vendidos de cada día, del periodo seleccionado.</p>
-      <button class="btn btn-secondary btn-sm" onclick="toggleModoRankingProductos()" style="white-space:nowrap;">🔀 <span id="an-rank-modo-btn-1">Ver por cantidad</span></button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-secondary btn-sm" onclick="toggleAgrupacionRankingProductos()" style="white-space:nowrap;">🥐 <span id="an-rank-agrup-btn-1">Agrupar por receta fën</span></button>
+        <button class="btn btn-secondary btn-sm" onclick="toggleModoRankingProductos()" style="white-space:nowrap;">🔀 <span id="an-rank-modo-btn-1">Ver por cantidad</span></button>
+      </div>
     </div>
     <div id="an-rank-dias"></div>
   </div>
   <div class="card">
     <div class="card-title">🏆 Top 3 productos del periodo</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
       <p style="font-size:12px;color:#666;margin:0;">Los 3 productos más vendidos en todo el periodo seleccionado.</p>
-      <button class="btn btn-secondary btn-sm" onclick="toggleModoRankingProductos()" style="white-space:nowrap;">🔀 <span id="an-rank-modo-btn-2">Ver por cantidad</span></button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-secondary btn-sm" onclick="toggleAgrupacionRankingProductos()" style="white-space:nowrap;">🥐 <span id="an-rank-agrup-btn-2">Agrupar por receta fën</span></button>
+        <button class="btn btn-secondary btn-sm" onclick="toggleModoRankingProductos()" style="white-space:nowrap;">🔀 <span id="an-rank-modo-btn-2">Ver por cantidad</span></button>
+      </div>
     </div>
     <div id="an-rank-periodo"></div>
   </div>
@@ -2988,6 +2994,32 @@ function toggleModoRankingProductos(){
   renderAnalisis();
 }
 
+function toggleAgrupacionRankingProductos(){
+  window._agrupacionRankingProductos = (window._agrupacionRankingProductos==='receta') ? 'nombre' : 'receta';
+  renderAnalisis();
+}
+
+// Consolida un mapa {nombreProducto: {cantidad,monto}} agrupando por
+// ID_receta_fen cuando el producto está vinculado (ej. Ciabatta + Ciabatta
+// Mini + Ciabatta x Kilo → una sola línea "Ciabatta"). Los productos sin
+// vincular quedan tal cual, por su propio nombre, sin cambios.
+function consolidarPorRecetaFen(obj){
+  const resultado={};
+  Object.entries(obj).forEach(([nombreProducto,v])=>{
+    const prod=DB.productos.find(p=>norm(p['Nombre']||'')===norm(nombreProducto));
+    const idReceta=prod&&prod['ID_receta_fen'];
+    let clave=nombreProducto;
+    if(idReceta){
+      const receta=(DB.maestroRecetasFen||[]).find(r=>r.ID_receta===idReceta);
+      clave='🥐 '+(receta?receta.nombre:idReceta);
+    }
+    if(!resultado[clave])resultado[clave]={cantidad:0,monto:0};
+    resultado[clave].cantidad+=v.cantidad;
+    resultado[clave].monto+=v.monto;
+  });
+  return resultado;
+}
+
 // Cuenta cuántas veces cae cada día de la semana dentro de un rango de fechas
 // (inclusive). Se usa para promediar el ranking por día — así "los lunes se
 // vende en promedio X", en vez de sumar todos los lunes del periodo.
@@ -3041,6 +3073,13 @@ function renderRankingProductos(ordenes, incluirHistorico){
   if(btn1)btn1.textContent=textoBtn;
   if(btn2)btn2.textContent=textoBtn;
 
+  const agrupacion = window._agrupacionRankingProductos || 'nombre';
+  const textoAgrup = agrupacion==='receta' ? 'Agrupar por nombre de venta' : 'Agrupar por receta fën';
+  const agrupBtn1=document.getElementById('an-rank-agrup-btn-1');
+  const agrupBtn2=document.getElementById('an-rank-agrup-btn-2');
+  if(agrupBtn1)agrupBtn1.textContent=textoAgrup;
+  if(agrupBtn2)agrupBtn2.textContent=textoAgrup;
+
   const periodo=document.getElementById('an-periodo')?.value||'semana';
   const {desde,hasta}=rangoPeriodoActual(periodo,ordenes);
   const ocurrenciasPorDia=contarOcurrenciasPorDia(desde,hasta);
@@ -3080,6 +3119,15 @@ function renderRankingProductos(ordenes, incluirHistorico){
     porProducto[producto].cantidad+=cantidad;
     porProducto[producto].monto+=monto;
   });
+
+  // Si está activo el modo "agrupar por receta fën", consolidamos las
+  // variantes vinculadas al mismo ID_receta_fen ANTES de rankear.
+  if(agrupacion==='receta'){
+    DIAS.forEach(dia=>{porDia[dia]=consolidarPorRecetaFen(porDia[dia]);});
+    const productoConsolidado=consolidarPorRecetaFen(porProducto);
+    Object.keys(porProducto).forEach(k=>delete porProducto[k]);
+    Object.assign(porProducto,productoConsolidado);
+  }
 
   function top3(obj){
     return Object.entries(obj)
