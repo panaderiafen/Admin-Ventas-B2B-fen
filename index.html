@@ -2344,9 +2344,10 @@ async function analizarReconciliacion(){
   const porNombre={};
   lineas.forEach(l=>{
     const nom=l['Producto']||'—';
-    if(!porNombre[nom])porNombre[nom]={filas:0,monto:0};
+    if(!porNombre[nom])porNombre[nom]={filas:0,monto:0,lineas:[]};
     porNombre[nom].filas++;
     porNombre[nom].monto+=Number(l['Neto Total'])||0;
+    porNombre[nom].lineas.push(l);
   });
 
   window._recNombresList=Object.keys(porNombre);
@@ -2394,12 +2395,64 @@ function elegirRecetaReconciliacion(i,idReceta){
   document.querySelector(`#rec-fila-${i} input`).value=`${receta.nombre} (${receta.ID_receta})`;
   window._recEleccion=window._recEleccion||{};
   window._recEleccion[i]=receta;
+
   const d=window._recDatosPorNombre[window._recNombresList[i]];
+  // Productos de tu Productos vinculados a esta misma receta (ID_receta_fen)
+  const vinculados=DB.productos.filter(p=>p['ID_receta_fen']===receta.ID_receta);
+
+  if(vinculados.length<=1){
+    // Sin ambigüedad: se usa directamente ese producto (o el nombre de receta
+    // si todavía no hay ningún producto vinculado a ese ID).
+    const nombreDestino=vinculados.length===1?vinculados[0]['Nombre']:receta.nombre;
+    document.getElementById('rec-accion-'+i).innerHTML=`
+      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="guardarSoloEquivalencia(${i})">💾 Solo guardar equivalencia</button>
+        <button class="btn btn-primary btn-sm" onclick="confirmarReescritura(${i},null,'${nombreDestino.replace(/'/g,"\\'")}',${d.filas})">✏️ Reescribir estas ${d.filas} línea${d.filas>1?'s':''} como "${nombreDestino}"</button>
+      </div>`;
+    return;
+  }
+
+  // Ambigüedad real: esta receta tiene varias variantes de venta (ej. Ciabatta /
+  // Ciabatta Mini). Desglosamos el grupo por precio unitario — típicamente el
+  // precio delata a qué variante correspondía cada línea vieja, aunque el
+  // nombre registrado en su momento fuera el mismo para todas.
+  const porPrecio={};
+  d.lineas.forEach(l=>{
+    const precio=Number(l['Precio Neto Unit.'])||0;
+    if(!porPrecio[precio])porPrecio[precio]=0;
+    porPrecio[precio]++;
+  });
+  const precios=Object.keys(porPrecio).map(Number).sort((a,b)=>b-a);
+
+  const opciones=vinculados.map(p=>`<option value="${p['Nombre'].replace(/"/g,'&quot;')}">${p['Nombre']} ($${Math.round(Number(p['Precio Base'])||0).toLocaleString('es-CL')})</option>`).join('');
+
   document.getElementById('rec-accion-'+i).innerHTML=`
-    <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-secondary btn-sm" onclick="guardarSoloEquivalencia(${i})">💾 Solo guardar equivalencia</button>
-      <button class="btn btn-primary btn-sm" onclick="confirmarReescritura(${i})">✏️ Reescribir estas ${d.filas} línea${d.filas>1?'s':''}</button>
+    <div style="margin-top:8px;background:#f7f9fc;border-radius:8px;padding:10px;">
+      <div style="font-size:11.5px;color:#666;margin-bottom:6px;">Esta receta tiene ${vinculados.length} variantes de venta. Revisa el precio de cada franja para decidir a cuál corresponde:</div>
+      ${precios.map(precio=>{
+        const cant=porPrecio[precio];
+        // Preseleccionar el producto vinculado cuyo Precio Base coincida con esta franja, si existe
+        const match=vinculados.find(p=>Math.round(Number(p['Precio Base'])||0)===Math.round(precio));
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:0.5px solid #e5e9f0;flex-wrap:wrap;">
+          <span style="font-size:12px;min-width:110px;">$${precio.toLocaleString('es-CL')} — ${cant} línea${cant>1?'s':''}</span>
+          <select id="rec-tier-${i}-${precio}" style="font-size:12px;padding:3px 6px;flex:1;min-width:160px;">
+            ${opciones}
+            <option value="__generico__">— Nombre de receta genérico (${receta.nombre}) —</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="reescribirFranja(${i},${precio},${cant})">Reescribir</button>
+        </div>`;
+      }).join('')}
+      <div style="margin-top:8px;"><button class="btn btn-secondary btn-sm" onclick="guardarSoloEquivalencia(${i})">💾 Solo guardar equivalencia (sin reescribir nada)</button></div>
     </div>`;
+
+  // Preseleccionar automáticamente el producto cuyo precio coincida con cada franja
+  precios.forEach(precio=>{
+    const match=vinculados.find(p=>Math.round(Number(p['Precio Base'])||0)===Math.round(precio));
+    if(match){
+      const sel=document.getElementById(`rec-tier-${i}-${precio}`);
+      if(sel)sel.value=match['Nombre'];
+    }
+  });
 }
 
 async function guardarSoloEquivalencia(i){
@@ -2414,23 +2467,35 @@ async function guardarSoloEquivalencia(i){
   }catch(e){showToast('Error: '+e.message,'err');}
 }
 
-function confirmarReescritura(i){
+// Caso simple (0 o 1 producto vinculado): reescribe todo el grupo de una vez.
+function confirmarReescritura(i,precioFiltro,nombreDestino,cantidad){
   const nombre=window._recNombresList[i];
   const receta=window._recEleccion[i];
-  const d=window._recDatosPorNombre[nombre];
-  if(!confirm(`Vas a reescribir "${nombre}" → "${receta.nombre}" en ${d.filas} línea(s) de venta de ${window._recCliente} en ${window._recMes}.\n\nEsto SOLO afecta ese cliente y ese mes — nada más se toca.\n\n¿Confirmas?`))return;
-  reescribirNombreHistorico(i);
+  if(!confirm(`Vas a reescribir "${nombre}" → "${nombreDestino}" en ${cantidad} línea(s) de venta de ${window._recCliente} en ${window._recMes}.\n\nEsto SOLO afecta ese cliente y ese mes — nada más se toca.\n\n¿Confirmas?`))return;
+  reescribirNombreHistorico(i,precioFiltro,nombreDestino);
 }
 
-async function reescribirNombreHistorico(i){
+// Caso con variantes: reescribe solo la franja de un precio unitario específico.
+function reescribirFranja(i,precio,cantidad){
+  const nombre=window._recNombresList[i];
+  const sel=document.getElementById(`rec-tier-${i}-${precio}`);
+  const receta=window._recEleccion[i];
+  const valor=sel.value;
+  const nombreDestino=valor==='__generico__'?receta.nombre:valor;
+  if(!confirm(`Vas a reescribir "${nombre}" (franja de $${precio.toLocaleString('es-CL')}) → "${nombreDestino}" en ${cantidad} línea(s) de ${window._recCliente} en ${window._recMes}.\n\nSolo se tocan las líneas de esta franja de precio — el resto del grupo "${nombre}" queda como está hasta que lo reconcilies aparte.\n\n¿Confirmas?`))return;
+  reescribirNombreHistorico(i,precio,nombreDestino);
+}
+
+async function reescribirNombreHistorico(i,precioFiltro,nombreDestino){
   const nombre=window._recNombresList[i];
   const receta=window._recEleccion[i];
   showToast('Reescribiendo en Sheets...','loading');
   try{
     const res=await gsCall('reescribirNombreProducto',{
       cliente:window._recCliente, mes:window._recMes,
-      nombreViejo:nombre, nombreNuevo:receta.nombre,
-      idReceta:receta.ID_receta, area:receta.area
+      nombreViejo:nombre, nombreNuevo:nombreDestino,
+      precioFiltro:(precioFiltro===null||typeof precioFiltro==='undefined')?'':precioFiltro,
+      idReceta:receta.ID_receta, area:receta.area, nombreGenericoFen:receta.nombre
     });
     showToast(`✅ ${res.total} línea(s) actualizadas`,'success');
     await syncAll();
