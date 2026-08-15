@@ -859,6 +859,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     </div>
     <div id="an-rank-periodo"></div>
   </div>
+  <div class="card">
+    <div class="card-title">📦 Ventas por producto en el periodo</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+      <input type="text" id="an-prod-buscar" placeholder="Buscar por nombre o ID de receta..." oninput="renderVentasPorProducto()" style="flex:1;min-width:180px;margin:0;"/>
+      <button class="btn btn-secondary btn-sm" onclick="toggleAgrupacionVentasProducto()" style="white-space:nowrap;">🥐 <span id="an-prod-agrup-btn">Agrupar por receta fën</span></button>
+    </div>
+    <div id="an-prod-tabla"></div>
+  </div>
 </div>
 <div id="sec-clientes" class="section">
   <div class="card">
@@ -3120,6 +3128,9 @@ function renderRankingProductos(ordenes, incluirHistorico){
     porProducto[producto].monto+=monto;
   });
 
+  // Copia cruda (sin consolidar) para la tabla completa "Ventas por producto"
+  window._anPorProductoRaw=JSON.parse(JSON.stringify(porProducto));
+
   // Si está activo el modo "agrupar por receta fën", consolidamos las
   // variantes vinculadas al mismo ID_receta_fen ANTES de rankear.
   if(agrupacion==='receta'){
@@ -3181,6 +3192,76 @@ function renderRankingProductos(ordenes, incluirHistorico){
       </div>`).join('');
     }
   }
+
+  renderVentasPorProducto();
+}
+
+function toggleAgrupacionVentasProducto(){
+  window._agrupacionVentasProducto = (window._agrupacionVentasProducto==='receta') ? 'nombre' : 'receta';
+  renderVentasPorProducto();
+}
+
+// Tabla completa (no limitada a 3) de todos los productos vendidos en el
+// periodo, con búsqueda por nombre o ID de receta, agrupación opcional por
+// receta fën, y columnas ordenables (cantidad / monto, mayor a menor).
+function renderVentasPorProducto(){
+  const cont=document.getElementById('an-prod-tabla');
+  if(!cont)return;
+  const raw=window._anPorProductoRaw||{};
+
+  const agrupacion=window._agrupacionVentasProducto||'nombre';
+  const btnAgrup=document.getElementById('an-prod-agrup-btn');
+  if(btnAgrup)btnAgrup.textContent=agrupacion==='receta'?'Agrupar por nombre de venta':'Agrupar por receta fën';
+
+  let datos=agrupacion==='receta'?consolidarPorRecetaFen(raw):raw;
+
+  const q=norm(document.getElementById('an-prod-buscar')?.value||'');
+  let filas=Object.entries(datos).map(([nombre,v])=>({nombre,cantidad:v.cantidad,monto:v.monto}));
+  if(q){
+    filas=filas.filter(f=>{
+      if(norm(f.nombre).includes(q))return true;
+      // También se puede filtrar por ID_receta_fen del producto vinculado
+      const prod=DB.productos.find(p=>norm(p['Nombre']||'')===norm(f.nombre));
+      return prod&&prod['ID_receta_fen']&&norm(prod['ID_receta_fen']).includes(q);
+    });
+  }
+
+  const orden=window._ordenVentasProducto||'monto';
+  const dir=window._ordenVentasProductoDir||'desc';
+  filas.sort((a,b)=>{
+    const va=orden==='cantidad'?a.cantidad:a.monto;
+    const vb=orden==='cantidad'?b.cantidad:b.monto;
+    return dir==='desc'?vb-va:va-vb;
+  });
+
+  if(!filas.length){
+    cont.innerHTML='<div class="empty">Sin resultados</div>';
+    return;
+  }
+
+  const flecha=col=>orden===col?(dir==='desc'?' ▼':' ▲'):'';
+  cont.innerHTML=`<div class="table-wrap"><table>
+    <thead><tr>
+      <th>Producto</th>
+      <th style="text-align:right;cursor:pointer;" onclick="ordenarVentasPorProducto('cantidad')">Cantidad${flecha('cantidad')}</th>
+      <th style="text-align:right;cursor:pointer;" onclick="ordenarVentasPorProducto('monto')">Monto${flecha('monto')}</th>
+    </tr></thead>
+    <tbody>${filas.map(f=>`<tr>
+      <td>${f.nombre}</td>
+      <td style="text-align:right;">${f.cantidad}</td>
+      <td style="text-align:right;font-weight:700;color:#1D9E75;">${fmtCLP(f.monto)}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function ordenarVentasPorProducto(col){
+  if(window._ordenVentasProducto===col){
+    window._ordenVentasProductoDir=(window._ordenVentasProductoDir==='desc')?'asc':'desc';
+  }else{
+    window._ordenVentasProducto=col;
+    window._ordenVentasProductoDir='desc';
+  }
+  renderVentasPorProducto();
 }
 
 function renderAnalisis(mostrarTodoDetalle){
