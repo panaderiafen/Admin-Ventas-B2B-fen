@@ -927,6 +927,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <button class="btn btn-secondary" onclick="sincronizarConFen()">🔄 Sincronizar con fën-producción</button>
     <div id="fen-sync-res" style="margin-top:12px;"></div>
   </div>
+  <div class="card">
+    <div class="card-title">🔗 Reconciliación de nombres históricos</div>
+    <p style="font-size:13px;color:#555;margin-bottom:12px;">Revisa un cliente y un mes a la vez para emparejar nombres de productos antiguos con la receta vigente de fën. Nunca se toca el histórico en bloque — cada cambio es puntual, acotado a ese cliente+mes, y con vista previa antes de aplicar.</p>
+    <label>Cliente</label>
+    <select id="rec-cliente"><option value="">Seleccionar...</option></select>
+    <label>Mes</label>
+    <input type="month" id="rec-mes"/>
+    <button class="btn btn-primary" style="margin-top:10px;" onclick="analizarReconciliacion()">🔍 Analizar</button>
+    <div id="rec-resultado" style="margin-top:14px;"></div>
+    <div style="margin-top:16px;border-top:1px solid #eee;padding-top:12px;">
+      <a href="javascript:void(0)" onclick="toggleSeguimientoReconciliacion()" style="font-size:12.5px;color:#003a79;text-decoration:underline;">📋 Ver tabla de seguimiento (Cliente × Mes)</a>
+      <div id="rec-seguimiento" class="hidden" style="margin-top:10px;"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════ MODALES ═══ -->
@@ -1107,7 +1121,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <script>
 // ─── ESTADO ───────────────────────────────
 let GS = localStorage.getItem('fen_gs') || '';
-const DB = {clientes:[],productos:[],precios:[],ordenes:[],detalles:[],abonos:[],maestroRecetasFen:[],historico:{ordenes:[],detalles:[],cargado:false}};
+const DB = {clientes:[],productos:[],precios:[],ordenes:[],detalles:[],abonos:[],maestroRecetasFen:[],equivalenciasNombres:[],historico:{ordenes:[],detalles:[],cargado:false}};
 
 // ─── ARCHIVADO: RECORDATORIO Y EJECUCIÓN ──────────────
 const FECHA_PRIMER_ARCHIVADO = '2026-08-14'; // primer archivado programado
@@ -1541,7 +1555,7 @@ function getPrecio(cliNom,prodNom){
 function populateSelects(){
   const cOpts='<option value="">Seleccionar cliente...</option>'+
     DB.clientes.map(c=>`<option value="${c['Nombre']}">${c['Nombre']}</option>`).join('');
-  ['oc-cliente','ed-cli','m-cli'].forEach(id=>{
+  ['oc-cliente','ed-cli','m-cli','rec-cliente'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return; const v=el.value; el.innerHTML=cOpts; el.value=v;
   });
@@ -2282,6 +2296,173 @@ async function quitarVinculoFen(){
     await syncAll();
     showToast('✅ Vínculo quitado','success');
   }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+// ─── RECONCILIACIÓN DE NOMBRES HISTÓRICOS ─
+async function asegurarHistoricoCargado(forzar){
+  if(DB.historico.cargado&&!forzar)return;
+  const [ords,dets]=await Promise.all([gsCall('getOrdenesHistorico'),gsCall('getDetallesHistorico')]);
+  DB.historico.ordenes=ords||[];
+  DB.historico.detalles=dets||[];
+  DB.historico.cargado=true;
+}
+
+async function asegurarMaestroFenCargado(){
+  if(DB.maestroRecetasFen&&DB.maestroRecetasFen.length)return;
+  try{
+    const res=await gsCall('getMaestroRecetasFen');
+    if(!res.error)DB.maestroRecetasFen=res.recetas||[];
+  }catch(e){/* silencioso, se reintenta si hace falta */}
+}
+
+async function analizarReconciliacion(){
+  const cliente=document.getElementById('rec-cliente').value;
+  const mes=document.getElementById('rec-mes').value;
+  const cont=document.getElementById('rec-resultado');
+  if(!cliente||!mes){showToast('Elige cliente y mes','err');return;}
+  cont.innerHTML='<div class="hint">Analizando...</div>';
+
+  await asegurarHistoricoCargado();
+  await asegurarMaestroFenCargado();
+  try{
+    DB.equivalenciasNombres=await gsCall('getEquivalenciasNombres')||[];
+  }catch(e){DB.equivalenciasNombres=DB.equivalenciasNombres||[];}
+
+  const todosDetalles=[...DB.detalles,...DB.historico.detalles];
+  const lineas=todosDetalles.filter(d=>
+    norm(d['Cliente']||'')===norm(cliente) && (parseFecha(d['Fecha'])||'').slice(0,7)===mes
+  );
+
+  window._recCliente=cliente;
+  window._recMes=mes;
+
+  if(!lineas.length){
+    cont.innerHTML='<div class="empty">No hay ventas de este cliente en ese mes.</div>';
+    return;
+  }
+
+  const porNombre={};
+  lineas.forEach(l=>{
+    const nom=l['Producto']||'—';
+    if(!porNombre[nom])porNombre[nom]={filas:0,monto:0};
+    porNombre[nom].filas++;
+    porNombre[nom].monto+=Number(l['Neto Total'])||0;
+  });
+
+  window._recNombresList=Object.keys(porNombre);
+  window._recDatosPorNombre=porNombre;
+
+  cont.innerHTML=`<div style="font-size:12px;color:#666;margin-bottom:10px;">${window._recNombresList.length} nombre(s) distinto(s) — ${lineas.length} línea(s) en total.</div>`+
+    window._recNombresList.map((nombre,i)=>renderFilaReconciliacion(i)).join('')+
+    `<button class="btn btn-secondary btn-sm" style="margin-top:10px;" onclick="marcarComoRevisado()">✅ Marcar este cliente+mes como Revisado</button>`;
+}
+
+function renderFilaReconciliacion(i){
+  const nombre=window._recNombresList[i];
+  const d=window._recDatosPorNombre[nombre];
+  const equiv=(DB.equivalenciasNombres||[]).find(e=>norm(e['nombre_historico']||'')===norm(nombre));
+  return `<div id="rec-fila-${i}" style="padding:10px 0;border-bottom:0.5px solid #f0f0f0;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <strong style="font-size:13.5px;">${nombre}</strong>
+      <span style="color:#8a9bb0;font-size:11.5px;">${d.filas} línea${d.filas>1?'s':''} — ${fmtCLP(d.monto)}</span>
+    </div>
+    ${equiv?`<div style="font-size:11.5px;color:#1D9E75;margin-top:2px;">✅ Equivalencia guardada: ${equiv['nombre_fen']||equiv['ID_receta_fen']}</div>`:''}
+    <input type="text" placeholder="Buscar receta para vincular este nombre..." oninput="filtrarRecetaReconciliacion(${i})" style="font-size:12px;padding:4px 8px;margin-top:6px;"/>
+    <div id="rec-lista-${i}" style="margin-top:4px;"></div>
+    <div id="rec-accion-${i}"></div>
+  </div>`;
+}
+
+function filtrarRecetaReconciliacion(i){
+  const input=document.querySelector(`#rec-fila-${i} input`);
+  const q=norm(input.value||'');
+  const cont=document.getElementById('rec-lista-'+i);
+  if(!q){cont.innerHTML='';return;}
+  const recetas=(DB.maestroRecetasFen||[]).filter(r=>norm(r.nombre).includes(q)||norm(r.ID_receta).includes(q)).slice(0,8);
+  if(!recetas.length){cont.innerHTML='<div class="hint" style="font-size:11.5px;">Sin resultados.</div>';return;}
+  cont.innerHTML=recetas.map(r=>
+    `<div style="cursor:pointer;padding:4px 6px;font-size:12px;border-radius:6px;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background='transparent'" onclick="elegirRecetaReconciliacion(${i},'${r.ID_receta}')">
+      ${r.nombre} <span style="color:#8a9bb0;">(${r.ID_receta} — ${r.area||'sin área'})</span>
+    </div>`
+  ).join('');
+}
+
+function elegirRecetaReconciliacion(i,idReceta){
+  const receta=(DB.maestroRecetasFen||[]).find(r=>r.ID_receta===idReceta);
+  if(!receta)return;
+  document.getElementById('rec-lista-'+i).innerHTML='';
+  document.querySelector(`#rec-fila-${i} input`).value=`${receta.nombre} (${receta.ID_receta})`;
+  window._recEleccion=window._recEleccion||{};
+  window._recEleccion[i]=receta;
+  const d=window._recDatosPorNombre[window._recNombresList[i]];
+  document.getElementById('rec-accion-'+i).innerHTML=`
+    <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary btn-sm" onclick="guardarSoloEquivalencia(${i})">💾 Solo guardar equivalencia</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmarReescritura(${i})">✏️ Reescribir estas ${d.filas} línea${d.filas>1?'s':''}</button>
+    </div>`;
+}
+
+async function guardarSoloEquivalencia(i){
+  const nombre=window._recNombresList[i];
+  const receta=window._recEleccion[i];
+  showToast('Guardando equivalencia...','loading');
+  try{
+    await gsCall('guardarEquivalenciaNombre',{nombreHistorico:nombre,idReceta:receta.ID_receta,nombreFen:receta.nombre,area:receta.area});
+    showToast('✅ Equivalencia guardada (no se tocó ninguna orden)','success');
+    DB.equivalenciasNombres=await gsCall('getEquivalenciasNombres')||[];
+    document.getElementById('rec-fila-'+i).outerHTML=renderFilaReconciliacion(i);
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+function confirmarReescritura(i){
+  const nombre=window._recNombresList[i];
+  const receta=window._recEleccion[i];
+  const d=window._recDatosPorNombre[nombre];
+  if(!confirm(`Vas a reescribir "${nombre}" → "${receta.nombre}" en ${d.filas} línea(s) de venta de ${window._recCliente} en ${window._recMes}.\n\nEsto SOLO afecta ese cliente y ese mes — nada más se toca.\n\n¿Confirmas?`))return;
+  reescribirNombreHistorico(i);
+}
+
+async function reescribirNombreHistorico(i){
+  const nombre=window._recNombresList[i];
+  const receta=window._recEleccion[i];
+  showToast('Reescribiendo en Sheets...','loading');
+  try{
+    const res=await gsCall('reescribirNombreProducto',{
+      cliente:window._recCliente, mes:window._recMes,
+      nombreViejo:nombre, nombreNuevo:receta.nombre,
+      idReceta:receta.ID_receta, area:receta.area
+    });
+    showToast(`✅ ${res.total} línea(s) actualizadas`,'success');
+    await syncAll();
+    await asegurarHistoricoCargado(true);
+    analizarReconciliacion();
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+async function marcarComoRevisado(){
+  if(!window._recCliente||!window._recMes)return;
+  try{
+    await gsCall('marcarSeguimientoReconciliacion',{cliente:window._recCliente,mes:window._recMes,estado:'Revisado'});
+    showToast('✅ Marcado como Revisado','success');
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+async function toggleSeguimientoReconciliacion(){
+  const cont=document.getElementById('rec-seguimiento');
+  if(!cont.classList.contains('hidden')){cont.classList.add('hidden');return;}
+  cont.classList.remove('hidden');
+  cont.innerHTML='<div class="hint">Cargando...</div>';
+  try{
+    const seg=await gsCall('getSeguimientoReconciliacion')||[];
+    if(!seg.length){cont.innerHTML='<div class="empty">Todavía no hay ningún cliente+mes marcado.</div>';return;}
+    seg.sort((a,b)=>(a['cliente']+a['mes']).localeCompare(b['cliente']+b['mes']));
+    cont.innerHTML='<div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Mes</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>'+
+      seg.map(s=>`<tr>
+        <td>${s['cliente']}</td><td>${s['mes']}</td>
+        <td>${s['estado']==='Revisado'?'<span class="badge badge-pagado">Revisado</span>':'<span class="badge badge-pendiente">Pendiente</span>'}</td>
+        <td>${s['fecha']||'—'}</td>
+      </tr>`).join('')+'</tbody></table></div>';
+  }catch(e){cont.innerHTML=`<p class="hint error">Error: ${e.message}</p>`;}
 }
 
 
