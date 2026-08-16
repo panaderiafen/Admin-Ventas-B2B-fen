@@ -881,7 +881,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <div id="sec-productos" class="section">
   <div class="card">
     <div class="card-title">📦 Productos</div>
-    <button class="btn btn-primary btn-sm" onclick="openModal('modal-prod')" style="margin-bottom:12px;">+ Nuevo producto</button>
+    <button class="btn btn-primary btn-sm" onclick="abrirNuevoProducto()" style="margin-bottom:12px;">+ Nuevo producto</button>
     <div id="prod-list"></div>
   </div>
 </div>
@@ -940,6 +940,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <p style="font-size:13px;color:#555;margin-bottom:12px;">Trae el listado de recetas de fën-producción y actualiza el área de los productos ya vinculados (los que tienen ID_receta_fen asignado). El nombre de venta nunca se modifica acá — es independiente y a propósito. Es una sincronización aparte del botón "Sincronizar" de arriba, para que un problema del servidor de fën-producción nunca afecte el registro normal de ventas.</p>
     <button class="btn btn-secondary" onclick="sincronizarConFen()">🔄 Sincronizar con fën-producción</button>
     <div id="fen-sync-res" style="margin-top:12px;"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🆕 Recetas sin producto en B2B</div>
+    <p style="font-size:13px;color:#555;margin-bottom:12px;">Recetas que aparecen en fën-producción pero todavía no tienen un producto creado y vinculado acá. Si alguna nunca corresponde a B2B (es de B2C, o un componente interno), puedes ocultarla de esta lista — es reversible, no borra nada.</p>
+    <button class="btn btn-secondary btn-sm" onclick="renderRecetasSinProductoB2B()">🔍 Revisar</button>
+    <div id="recfen-lista" style="margin-top:12px;"></div>
+    <div style="margin-top:10px;">
+      <a href="javascript:void(0)" onclick="toggleRecetasOcultasB2B()" style="font-size:12px;color:#8a9bb0;text-decoration:underline;">👁️ Ver ocultas</a>
+      <div id="recfen-ocultas" class="hidden" style="margin-top:8px;"></div>
+    </div>
   </div>
   <div class="card">
     <div class="card-title">🔗 Reconciliación de nombres históricos</div>
@@ -1088,6 +1098,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <div id="modal-prod" class="modal-overlay">
   <div class="modal">
     <div class="modal-title">📦 Nuevo producto</div>
+    <div id="np-aviso-receta" class="hidden" style="background:#f0f7ff;border-radius:8px;padding:8px 10px;font-size:12px;color:#003a79;margin-bottom:10px;">🥐 Este producto se va a crear ya vinculado a la receta de fën-producción indicada.</div>
+    <input type="hidden" id="np-id-receta"/>
+    <input type="hidden" id="np-area-fen"/>
     <label>Nombre</label><input type="text" id="np-nom"/>
     <label>Precio Base</label><input type="number" id="np-precio" placeholder="0"/>
     <label>Categoría</label><input type="text" id="np-cat" placeholder="PANADERÍA, BOLLERÍA..."/>
@@ -1136,7 +1149,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <script>
 // ─── ESTADO ───────────────────────────────
 let GS = localStorage.getItem('fen_gs') || '';
-const DB = {clientes:[],productos:[],precios:[],ordenes:[],detalles:[],abonos:[],maestroRecetasFen:[],equivalenciasNombres:[],historico:{ordenes:[],detalles:[],cargado:false}};
+const DB = {clientes:[],productos:[],precios:[],ordenes:[],detalles:[],abonos:[],maestroRecetasFen:[],equivalenciasNombres:[],recetasOcultasB2B:[],historico:{ordenes:[],detalles:[],cargado:false}};
 
 // ─── ARCHIVADO: RECORDATORIO Y EJECUCIÓN ──────────────
 const FECHA_PRIMER_ARCHIVADO = '2026-08-14'; // primer archivado programado
@@ -1558,7 +1571,77 @@ function badgeClass(e){
 }
 function estadoBadge(e){return`<span class="badge badge-${badgeClass(e)}">${e||'—'}</span>`;}
 
-// ─── PRECIOS ─────────────────────────────
+// ─── RECETAS SIN PRODUCTO EN B2B ─────────
+async function renderRecetasSinProductoB2B(){
+  const cont=document.getElementById('recfen-lista');
+  cont.innerHTML='<div class="hint">Revisando...</div>';
+  await asegurarMaestroFenCargado();
+  try{
+    DB.recetasOcultasB2B=await gsCall('getRecetasOcultasB2B')||[];
+  }catch(e){DB.recetasOcultasB2B=DB.recetasOcultasB2B||[];}
+
+  const idsOcultas=new Set((DB.recetasOcultasB2B||[]).map(r=>r['ID_receta']));
+  const idsConProducto=new Set(DB.productos.map(p=>p['ID_receta_fen']).filter(Boolean));
+
+  const faltantes=(DB.maestroRecetasFen||[]).filter(r=>
+    !idsConProducto.has(r.ID_receta) && !idsOcultas.has(r.ID_receta)
+  );
+
+  if(!DB.maestroRecetasFen||!DB.maestroRecetasFen.length){
+    cont.innerHTML='<p class="hint">Primero sincroniza con fën-producción (arriba) para tener el listado de recetas.</p>';
+    return;
+  }
+  if(!faltantes.length){
+    cont.innerHTML='<div class="empty">No hay recetas nuevas sin producto — todo al día. ✅</div>';
+    return;
+  }
+
+  cont.innerHTML=`<div style="font-size:12px;color:#666;margin-bottom:8px;">${faltantes.length} receta(s) sin producto en B2B:</div>`+
+    faltantes.map(r=>`<div class="check-row" style="align-items:center;">
+      <div style="flex:1;">
+        <strong>${r.nombre}</strong> <span style="color:#8a9bb0;font-size:11.5px;">(${r.ID_receta} — ${r.area||'sin área'})</span>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="abrirNuevoProductoDesdeReceta('${r.ID_receta}')">+ Crear producto</button>
+      <button class="btn btn-secondary btn-sm" onclick="ocultarRecetaB2B('${r.ID_receta}','${r.nombre.replace(/'/g,"\\'")}')" title="Ocultar de esta lista (reversible)">🙈</button>
+    </div>`).join('');
+}
+
+async function ocultarRecetaB2B(idReceta,nombre){
+  showToast('Ocultando...','loading');
+  try{
+    await gsCall('ocultarRecetaB2B',{idReceta,nombre});
+    showToast('✅ Ocultada de la lista','success');
+    renderRecetasSinProductoB2B();
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+async function mostrarRecetaB2B(idReceta){
+  showToast('Restaurando...','loading');
+  try{
+    await gsCall('mostrarRecetaB2B',{idReceta});
+    showToast('✅ Vuelve a aparecer en la lista','success');
+    toggleRecetasOcultasB2B(true);
+    renderRecetasSinProductoB2B();
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+async function toggleRecetasOcultasB2B(forzarAbrir){
+  const cont=document.getElementById('recfen-ocultas');
+  if(!forzarAbrir&&!cont.classList.contains('hidden')){cont.classList.add('hidden');return;}
+  cont.classList.remove('hidden');
+  cont.innerHTML='<div class="hint">Cargando...</div>';
+  try{
+    const ocultas=await gsCall('getRecetasOcultasB2B')||[];
+    DB.recetasOcultasB2B=ocultas;
+    if(!ocultas.length){cont.innerHTML='<div class="empty">No hay recetas ocultas.</div>';return;}
+    cont.innerHTML=ocultas.map(r=>`<div class="check-row" style="align-items:center;">
+      <div style="flex:1;font-size:12.5px;">${r['nombre']||r['ID_receta']} <span style="color:#8a9bb0;">(${r['ID_receta']})</span></div>
+      <button class="btn btn-secondary btn-sm" onclick="mostrarRecetaB2B('${r['ID_receta']}')">👁️ Mostrar de nuevo</button>
+    </div>`).join('');
+  }catch(e){cont.innerHTML=`<p class="hint error">Error: ${e.message}</p>`;}
+}
+
+
 function getPrecio(cliNom,prodNom){
   const esp=DB.precios.find(p=>norm(p['Cliente'])===norm(cliNom)&&norm(p['Producto'])===norm(prodNom));
   if(esp)return{precio:Number(esp['Precio']),especial:true};
@@ -4079,9 +4162,29 @@ function renderProductos(){
     }).join('')+'</tbody></table></div>';
 }
 
+function abrirNuevoProducto(){
+  ['np-nom','np-precio','np-cat','np-id-receta','np-area-fen'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('np-aviso-receta').classList.add('hidden');
+  openModal('modal-prod');
+}
+
+function abrirNuevoProductoDesdeReceta(idReceta){
+  const receta=(DB.maestroRecetasFen||[]).find(r=>r.ID_receta===idReceta);
+  if(!receta)return;
+  document.getElementById('np-nom').value=receta.nombre;
+  document.getElementById('np-precio').value='';
+  document.getElementById('np-cat').value='';
+  document.getElementById('np-id-receta').value=receta.ID_receta;
+  document.getElementById('np-area-fen').value=receta.area||'';
+  document.getElementById('np-aviso-receta').classList.remove('hidden');
+  openModal('modal-prod');
+}
+
 async function guardarProducto(){
   const nom=document.getElementById('np-nom').value.trim();
   if(!nom){showToast('Ingresa el nombre','err');return;}
+  const idReceta=document.getElementById('np-id-receta').value;
+  const areaFen=document.getElementById('np-area-fen').value;
   showToast('Guardando producto en Sheets...','loading');
   try{
     await gsCall('addProducto',{
@@ -4089,12 +4192,20 @@ async function guardarProducto(){
       precio:parseFloat(document.getElementById('np-precio').value)||0,
       categoria:document.getElementById('np-cat').value.trim()
     });
+    // Si el producto se creó desde una receta de fën, lo vinculamos de una vez
+    // (mismo mecanismo que el picker de la sección Productos).
+    if(idReceta){
+      await gsCall('vincularProductoFen',{nombreProducto:nom,idReceta,area:areaFen});
+    }
     closeModal('modal-prod');
     await syncAll();
-    showToast('✅ Producto guardado','success');
-    ['np-nom','np-precio','np-cat'].forEach(id=>document.getElementById(id).value='');
+    showToast(idReceta?'✅ Producto creado y vinculado':'✅ Producto guardado','success');
+    ['np-nom','np-precio','np-cat','np-id-receta','np-area-fen'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('np-aviso-receta').classList.add('hidden');
+    if(typeof renderRecetasSinProductoB2B==='function')renderRecetasSinProductoB2B();
   }catch(e){showToast('Error: '+e.message,'err');}
 }
+
 
 // ─── PRECIOS ─────────────────────────────
 function renderPrecios(){
