@@ -1438,6 +1438,7 @@ async function syncAll() {
     DB.precios=pc||[];   DB.ordenes=or||[];
     DB.detalles=det||[]; DB.abonos=ab||[];
     populateSelects();
+    populateModalSelects();
     renderAll();
     document.getElementById('sync-status').textContent =
       'Sincronizado · '+DB.ordenes.length+' órdenes · '+DB.clientes.length+' clientes';
