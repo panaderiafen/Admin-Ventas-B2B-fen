@@ -956,7 +956,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <p style="font-size:13px;color:#555;margin-bottom:12px;">Genera una pestaña con la venta mensual (cantidad y monto neto) agrupada por receta de producción — para que fën calcule el margen de contribución real. Solo incluye productos ya vinculados (con ID_receta_fen). Se reconstruye completa cada vez, no es acumulativo.</p>
     <button class="btn btn-secondary" onclick="sincronizarVentasMensualesFen()">📤 Generar / actualizar</button>
     <div id="ventasfen-res" style="margin-top:12px;"></div>
-    <p style="font-size:11px;color:#999;margin-top:12px;">Después de generarla por primera vez, hay un paso manual único: en Google Sheets, ve a la pestaña "Ventas_mensuales_fen" → Archivo → Compartir → Publicar en la web → selecciona esa pestaña, formato CSV. Ese paso no se puede automatizar desde acá, pero solo hace falta hacerlo una vez — después el link publicado se actualiza solo cada vez que generes de nuevo.</p>
+    <p style="font-size:11px;color:#999;margin-top:12px;">Después de generarla por primera vez, hay un paso manual único: en Google Sheets, ve a la pestaña "VentasMensualesFenB2B" → Archivo → Compartir → Publicar en la web → selecciona esa pestaña, formato CSV. Ese paso no se puede automatizar desde acá, pero solo hace falta hacerlo una vez — después el link publicado se actualiza solo cada vez que generes de nuevo.</p>
   </div>
   <div class="card">
     <div class="card-title">🔗 Reconciliación de nombres históricos</div>
@@ -1656,7 +1656,7 @@ async function sincronizarVentasMensualesFen(){
   try{
     const res=await gsCall('generarVentasMensualesFen');
     if(res.error){cont.innerHTML=`<p class="hint error">⚠️ ${res.error}</p>`;showToast('Error','err');return;}
-    let html=`<div class="hint ok">✅ ${res.filasEscritas} fila(s) escritas en la pestaña "Ventas_mensuales_fen".</div>`;
+    let html=`<div class="hint ok">✅ ${res.filasEscritas} fila(s) escritas en la pestaña "VentasMensualesFenB2B".</div>`;
     if(res.avisoHuerfanas&&res.avisoHuerfanas.length){
       html+=`<div class="hint" style="margin-top:8px;background:#fff3cd;color:#856404;">⚠️ Ventas sin atribuir — el nombre de producto no corresponde a ningún producto actual de <em>Productos</em> (probablemente fue borrado o renombrado a mano en la Sheet):<br>`+
         res.avisoHuerfanas.map(h=>`— "${h.producto}": ${h.filas} línea(s), ${fmtCLP(h.monto)}, meses: ${h.meses.join(', ')}`).join('<br>')+`</div>`;
