@@ -2638,6 +2638,19 @@ async function marcarComoRevisado(){
   }catch(e){showToast('Error: '+e.message,'err');}
 }
 
+// Muestra un valor de "mes" (YYYY-MM, o una fecha real si quedó mal guardada
+// por versiones anteriores del backend) de forma legible: "Agosto 2026".
+function mesLegible(mesRaw){
+  if(!mesRaw)return'—';
+  const iso=parseFecha(mesRaw);
+  if(!iso)return String(mesRaw);
+  const [y,m]=iso.split('-');
+  const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const idx=parseInt(m,10)-1;
+  const nombreMes=MESES[idx]?MESES[idx].charAt(0).toUpperCase()+MESES[idx].slice(1):m;
+  return nombreMes+' '+y;
+}
+
 async function toggleSeguimientoReconciliacion(){
   const cont=document.getElementById('rec-seguimiento');
   if(!cont.classList.contains('hidden')){cont.classList.add('hidden');return;}
@@ -2649,9 +2662,9 @@ async function toggleSeguimientoReconciliacion(){
     seg.sort((a,b)=>(a['cliente']+a['mes']).localeCompare(b['cliente']+b['mes']));
     cont.innerHTML='<div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Mes</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>'+
       seg.map(s=>`<tr>
-        <td>${s['cliente']}</td><td>${s['mes']}</td>
+        <td>${s['cliente']}</td><td>${mesLegible(s['mes'])}</td>
         <td>${s['estado']==='Revisado'?'<span class="badge badge-pagado">Revisado</span>':'<span class="badge badge-pendiente">Pendiente</span>'}</td>
-        <td>${s['fecha']||'—'}</td>
+        <td>${s['fecha']?fechaCorta(s['fecha']):'—'}</td>
       </tr>`).join('')+'</tbody></table></div>';
   }catch(e){cont.innerHTML=`<p class="hint error">Error: ${e.message}</p>`;}
 }
@@ -4178,7 +4191,7 @@ function renderProductos(){
       const areaFen=p['Área (fën)'];
       const nombreEsc=String(p['Nombre']).replace(/'/g,"\\'");
       return `<tr>
-      <td>${p['Nombre']}</td>
+      <td>${p['Nombre']}${idReceta?`<br><span style="font-size:10.5px;color:#8a9bb0;">${idReceta}</span>`:''}</td>
       <td>${p['Categoría']||'—'}</td>
       <td>${fmtCLP(p['Precio Base'])}</td>
       <td>
