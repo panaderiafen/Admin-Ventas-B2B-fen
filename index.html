@@ -2481,7 +2481,7 @@ async function analizarReconciliacion(){
 
   cont.innerHTML=`<div style="font-size:12px;color:#666;margin-bottom:10px;">${window._recNombresList.length} nombre(s) distinto(s) — ${lineas.length} línea(s) en total.</div>`+
     window._recNombresList.map((nombre,i)=>renderFilaReconciliacion(i)).join('')+
-    `<button class="btn btn-secondary btn-sm" style="margin-top:10px;" onclick="marcarComoRevisado()">✅ Marcar este cliente+mes como Revisado</button>`;
+    `<button class="btn btn-secondary btn-sm" style="margin-top:10px;" onclick="marcarComoRevisado(this)">✅ Marcar este cliente+mes como Revisado</button>`;
 }
 
 function renderFilaReconciliacion(i){
@@ -2493,7 +2493,8 @@ function renderFilaReconciliacion(i){
       <strong style="font-size:13.5px;">${nombre}</strong>
       <span style="color:#8a9bb0;font-size:11.5px;">${d.filas} línea${d.filas>1?'s':''} — ${fmtCLP(d.monto)}</span>
     </div>
-    ${equiv?`<div style="font-size:11.5px;color:#1D9E75;margin-top:2px;">✅ Equivalencia guardada: ${equiv['nombre_fen']||equiv['ID_receta_fen']}</div>`:''}
+    ${equiv?`<div style="font-size:11.5px;color:#8a5c00;margin-top:2px;">🔗 Ya existe una equivalencia guardada (de otra revisión): ${equiv['nombre_fen']||equiv['ID_receta_fen']}</div>`:''}
+    <div id="rec-msg-${i}"></div>
     <input type="text" placeholder="Buscar receta para vincular este nombre..." oninput="filtrarRecetaReconciliacion(${i})" style="font-size:12px;padding:4px 8px;margin-top:6px;"/>
     <div id="rec-lista-${i}" style="margin-top:4px;"></div>
     <div id="rec-accion-${i}"></div>
@@ -2532,8 +2533,8 @@ function elegirRecetaReconciliacion(i,idReceta){
     const nombreDestino=vinculados.length===1?vinculados[0]['Nombre']:receta.nombre;
     document.getElementById('rec-accion-'+i).innerHTML=`
       <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-secondary btn-sm" onclick="guardarSoloEquivalencia(${i})">💾 Solo guardar equivalencia</button>
-        <button class="btn btn-primary btn-sm" onclick="confirmarReescritura(${i},null,'${nombreDestino.replace(/'/g,"\\'")}',${d.filas})">✏️ Reescribir estas ${d.filas} línea${d.filas>1?'s':''} como "${nombreDestino}"</button>
+        <button class="btn btn-secondary btn-sm" onclick="guardarSoloEquivalencia(${i},this)">💾 Solo guardar equivalencia</button>
+        <button class="btn btn-primary btn-sm" onclick="confirmarReescritura(${i},null,'${nombreDestino.replace(/'/g,"\\'")}',${d.filas},this)">✏️ Reescribir estas ${d.filas} línea${d.filas>1?'s':''} como "${nombreDestino}"</button>
       </div>`;
     return;
   }
@@ -2565,10 +2566,10 @@ function elegirRecetaReconciliacion(i,idReceta){
             ${opciones}
             <option value="__generico__">— Nombre de receta genérico (${receta.nombre}) —</option>
           </select>
-          <button class="btn btn-primary btn-sm" onclick="reescribirFranja(${i},${precio},${cant})">Reescribir</button>
+          <button class="btn btn-primary btn-sm" onclick="reescribirFranja(${i},${precio},${cant},this)">Reescribir</button>
         </div>`;
       }).join('')}
-      <div style="margin-top:8px;"><button class="btn btn-secondary btn-sm" onclick="guardarSoloEquivalencia(${i})">💾 Solo guardar equivalencia (sin reescribir nada)</button></div>
+      <div style="margin-top:8px;"><button class="btn btn-secondary btn-sm" onclick="guardarSoloEquivalencia(${i},this)">💾 Solo guardar equivalencia (sin reescribir nada)</button></div>
     </div>`;
 
   // Preseleccionar automáticamente el producto cuyo precio coincida con cada franja
@@ -2581,34 +2582,53 @@ function elegirRecetaReconciliacion(i,idReceta){
   });
 }
 
-async function guardarSoloEquivalencia(i){
+// Bloquea todos los botones de la tarjeta de acción de una fila (evita doble
+// clic y deja claro que algo se está procesando), mientras dura una acción.
+function bloquearBotonesReconciliacion(i,bloquear){
+  const cont=document.getElementById('rec-accion-'+i);
+  if(!cont)return;
+  cont.querySelectorAll('button').forEach(b=>{
+    b.disabled=bloquear;
+    if(bloquear){ b.dataset.txtOriginal=b.textContent; b.textContent='Procesando...'; }
+    else if(b.dataset.txtOriginal){ b.textContent=b.dataset.txtOriginal; }
+  });
+}
+
+async function guardarSoloEquivalencia(i,btn){
   const nombre=window._recNombresList[i];
   const receta=window._recEleccion[i];
+  bloquearBotonesReconciliacion(i,true);
   showToast('Guardando equivalencia...','loading');
   try{
     await gsCall('guardarEquivalenciaNombre',{nombreHistorico:nombre,idReceta:receta.ID_receta,nombreFen:receta.nombre,area:receta.area});
     showToast('✅ Equivalencia guardada (no se tocó ninguna orden)','success');
     DB.equivalenciasNombres=await gsCall('getEquivalenciasNombres')||[];
-    document.getElementById('rec-fila-'+i).outerHTML=renderFilaReconciliacion(i);
-  }catch(e){showToast('Error: '+e.message,'err');}
+    const msg=document.getElementById('rec-msg-'+i);
+    if(msg)msg.innerHTML='<div style="font-size:11.5px;color:#1D9E75;margin-top:2px;">✅ Equivalencia guardada recién ahora</div>';
+    bloquearBotonesReconciliacion(i,false);
+  }catch(e){
+    showToast('Error: '+e.message,'err');
+    bloquearBotonesReconciliacion(i,false);
+  }
 }
 
 // Caso simple (0 o 1 producto vinculado): reescribe todo el grupo de una vez.
-function confirmarReescritura(i,precioFiltro,nombreDestino,cantidad){
+function confirmarReescritura(i,precioFiltro,nombreDestino,cantidad,btn){
   const nombre=window._recNombresList[i];
-  const receta=window._recEleccion[i];
   if(!confirm(`Vas a reescribir "${nombre}" → "${nombreDestino}" en ${cantidad} línea(s) de venta de ${window._recCliente} en ${window._recMes}.\n\nEsto SOLO afecta ese cliente y ese mes — nada más se toca.\n\n¿Confirmas?`))return;
+  bloquearBotonesReconciliacion(i,true);
   reescribirNombreHistorico(i,precioFiltro,nombreDestino);
 }
 
 // Caso con variantes: reescribe solo la franja de un precio unitario específico.
-function reescribirFranja(i,precio,cantidad){
+function reescribirFranja(i,precio,cantidad,btn){
   const nombre=window._recNombresList[i];
   const sel=document.getElementById(`rec-tier-${i}-${precio}`);
   const receta=window._recEleccion[i];
   const valor=sel.value;
   const nombreDestino=valor==='__generico__'?receta.nombre:valor;
   if(!confirm(`Vas a reescribir "${nombre}" (franja de $${precio.toLocaleString('es-CL')}) → "${nombreDestino}" en ${cantidad} línea(s) de ${window._recCliente} en ${window._recMes}.\n\nSolo se tocan las líneas de esta franja de precio — el resto del grupo "${nombre}" queda como está hasta que lo reconcilies aparte.\n\n¿Confirmas?`))return;
+  bloquearBotonesReconciliacion(i,true);
   reescribirNombreHistorico(i,precio,nombreDestino);
 }
 
@@ -2626,16 +2646,25 @@ async function reescribirNombreHistorico(i,precioFiltro,nombreDestino){
     showToast(`✅ ${res.total} línea(s) actualizadas`,'success');
     await syncAll();
     await asegurarHistoricoCargado(true);
-    analizarReconciliacion();
-  }catch(e){showToast('Error: '+e.message,'err');}
+    analizarReconciliacion(); // re-renderiza todo, así los botones bloqueados quedan reemplazados de todas formas
+  }catch(e){
+    showToast('Error: '+e.message,'err');
+    bloquearBotonesReconciliacion(i,false);
+  }
 }
 
-async function marcarComoRevisado(){
+async function marcarComoRevisado(btn){
   if(!window._recCliente||!window._recMes)return;
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  showToast('Guardando...','loading');
   try{
     await gsCall('marcarSeguimientoReconciliacion',{cliente:window._recCliente,mes:window._recMes,estado:'Revisado'});
     showToast('✅ Marcado como Revisado','success');
-  }catch(e){showToast('Error: '+e.message,'err');}
+    if(btn){btn.textContent='✅ Marcado como Revisado';}
+  }catch(e){
+    showToast('Error: '+e.message,'err');
+    if(btn){btn.disabled=false;btn.textContent='✅ Marcar este cliente+mes como Revisado';}
+  }
 }
 
 // Muestra un valor de "mes" (YYYY-MM, o una fecha real si quedó mal guardada
