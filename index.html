@@ -4295,16 +4295,33 @@ function renderPrecios(){
   const q=norm(document.getElementById('pr-q')?.value||'');
   const lista=DB.precios.filter(p=>!q||norm(p['Cliente']).includes(q)||norm(p['Producto']).includes(q));
   if(!lista.length){w.innerHTML='<div class="empty">Sin precios especiales</div>';return;}
-  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Producto</th><th>Precio base</th><th>Precio especial</th></tr></thead><tbody>'+
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Producto</th><th>Precio base</th><th>Precio especial</th><th></th></tr></thead><tbody>'+
     lista.map(p=>{
       const prod=DB.productos.find(x=>norm(x['Nombre'])===norm(p['Producto']));
+      const cliEsc=String(p['Cliente']).replace(/'/g,"\\'");
+      const prodEsc=String(p['Producto']).replace(/'/g,"\\'");
       return`<tr>
         <td>${p['Cliente']}</td>
         <td>${p['Producto']}</td>
         <td style="color:#999;">${fmtCLP(prod?.['Precio Base']||0)}</td>
         <td style="color:#1D9E75;font-weight:700;">${fmtCLP(p['Precio'])}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="eliminarPrecioEspecial('${cliEsc}','${prodEsc}',this)" title="Eliminar precio especial">🗑️</button></td>
       </tr>`;
     }).join('')+'</tbody></table></div>';
+}
+
+async function eliminarPrecioEspecial(cliente,producto,btn){
+  if(!confirm(`¿Eliminar el precio especial de "${producto}" para ${cliente}?\n\nA partir de ahora se le cobrará el precio base (u otro precio especial que tenga, si aplica).`))return;
+  if(btn){btn.disabled=true;btn.textContent='...';}
+  showToast('Eliminando precio especial...','loading');
+  try{
+    await gsCall('eliminarPrecio',{cliente,producto});
+    await syncAll();
+    showToast('✅ Precio especial eliminado','success');
+  }catch(e){
+    showToast('Error: '+e.message,'err');
+    if(btn){btn.disabled=false;btn.textContent='🗑️';}
+  }
 }
 
 async function guardarPrecio(){
