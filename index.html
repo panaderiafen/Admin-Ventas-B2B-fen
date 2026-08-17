@@ -4129,9 +4129,10 @@ function descargarMultiPDF(){
 
   // Agrupar productos desde DB.detalles (misma logica que calcMulti)
   const prodMapPDF={};
-  // Cambios agregados por producto (para la nota discreta de devolución/adición
-  // cuando alguna de las órdenes seleccionadas fue editada)
-  const cambiosAgregadosPDF={};
+  // Cambios detallados por producto: una entrada por CADA orden que tuvo
+  // edición, con su propia fecha — así en Factura Múltiple se ve cada
+  // devolución/adición por separado, no mezclada en un solo número.
+  const cambiosDetalladosPDF={};
   sel.forEach(o=>{
     const lineasO=DB.detalles.filter(d=>String(d['N\xb0 Orden'])===String(o['N\xb0 Orden']));
     const cambiosOrden=calcularCambiosProductoOrden(o['N\xb0 Orden']);
@@ -4143,28 +4144,42 @@ function descargarMultiPDF(){
 
       const actual=Number(l['Cantidad'])||0;
       const original=cambiosOrden[l['Producto']];
-      if(!cambiosAgregadosPDF[key])cambiosAgregadosPDF[key]={original:0,actual:0,huboCambio:false};
-      cambiosAgregadosPDF[key].actual+=actual;
-      if(typeof original!=='undefined'){
-        cambiosAgregadosPDF[key].original+=original;
-        cambiosAgregadosPDF[key].huboCambio=true;
-      }else{
-        cambiosAgregadosPDF[key].original+=actual; // sin cambio para esta línea
+      if(typeof original!=='undefined'&&original!==actual){
+        if(!cambiosDetalladosPDF[key])cambiosDetalladosPDF[key]=[];
+        cambiosDetalladosPDF[key].push({fecha:o['Fecha'],original,actual});
       }
     });
   });
   const prodsPDF=Object.values(prodMapPDF);
   const usaDetalles=prodsPDF.length>0;
 
+  function fmtFechaDDMM(f){
+    const iso=parseFecha(f);
+    if(!iso)return f||'';
+    const [,m,d]=iso.split('-');
+    return `${d}-${m}`;
+  }
+
   // Filas de producto (cuando hay detalle disponible)
   let subTotal=0;
   const productoRows=prodsPDF.map(p=>{
     subTotal+=p.netoTotal;
-    const camb=cambiosAgregadosPDF[norm(p.nombre)];
-    const tieneCambio=camb&&camb.huboCambio&&camb.original!==camb.actual;
-    const notaDiscretaProd=tieneCambio
-      ?`<div style="font-size:8.5px;color:${camb.actual<camb.original?'#9a5b00':'#1D9E75'};font-style:italic;margin-top:1px;">Pedido inicial: ${camb.original} · ${camb.actual<camb.original?'Devuelto':'Agregado'}: ${Math.abs(camb.original-camb.actual)}</div>`
-      :'';
+    const cambios=cambiosDetalladosPDF[norm(p.nombre)];
+    let notaDiscretaProd='';
+    if(cambios&&cambios.length){
+      const totalDevuelto=cambios.reduce((s,c)=>s+(c.actual<c.original?(c.original-c.actual):0),0);
+      const totalAgregado=cambios.reduce((s,c)=>s+(c.actual>c.original?(c.actual-c.original):0),0);
+      notaDiscretaProd=`<div style="font-size:8.5px;margin-top:2px;">`+
+        cambios.map(c=>{
+          const dif=c.actual-c.original;
+          const color=dif<0?'#9a5b00':'#1D9E75';
+          const etiqueta=dif<0?'Devuelto':'Agregado';
+          return `<div style="color:${color};">${fmtFechaDDMM(c.fecha)} — Pedido inicial: ${c.original} · ${etiqueta}: ${Math.abs(dif)}</div>`;
+        }).join('')+
+        (cambios.length>1&&totalDevuelto>0?`<div style="color:#9a5b00;font-weight:700;">Total devolución: ${totalDevuelto}</div>`:'')+
+        (cambios.length>1&&totalAgregado>0?`<div style="color:#1D9E75;font-weight:700;">Total agregado: ${totalAgregado}</div>`:'')+
+        `</div>`;
+    }
     return `<tr><td>${p.nombre}${notaDiscretaProd}</td><td style="text-align:center;">${p.cantidad}</td><td style="text-align:right;">${fmtCLP(p.precioUnit)}</td><td style="text-align:right;font-weight:700;">${fmtCLP(Math.round(p.netoTotal))}</td></tr>`;
   }).join('');
 
