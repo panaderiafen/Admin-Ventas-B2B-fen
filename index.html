@@ -4129,13 +4129,28 @@ function descargarMultiPDF(){
 
   // Agrupar productos desde DB.detalles (misma logica que calcMulti)
   const prodMapPDF={};
+  // Cambios agregados por producto (para la nota discreta de devolución/adición
+  // cuando alguna de las órdenes seleccionadas fue editada)
+  const cambiosAgregadosPDF={};
   sel.forEach(o=>{
     const lineasO=DB.detalles.filter(d=>String(d['N\xb0 Orden'])===String(o['N\xb0 Orden']));
+    const cambiosOrden=calcularCambiosProductoOrden(o['N\xb0 Orden']);
     lineasO.forEach(l=>{
       const key=norm(l['Producto']);
       if(!prodMapPDF[key]){prodMapPDF[key]={nombre:l['Producto'],cantidad:0,precioUnit:Number(l['Precio Neto Unit.'])||0,netoTotal:0};}
       prodMapPDF[key].cantidad+=Number(l['Cantidad'])||0;
       prodMapPDF[key].netoTotal+=Number(l['Neto Total'])||0;
+
+      const actual=Number(l['Cantidad'])||0;
+      const original=cambiosOrden[l['Producto']];
+      if(!cambiosAgregadosPDF[key])cambiosAgregadosPDF[key]={original:0,actual:0,huboCambio:false};
+      cambiosAgregadosPDF[key].actual+=actual;
+      if(typeof original!=='undefined'){
+        cambiosAgregadosPDF[key].original+=original;
+        cambiosAgregadosPDF[key].huboCambio=true;
+      }else{
+        cambiosAgregadosPDF[key].original+=actual; // sin cambio para esta línea
+      }
     });
   });
   const prodsPDF=Object.values(prodMapPDF);
@@ -4145,7 +4160,12 @@ function descargarMultiPDF(){
   let subTotal=0;
   const productoRows=prodsPDF.map(p=>{
     subTotal+=p.netoTotal;
-    return `<tr><td>${p.nombre}</td><td style="text-align:center;">${p.cantidad}</td><td style="text-align:right;">${fmtCLP(p.precioUnit)}</td><td style="text-align:right;font-weight:700;">${fmtCLP(Math.round(p.netoTotal))}</td></tr>`;
+    const camb=cambiosAgregadosPDF[norm(p.nombre)];
+    const tieneCambio=camb&&camb.huboCambio&&camb.original!==camb.actual;
+    const notaDiscretaProd=tieneCambio
+      ?`<div style="font-size:8.5px;color:${camb.actual<camb.original?'#9a5b00':'#1D9E75'};font-style:italic;margin-top:1px;">Pedido inicial: ${camb.original} · ${camb.actual<camb.original?'Devuelto':'Agregado'}: ${Math.abs(camb.original-camb.actual)}</div>`
+      :'';
+    return `<tr><td>${p.nombre}${notaDiscretaProd}</td><td style="text-align:center;">${p.cantidad}</td><td style="text-align:right;">${fmtCLP(p.precioUnit)}</td><td style="text-align:right;font-weight:700;">${fmtCLP(Math.round(p.netoTotal))}</td></tr>`;
   }).join('');
 
   // Filas de orden (fallback si no hay detalle de productos disponible)
