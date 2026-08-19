@@ -2707,10 +2707,15 @@ async function guardarSoloEquivalencia(i,btn){
   try{
     await gsCall('guardarEquivalenciaNombre',{nombreHistorico:nombre,idReceta:receta.ID_receta,nombreFen:receta.nombre,area:receta.area});
     showToast('✅ Equivalencia guardada (no se tocó ninguna orden)','success');
-    DB.equivalenciasNombres=await gsCall('getEquivalenciasNombres')||[];
     const msg=document.getElementById('rec-msg-'+i);
     if(msg)msg.innerHTML='<div style="font-size:11.5px;color:#1D9E75;margin-top:2px;">✅ Equivalencia guardada recién ahora</div>';
     bloquearBotonesReconciliacion(i,false);
+    // Refresco de la lista en pantalla: es solo cosmético (la equivalencia ya
+    // quedó guardada arriba), así que un fallo acá no debe verse como un error
+    // real — se reintenta en silencio, y si falla, no pasa nada grave.
+    try{
+      DB.equivalenciasNombres=await gsCall('getEquivalenciasNombres')||[];
+    }catch(e2){/* no crítico: la próxima vez que se analice se refresca solo */}
   }catch(e){
     showToast('Error: '+e.message,'err');
     bloquearBotonesReconciliacion(i,false);
@@ -2741,19 +2746,29 @@ async function reescribirNombreHistorico(i,precioFiltro,nombreDestino){
   const nombre=window._recNombresList[i];
   const receta=window._recEleccion[i];
   showToast('Reescribiendo en Sheets...','loading');
+  let res;
   try{
-    const res=await gsCall('reescribirNombreProducto',{
+    res=await gsCall('reescribirNombreProducto',{
       cliente:window._recCliente, mes:window._recMes,
       nombreViejo:nombre, nombreNuevo:nombreDestino,
       precioFiltro:(precioFiltro===null||typeof precioFiltro==='undefined')?'':precioFiltro,
       idReceta:receta.ID_receta, area:receta.area, nombreGenericoFen:receta.nombre
     });
-    showToast(`✅ ${res.total} línea(s) actualizadas`,'success');
+  }catch(e){
+    showToast('Error: '+e.message,'err');
+    bloquearBotonesReconciliacion(i,false);
+    return;
+  }
+  // La reescritura en Sheets ya está confirmada acá — lo que sigue es solo
+  // refrescar la vista. Si algo falla en este paso, la reescritura NO se
+  // pierde (ya se guardó), así que avisamos distinto y sugerimos recargar.
+  showToast(`✅ ${res.total} línea(s) actualizadas`,'success');
+  try{
     await syncAll();
     await asegurarHistoricoCargado(true);
     analizarReconciliacion(); // re-renderiza todo, así los botones bloqueados quedan reemplazados de todas formas
-  }catch(e){
-    showToast('Error: '+e.message,'err');
+  }catch(e2){
+    showToast('Los cambios se guardaron, pero la pantalla no se pudo refrescar solo. Vuelve a analizar este cliente+mes para verlo actualizado.','err');
     bloquearBotonesReconciliacion(i,false);
   }
 }
