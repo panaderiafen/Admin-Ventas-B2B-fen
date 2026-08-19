@@ -1419,13 +1419,29 @@ function navTo(sec) {
 let _folKey=null, _pagoKey=null, _delKey=null;
 
 // ─── API ──────────────────────────────────
-async function gsCall(action, body={}) {
+async function gsCall(action, body={}, _intento=1) {
   if (!GS) throw new Error('Sin URL configurada');
   const res = await fetch(GS, {
     method:'POST', body:JSON.stringify({action,...body}),
     headers:{'Content-Type':'text/plain'}
   });
-  const d = await res.json();
+  const texto = await res.text();
+  let d;
+  try{
+    d = JSON.parse(texto);
+  }catch(e){
+    // Google a veces entrega una página de error en vez del JSON esperado,
+    // de forma intermitente (falla en la entrega de la respuesta, no en la
+    // ejecución del script en sí — confirmado que esto pasa incluso cuando
+    // la ejecución en Apps Script termina "Completada" sin errores). En vez
+    // de fallar de una, reintentamos un par de veces con una pausa corta,
+    // ya que casi siempre se resuelve solo en el segundo o tercer intento.
+    if(_intento<3){
+      await new Promise(r=>setTimeout(r,600*_intento));
+      return gsCall(action,body,_intento+1);
+    }
+    throw new Error('Google no entregó una respuesta válida después de '+_intento+' intentos (puede ser intermitente, prueba de nuevo en unos segundos)');
+  }
   if (d.error) throw new Error(d.error);
   return d;
 }
