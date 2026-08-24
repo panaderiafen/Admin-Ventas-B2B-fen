@@ -1455,8 +1455,8 @@ async function gsCall(action, body={}, _intento=1) {
     // la ejecución en Apps Script termina "Completada" sin errores). En vez
     // de fallar de una, reintentamos un par de veces con una pausa corta,
     // ya que casi siempre se resuelve solo en el segundo o tercer intento.
-    if(_intento<3){
-      await new Promise(r=>setTimeout(r,600*_intento));
+    if(_intento<5){
+      await new Promise(r=>setTimeout(r,700*_intento));
       return gsCall(action,body,_intento+1);
     }
     throw new Error('Google no entregó una respuesta válida después de '+_intento+' intentos (puede ser intermitente, prueba de nuevo en unos segundos)');
@@ -1465,15 +1465,28 @@ async function gsCall(action, body={}, _intento=1) {
   return d;
 }
 
+// Dispara varias llamadas gsCall en tandas pequeñas (no todas de golpe), con
+// una pausa breve entre cada tanda — reduce la contención simultánea contra
+// la misma planilla, que parece ser la causa de las entregas fallidas
+// intermitentes de Google cuando hay muchas peticiones en paralelo.
+async function gsCallEnTandas(acciones,tamanoTanda=3){
+  const resultados=[];
+  for(let i=0;i<acciones.length;i+=tamanoTanda){
+    const tanda=acciones.slice(i,i+tamanoTanda);
+    const res=await Promise.all(tanda.map(a=>gsCall(a)));
+    resultados.push(...res);
+    if(i+tamanoTanda<acciones.length) await new Promise(r=>setTimeout(r,300));
+  }
+  return resultados;
+}
+
 async function syncAll() {
   if (!GS) { document.getElementById('config-banner').classList.remove('hidden'); return; }
   showToast('Sincronizando...','loading');
   try {
-    const [cl,pr,pc,or,det,ab,ed] = await Promise.all([
-      gsCall('getClientes'), gsCall('getProductos'),
-      gsCall('getPrecios'),  gsCall('getOrdenes'),
-      gsCall('getDetalles'), gsCall('getAbonos'),
-      gsCall('getEdicionesOrdenes')
+    const [cl,pr,pc,or,det,ab,ed] = await gsCallEnTandas([
+      'getClientes','getProductos','getPrecios','getOrdenes',
+      'getDetalles','getAbonos','getEdicionesOrdenes'
     ]);
     DB.clientes=cl||[]; DB.productos=pr||[];
     DB.precios=pc||[];   DB.ordenes=or||[];
