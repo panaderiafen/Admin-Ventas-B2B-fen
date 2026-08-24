@@ -2994,6 +2994,18 @@ function abrirFolio(nOrden){
   openModal('modal-folio');
 }
 
+function copiarInfoPedido(nOrden,fechaTexto,btn){
+  const texto=`N° Orden ${nOrden} — Fecha pedido: ${fechaTexto}`;
+  navigator.clipboard.writeText(texto).then(()=>{
+    if(btn){
+      const original=btn.textContent;
+      btn.textContent='✅ Info copiada';
+      setTimeout(()=>{btn.textContent=original;},1800);
+    }
+    showToast('✅ Info copiada','success');
+  }).catch(()=>showToast('No se pudo copiar','err'));
+}
+
 function copiarInfoMulti(btn){
   const texto=window._multiInfoCopiar||'';
   if(!texto){showToast('Nada para copiar','err');return;}
