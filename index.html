@@ -2980,7 +2980,7 @@ function abrirFolio(nOrden){
   // Info completa del pedido
   document.getElementById('fol-info').innerHTML=`
     <div class="oi-row"><span class="oi-label">N° Orden</span><span class="oi-value">${o['N° Orden']}</span></div>
-    <div class="oi-row"><span class="oi-label">Fecha</span><span class="oi-value">${fechaES(o['Fecha'])}</span></div>
+    <div class="oi-row"><span class="oi-label">Fecha pedido</span><span class="oi-value">${fechaES(o['Fecha'])}</span></div>
     <div class="oi-row"><span class="oi-label">Cliente</span><span class="oi-value">${o['Cliente']||'—'}</span></div>
     <div class="oi-row"><span class="oi-label">RUT</span><span class="oi-value">${DB.clientes.find(c=>norm(c['Nombre'])===norm(o['Cliente']))?.['RUT']||'—'}</span></div>
     ${tablaProductos}
@@ -2989,8 +2989,22 @@ function abrirFolio(nOrden){
       <div class="resumen-row"><span>IVA 19%</span><span>${fmtCLP(o['IVA'])}</span></div>
       <div class="resumen-row total"><span>Total</span><span>${fmtCLP(o['Total'])}</span></div>
     </div>
-    <div class="oi-row" style="margin-top:10px;"><span class="oi-label">Estado pago</span><span class="oi-value">${estadoBadge(o['Estado Pago'])}</span></div>`;
+    <div class="oi-row" style="margin-top:10px;"><span class="oi-label">Estado pago</span><span class="oi-value">${estadoBadge(o['Estado Pago'])}</span></div>
+    <button class="btn btn-secondary btn-sm" style="margin-top:10px;width:100%;" onclick="copiarInfoPedido('${o['N° Orden']}','${fechaES(o['Fecha'])}',this)">📋 Copiar N° orden + fecha pedido</button>`;
   openModal('modal-folio');
+}
+
+function copiarInfoMulti(btn){
+  const texto=window._multiInfoCopiar||'';
+  if(!texto){showToast('Nada para copiar','err');return;}
+  navigator.clipboard.writeText(texto).then(()=>{
+    if(btn){
+      const original=btn.textContent;
+      btn.textContent='✅ Info copiada';
+      setTimeout(()=>{btn.textContent=original;},1800);
+    }
+    showToast('✅ Info copiada','success');
+  }).catch(()=>showToast('No se pudo copiar','err'));
 }
 
 async function guardarFolio(){
@@ -4106,6 +4120,8 @@ function calcMulti(){
     ? prods.reduce((s,p)=>s+p.netoTotal,0)
     : sel.reduce((s,o)=>s+(Number(o['Total Neto'])||0),0);
   const nOrdenesStr=sel.map(o=>'N° '+o['N° Orden']).join(', ');
+  const infoParaCopiar=sel.map(o=>`N° ${o['N° Orden']} — Fecha pedido: ${fechaES(o['Fecha'])}`).join('\n');
+  const btnCopiar=`<button class="btn btn-secondary btn-sm" style="margin-bottom:8px;width:100%;" onclick="copiarInfoMulti(this)">📋 Copiar N° orden + fecha pedido de todas</button>`;
 
   let detalleHTML='';
   if(prods.length>0){
@@ -4115,16 +4131,17 @@ function calcMulti(){
       <td style="text-align:right;">${fmtCLP(p.precioUnit)}</td>
       <td style="text-align:right;">${fmtCLP(Math.round(p.netoTotal))}</td>
     </tr>`).join('');
-    detalleHTML=`<div style="font-size:11px;font-weight:700;color:#555;margin-bottom:8px;">ÓRDENES INCLUIDAS: ${nOrdenesStr}</div>
+    detalleHTML=btnCopiar+`<div style="font-size:11px;font-weight:700;color:#555;margin-bottom:8px;">ÓRDENES INCLUIDAS: ${nOrdenesStr}</div>
     <div class="table-wrap"><table>
       <thead><tr><th>Producto</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Neto Unit.</th><th style="text-align:right;">Neto Total</th></tr></thead>
       <tbody>${filas}</tbody>
     </table></div>`;
   } else {
-    detalleHTML=`<div style="font-size:11px;color:#888;margin-bottom:8px;">ÓRDENES: ${nOrdenesStr}</div>
+    detalleHTML=btnCopiar+`<div style="font-size:11px;color:#888;margin-bottom:8px;">ÓRDENES: ${nOrdenesStr}</div>
     <p class="hint">Sincroniza para ver el detalle de productos agrupados.</p>`;
   }
 
+  window._multiInfoCopiar=infoParaCopiar;
   document.getElementById('m-res-detalle').innerHTML=detalleHTML;
   document.getElementById('m-neto').textContent=fmtCLP(sub);
   document.getElementById('m-iva').textContent=fmtCLP(sub*0.19);
