@@ -1124,6 +1124,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </div>
 
 <!-- Vincular producto con receta de fën -->
+<!-- Editar producto -->
+<div id="modal-editar-producto" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">✏️ Editar producto</div>
+    <input type="hidden" id="ep-nombre-actual"/>
+    <label>Nombre</label><input type="text" id="ep-nom"/>
+    <p class="hint" style="margin-top:-2px;">Si cambias el nombre, las ventas ya registradas con el nombre anterior <strong>no se actualizan solas</strong> — quedan como estaban (mismo criterio que ya usa toda la app). Usa la reconciliación histórica en Config si necesitas unificarlas.</p>
+    <label>Precio Base</label><input type="number" id="ep-precio" placeholder="0"/>
+    <label>Categoría</label><input type="text" id="ep-cat" placeholder="PANADERÍA, BOLLERÍA..."/>
+    <label>Vínculo con fën-producción</label>
+    <div id="ep-vinculo" style="background:#f7f9fc;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:4px;"></div>
+    <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="cambiarVinculoDesdeEdicion()">🥐 Cambiar vínculo</button>
+    <div class="modal-btns" style="margin-top:16px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="guardarEdicionProducto()">Guardar cambios</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-editar-producto')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-vincular-fen" class="modal-overlay">
   <div class="modal">
     <div class="modal-title">🥐 Vincular con fën-producción</div>
@@ -4400,7 +4419,7 @@ function renderProductos(){
   const w=document.getElementById('prod-list');
   if(!w)return;
   if(!DB.productos.length){w.innerHTML='<div class="empty">Sin productos</div>';return;}
-  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio Base</th><th>fën</th></tr></thead><tbody>'+
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio Base</th><th>fën</th><th></th></tr></thead><tbody>'+
     DB.productos.map(p=>{
       const idReceta=p['ID_receta_fen'];
       const areaFen=p['Área (fën)'];
@@ -4414,6 +4433,7 @@ function renderProductos(){
           ?`<span class="badge badge-facturado" style="cursor:pointer;" title="ID_receta_fen: ${idReceta} — clic para editar" onclick="abrirVincularFen('${nombreEsc}')">${areaFen||idReceta}</span>`
           :`<a href="javascript:void(0)" onclick="abrirVincularFen('${nombreEsc}')" style="color:#8a9bb0;font-size:12px;text-decoration:underline;">🥐 Vincular</a>`}
       </td>
+      <td><button class="btn btn-secondary btn-sm" onclick="abrirEditarProducto('${nombreEsc}')" title="Editar producto">✏️</button></td>
     </tr>`;
     }).join('')+'</tbody></table></div>';
 }
@@ -4462,6 +4482,46 @@ async function guardarProducto(){
   }catch(e){showToast('Error: '+e.message,'err');}
 }
 
+// ─── EDITAR PRODUCTO ──────────────────────
+function abrirEditarProducto(nombreActual){
+  const p=DB.productos.find(x=>x['Nombre']===nombreActual);
+  if(!p)return;
+  document.getElementById('ep-nombre-actual').value=nombreActual;
+  document.getElementById('ep-nom').value=p['Nombre']||'';
+  document.getElementById('ep-precio').value=p['Precio Base']||'';
+  document.getElementById('ep-cat').value=p['Categoría']||'';
+  const idReceta=p['ID_receta_fen'];
+  const areaFen=p['Área (fën)'];
+  const vinculoDiv=document.getElementById('ep-vinculo');
+  vinculoDiv.innerHTML=idReceta
+    ?`Vinculado a: <strong>${areaFen||idReceta}</strong> (ID: ${idReceta})`
+    :`<span style="color:#8a9bb0;">Sin vincular todavía</span>`;
+  openModal('modal-editar-producto');
+}
+
+function cambiarVinculoDesdeEdicion(){
+  const nombreActual=document.getElementById('ep-nombre-actual').value;
+  closeModal('modal-editar-producto');
+  abrirVincularFen(nombreActual);
+}
+
+async function guardarEdicionProducto(){
+  const nombreActual=document.getElementById('ep-nombre-actual').value;
+  const nombreNuevo=document.getElementById('ep-nom').value.trim();
+  if(!nombreNuevo){showToast('Ingresa el nombre','err');return;}
+  showToast('Guardando cambios en Sheets...','loading');
+  try{
+    const res=await gsCall('editarProducto',{
+      nombreActual,
+      nombreNuevo,
+      precio:parseFloat(document.getElementById('ep-precio').value)||0,
+      categoria:document.getElementById('ep-cat').value.trim()
+    });
+    closeModal('modal-editar-producto');
+    await syncAll();
+    showToast(res.preciosActualizados>0?`✅ Producto actualizado (${res.preciosActualizados} precio(s) especial(es) también actualizados)`:'✅ Producto actualizado','success');
+  }catch(e){showToast('Error: '+e.message,'err');}
+}
 
 // ─── PRECIOS ─────────────────────────────
 function renderPrecios(){
