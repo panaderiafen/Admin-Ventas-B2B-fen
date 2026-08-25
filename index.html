@@ -961,6 +961,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   <div class="card">
     <div class="card-title">🔗 Reconciliación de nombres históricos</div>
     <p style="font-size:13px;color:#555;margin-bottom:12px;">Revisa un cliente y un mes a la vez para emparejar nombres de productos antiguos con la receta vigente de fën. Nunca se toca el histórico en bloque — cada cambio es puntual, acotado a ese cliente+mes, y con vista previa antes de aplicar.</p>
+    <div style="background:#fff3cd;border-radius:8px;padding:10px 12px;font-size:12px;color:#856404;margin-bottom:14px;">
+      <strong>⚠️ Cómo elegir entre las dos opciones:</strong><br>
+      💾 <strong>Guardar equivalencia</strong> — solo si el nombre es <u>inequívoco en todo el sistema</u> (siempre significó lo mismo, para cualquier cliente). Aplica de forma global, para siempre.<br>
+      ✏️ <strong>Reescribir</strong> — si el mismo nombre puede significar <u>cosas distintas según quién compró</u> (ej. un producto real que un cliente puntual escribió mal). Solo toca ese cliente+mes, sin riesgo de contaminar otras ventas.<br>
+      Si tienes dudas, usa <strong>Reescribir</strong> — es la opción más segura por defecto.
+    </div>
     <label>Cliente</label>
     <select id="rec-cliente"><option value="">Seleccionar...</option></select>
     <label>Mes</label>
@@ -970,6 +976,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <div style="margin-top:16px;border-top:1px solid #eee;padding-top:12px;">
       <a href="javascript:void(0)" onclick="toggleSeguimientoReconciliacion()" style="font-size:12.5px;color:#003a79;text-decoration:underline;">📋 Ver tabla de seguimiento (Cliente × Mes)</a>
       <div id="rec-seguimiento" class="hidden" style="margin-top:10px;"></div>
+    </div>
+    <div style="margin-top:10px;">
+      <a href="javascript:void(0)" onclick="toggleTodasLasEquivalencias()" style="font-size:12.5px;color:#003a79;text-decoration:underline;">🔗 Ver/auditar todas las equivalencias guardadas</a>
+      <div id="rec-todas-equiv" class="hidden" style="margin-top:10px;"></div>
     </div>
   </div>
 </div>
@@ -2594,6 +2604,13 @@ async function asegurarMaestroFenCargado(){
   }catch(e){/* silencioso, se reintenta si hace falta */}
 }
 
+async function asegurarEquivalenciasCargadas(){
+  if(DB.equivalenciasNombres&&DB.equivalenciasNombres.length)return;
+  try{
+    DB.equivalenciasNombres=await gsCall('getEquivalenciasNombres')||[];
+  }catch(e){/* silencioso, se reintenta si hace falta */}
+}
+
 async function analizarReconciliacion(){
   const cliente=document.getElementById('rec-cliente').value;
   const mes=document.getElementById('rec-mes').value;
@@ -2646,7 +2663,7 @@ function renderFilaReconciliacion(i){
       <strong style="font-size:13.5px;">${nombre}</strong>
       <span style="color:#8a9bb0;font-size:11.5px;">${d.filas} línea${d.filas>1?'s':''} — ${fmtCLP(d.monto)}</span>
     </div>
-    ${equiv?`<div style="font-size:11.5px;color:#8a5c00;margin-top:2px;">🔗 Ya existe una equivalencia guardada (de otra revisión): ${equiv['nombre_fen']||equiv['ID_receta_fen']}</div>`:''}
+    ${equiv?`<div style="font-size:11.5px;color:#8a5c00;margin-top:2px;">🔗 Ya existe una equivalencia guardada (de otra revisión): ${equiv['nombre_fen']||equiv['ID_receta_fen']} <a href="javascript:void(0)" onclick="eliminarEquivalenciaDesdeFila(${i})" style="color:#c0392b;text-decoration:underline;margin-left:6px;">🗑️ Eliminar</a></div>`:''}
     <div id="rec-msg-${i}"></div>
     <input type="text" placeholder="Buscar receta para vincular este nombre..." oninput="filtrarRecetaReconciliacion(${i})" style="font-size:12px;padding:4px 8px;margin-top:6px;"/>
     <div id="rec-lista-${i}" style="margin-top:4px;"></div>
@@ -2745,6 +2762,18 @@ function bloquearBotonesReconciliacion(i,bloquear){
     if(bloquear){ b.dataset.txtOriginal=b.textContent; b.textContent='Procesando...'; }
     else if(b.dataset.txtOriginal){ b.textContent=b.dataset.txtOriginal; }
   });
+}
+
+async function eliminarEquivalenciaDesdeFila(i){
+  const nombre=window._recNombresList[i];
+  if(!confirm(`¿Eliminar la equivalencia guardada para "${nombre}"?\n\nEsto no toca ninguna venta — solo borra la relación guardada. Si el nombre vuelve a aparecer en otra revisión, tendrás que emparejarlo de nuevo.`))return;
+  showToast('Eliminando equivalencia...','loading');
+  try{
+    await gsCall('eliminarEquivalenciaNombre',{nombreHistorico:nombre});
+    showToast('✅ Equivalencia eliminada','success');
+    DB.equivalenciasNombres=await gsCall('getEquivalenciasNombres')||[];
+    document.getElementById('rec-fila-'+i).outerHTML=renderFilaReconciliacion(i);
+  }catch(e){showToast('Error: '+e.message,'err');}
 }
 
 async function guardarSoloEquivalencia(i,btn){
@@ -2875,6 +2904,37 @@ async function toggleSeguimientoReconciliacion(){
         <td>${s['fecha']?fechaCorta(s['fecha']):'—'}</td>
       </tr>`).join('')+'</tbody></table></div>';
   }catch(e){cont.innerHTML=`<p class="hint error">Error: ${e.message}</p>`;}
+}
+
+async function toggleTodasLasEquivalencias(){
+  const cont=document.getElementById('rec-todas-equiv');
+  if(!cont.classList.contains('hidden')){cont.classList.add('hidden');return;}
+  cont.classList.remove('hidden');
+  cont.innerHTML='<div class="hint">Cargando...</div>';
+  try{
+    const equivs=await gsCall('getEquivalenciasNombres')||[];
+    DB.equivalenciasNombres=equivs;
+    if(!equivs.length){cont.innerHTML='<div class="empty">Todavía no hay ninguna equivalencia guardada.</div>';return;}
+    equivs.sort((a,b)=>(a['nombre_historico']||'').localeCompare(b['nombre_historico']||''));
+    cont.innerHTML=`<p style="font-size:11px;color:#999;margin-bottom:8px;">Recuerda: estas aplican de forma global (por nombre, sin distinguir cliente). Si un nombre puede significar cosas distintas según quién compró, no debería estar acá — usa "Reescribir" para esos casos en vez de guardar la equivalencia.</p>`+
+      equivs.map(e=>`<div class="check-row" style="align-items:center;">
+        <div style="flex:1;font-size:12.5px;">
+          <strong>${e['nombre_historico']}</strong> → ${e['nombre_fen']||e['ID_receta_fen']} <span style="color:#8a9bb0;">(${e['ID_receta_fen']})</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="eliminarEquivalenciaDesdeLista('${String(e['nombre_historico']).replace(/'/g,"\\'")}')">🗑️</button>
+      </div>`).join('');
+  }catch(e){cont.innerHTML=`<p class="hint error">Error: ${e.message}</p>`;}
+}
+
+async function eliminarEquivalenciaDesdeLista(nombreHistorico){
+  if(!confirm(`¿Eliminar la equivalencia guardada para "${nombreHistorico}"?\n\nEsto no toca ninguna venta — solo borra la relación guardada.`))return;
+  showToast('Eliminando equivalencia...','loading');
+  try{
+    await gsCall('eliminarEquivalenciaNombre',{nombreHistorico});
+    showToast('✅ Equivalencia eliminada','success');
+    toggleTodasLasEquivalencias(); // se cierra
+    toggleTodasLasEquivalencias(); // se vuelve a abrir, ya refrescada
+  }catch(e){showToast('Error: '+e.message,'err');}
 }
 
 
@@ -3360,8 +3420,11 @@ function toggleModoRankingProductos(){
   renderAnalisis();
 }
 
-function toggleAgrupacionRankingProductos(){
+async function toggleAgrupacionRankingProductos(){
   window._agrupacionRankingProductos = (window._agrupacionRankingProductos==='receta') ? 'nombre' : 'receta';
+  if(window._agrupacionRankingProductos==='receta'){
+    await Promise.all([asegurarMaestroFenCargado(),asegurarEquivalenciasCargadas()]);
+  }
   renderAnalisis();
 }
 
@@ -3373,11 +3436,22 @@ function consolidarPorRecetaFen(obj){
   const resultado={};
   Object.entries(obj).forEach(([nombreProducto,v])=>{
     const prod=DB.productos.find(p=>norm(p['Nombre']||'')===norm(nombreProducto));
-    const idReceta=prod&&prod['ID_receta_fen'];
+    let idReceta=prod&&prod['ID_receta_fen'];
+    // Respaldo: nombres históricos reconciliados con "Guardar equivalencia"
+    // (sin reescribir Detalle Ventas) — sin esto, esas ventas quedaban sueltas
+    // con su nombre viejo en vez de sumarse a la receta correspondiente.
+    let nombreRecetaEquiv=null;
+    if(!idReceta){
+      const equiv=(DB.equivalenciasNombres||[]).find(e=>norm(e['nombre_historico']||'')===norm(nombreProducto));
+      if(equiv&&equiv['ID_receta_fen']){
+        idReceta=equiv['ID_receta_fen'];
+        nombreRecetaEquiv=equiv['nombre_fen'];
+      }
+    }
     let clave=nombreProducto;
     if(idReceta){
       const receta=(DB.maestroRecetasFen||[]).find(r=>r.ID_receta===idReceta);
-      clave='🥐 '+(receta?receta.nombre:idReceta);
+      clave='🥐 '+(receta?receta.nombre:(nombreRecetaEquiv||idReceta));
     }
     if(!resultado[clave])resultado[clave]={cantidad:0,monto:0};
     resultado[clave].cantidad+=v.cantidad;
@@ -3554,8 +3628,11 @@ function renderRankingProductos(ordenes, incluirHistorico){
   renderVentasPorProducto();
 }
 
-function toggleAgrupacionVentasProducto(){
+async function toggleAgrupacionVentasProducto(){
   window._agrupacionVentasProducto = (window._agrupacionVentasProducto==='receta') ? 'nombre' : 'receta';
+  if(window._agrupacionVentasProducto==='receta'){
+    await Promise.all([asegurarMaestroFenCargado(),asegurarEquivalenciasCargadas()]);
+  }
   renderVentasPorProducto();
 }
 
