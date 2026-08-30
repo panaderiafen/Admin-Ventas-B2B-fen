@@ -3206,11 +3206,27 @@ function saldoOrden(o){
 const COBRANZA_CATS=['Diaria','Semanal','Mensual','30dias'];
 const COBRANZA_ETIQUETAS={Diaria:'Diaria',Semanal:'Semanal (sábado)',Mensual:'Fin de mes','30dias':'A 30 días'};
 
+// Suma días a una fecha ISO (YYYY-MM-DD) usando getters locales — nunca
+// toISOString(), para evitar corrimientos de huso horario.
+function sumarDias(fechaISO,dias){
+  const dt=new Date(fechaISO+'T00:00:00');
+  dt.setDate(dt.getDate()+dias);
+  return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+}
+
 function cobranzaAtrasada(frecuencia, fechaOrdenRaw){
   const fechaOrden=parseFecha(fechaOrdenRaw);
   if(!fechaOrden)return false;
   const hoyStr=hoy();
-  if(frecuencia==='Semanal') return fechaOrden<inicioSemana(hoyStr);
+  if(frecuencia==='Semanal'){
+    // "Semanal (sábado)": el cobro es el sábado de la MISMA semana de la
+    // orden — queda atrasada apenas pasa ese sábado, no recién cuando
+    // empieza la semana calendario siguiente (eso dejaba sábado y domingo
+    // sin marcar, aunque el día de cobro ya hubiera pasado).
+    const inicioSemanaOrden=inicioSemana(fechaOrden);
+    const sabadoDeEsaSemana=sumarDias(inicioSemanaOrden,5);
+    return hoyStr>sabadoDeEsaSemana;
+  }
   if(frecuencia==='Mensual') return fechaOrden.slice(0,7)<hoyStr.slice(0,7);
   if(frecuencia==='30dias'){
     const dOrden=new Date(fechaOrden+'T00:00:00');
@@ -3218,8 +3234,10 @@ function cobranzaAtrasada(frecuencia, fechaOrdenRaw){
     const dias=Math.floor((dHoy-dOrden)/86400000);
     return dias>30;
   }
-  // Diaria (o sin definir = Diaria por defecto)
-  return fechaOrden!==hoyStr;
+  // Diaria (o sin definir = Diaria por defecto): el cobro es inmediato, así
+  // que cualquier orden pendiente cuenta desde el mismo día — no tiene
+  // sentido esperar a "mañana" cuando el cliente paga a diario.
+  return true;
 }
 
 function calcularCobranza(){
