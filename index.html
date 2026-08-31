@@ -616,7 +616,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       <label>Notas</label>
       <textarea id="oc-notas" placeholder="Observaciones..."></textarea>
 
-      <button class="btn btn-primary btn-full" style="margin-top:14px;" onclick="generarOrden()">Generar Orden de Compra</button>
+      <button class="btn btn-primary btn-full" id="oc-btn-generar" style="margin-top:14px;" onclick="generarOrden(this)">Generar Orden de Compra</button>
     </div>
   </div>
 
@@ -1848,13 +1848,15 @@ function getLineas(cId){
   return lineas;
 }
 
-async function generarOrden(){
+async function generarOrden(btn){
   const cliente=document.getElementById('oc-cliente').value;
   if(!cliente){showToast('Selecciona un cliente','err');return;}
   const lineas=getLineas('oc-lineas');
   if(!lineas.length){showToast('Agrega al menos un producto','err');return;}
+  if(btn&&btn.disabled)return; // ya se está procesando, ignorar clics extra
   const nOrden=DB.ordenes.length>0?Math.max(...DB.ordenes.map(o=>Number(o['N° Orden'])||0))+1:1;
   const fecha=document.getElementById('oc-fecha').value||hoy();
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
   showToast('Guardando en Google Sheets...','loading');
   try{
     await gsCall('addOrden',{nOrden,fecha,cliente,lineas,condPago:'',notas:document.getElementById('oc-notas').value.trim()});
@@ -1866,7 +1868,11 @@ async function generarOrden(){
     await syncAll();
     initNuevaOrden();
     document.getElementById('oc-cliente').value='';
-  }catch(e){showToast('Error: '+e.message,'err');}
+    if(btn){btn.disabled=false;btn.textContent='Generar Orden de Compra';}
+  }catch(e){
+    showToast('Error: '+e.message,'err');
+    if(btn){btn.disabled=false;btn.textContent='Generar Orden de Compra';}
+  }
 }
 
 // ─── PDF ORDEN DE COMPRA ─────────────────
