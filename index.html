@@ -3418,7 +3418,8 @@ function enPeriodo(fechaStr,periodo){
 function renderDia(){
   const dia=document.getElementById('an-dia')?.value||hoy();
   const cliente=document.getElementById('an-cliente')?.value||'';
-  const todasOrdenes=document.getElementById('an-historico')?.checked
+  const incluirHistorico=document.getElementById('an-historico')?.checked;
+  const todasOrdenes=incluirHistorico
     ? [...DB.ordenes,...DB.historico.ordenes] : DB.ordenes;
   let ordenesDia=todasOrdenes.filter(o=>parseFecha(o['Fecha'])===dia);
   if(cliente)ordenesDia=ordenesDia.filter(o=>o['Cliente']===cliente);
@@ -3428,6 +3429,24 @@ function renderDia(){
   const el=document.getElementById('an-dia-res');
   if(!el)return;
   if(!ordenesDia.length){el.innerHTML='<div class="empty">Sin órdenes en este día</div>';return;}
+
+  // Desglose por producto: cuánto se vendió de cada variedad ESE día puntual
+  // (a diferencia de "Ventas por producto en el periodo", que suma toda la
+  // semana/mes seleccionado, no un día específico).
+  const nordenesSet=new Set(ordenesDia.map(o=>String(o['N° Orden'])));
+  const todosDetalles=incluirHistorico?[...DB.detalles,...DB.historico.detalles]:DB.detalles;
+  const lineasDia=todosDetalles.filter(d=>nordenesSet.has(String(d['N° Orden'])));
+  const porProductoDia={};
+  lineasDia.forEach(l=>{
+    const nom=l['Producto']||'—';
+    if(!porProductoDia[nom])porProductoDia[nom]={cantidad:0,monto:0};
+    porProductoDia[nom].cantidad+=Number(l['Cantidad'])||0;
+    porProductoDia[nom].monto+=Number(l['Neto Total'])||0;
+  });
+  const filasProducto=Object.entries(porProductoDia)
+    .map(([nombre,v])=>({nombre,cantidad:v.cantidad,monto:v.monto}))
+    .sort((a,b)=>b.cantidad-a.cantidad);
+
   el.innerHTML=`<div class="resumen-box">
     <div class="resumen-row"><span>N° de órdenes</span><span>${ordenesDia.length}</span></div>
     <div class="resumen-row total"><span>Total ventas del día</span><span>${fmtCLP(totalDia)}</span></div>
@@ -3435,6 +3454,17 @@ function renderDia(){
   <div class="resumen-box" style="margin-top:10px;">
     <div class="resumen-row"><span>✅ Cobrado</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(cobradoDia)}</span></div>
     <div class="resumen-row total"><span>🕓 Pendiente de cobro</span><span style="color:#e74c3c;">${fmtCLP(pendienteDia)}</span></div>
+  </div>
+  <div style="margin-top:14px;">
+    <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:6px;">📦 Cantidad vendida por producto — ${fechaCorta(dia)}</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Producto</th><th style="text-align:right;">Cantidad</th><th style="text-align:right;">Monto</th></tr></thead>
+      <tbody>${filasProducto.map(f=>`<tr>
+        <td>${f.nombre}</td>
+        <td style="text-align:right;font-weight:700;">${f.cantidad}</td>
+        <td style="text-align:right;color:#1D9E75;">${fmtCLP(f.monto)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>
   </div>`;
 }
 
