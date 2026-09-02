@@ -867,6 +867,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     </div>
     <div id="an-prod-tabla"></div>
   </div>
+  <div class="card">
+    <div class="card-title">💲 Rango de precios por producto</div>
+    <p class="hint" style="margin-top:-4px;">Busca un producto para ver a qué precio más alto y más bajo se vendió en el periodo seleccionado arriba, y a qué cliente — útil para detectar inconsistencias de precio entre clientes.</p>
+    <input type="text" id="an-precio-buscar" placeholder="Buscar producto..." oninput="buscarRangoPrecioProducto()"/>
+    <div id="an-precio-sugerencias" style="margin-top:4px;"></div>
+    <div id="an-precio-resultado" style="margin-top:12px;"></div>
+  </div>
 </div>
 <div id="sec-clientes" class="section">
   <div class="card">
@@ -3751,6 +3758,87 @@ function ordenarVentasPorProducto(col){
     window._ordenVentasProductoDir='desc';
   }
   renderVentasPorProducto();
+}
+
+// ─── RANGO DE PRECIOS POR PRODUCTO ───────
+function buscarRangoPrecioProducto(){
+  const q=norm(document.getElementById('an-precio-buscar').value||'');
+  const cont=document.getElementById('an-precio-sugerencias');
+  if(!q){cont.innerHTML='';document.getElementById('an-precio-resultado').innerHTML='';return;}
+  const nombres=[...new Set(DB.productos.map(p=>p['Nombre']))].filter(n=>norm(n).includes(q)).slice(0,8);
+  if(!nombres.length){cont.innerHTML='<div class="hint">Sin resultados</div>';return;}
+  cont.innerHTML=nombres.map(n=>
+    `<div style="cursor:pointer;padding:4px 6px;font-size:12.5px;border-radius:6px;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background='transparent'" onclick="mostrarRangoPrecioProducto('${n.replace(/'/g,"\\'")}')">${n}</div>`
+  ).join('');
+}
+
+function mostrarRangoPrecioProducto(nombreProducto){
+  document.getElementById('an-precio-buscar').value=nombreProducto;
+  document.getElementById('an-precio-sugerencias').innerHTML='';
+  const cont=document.getElementById('an-precio-resultado');
+
+  // Reutiliza el mismo periodo/cliente/histórico ya seleccionado arriba en Análisis
+  const periodo=document.getElementById('an-periodo')?.value||'todo';
+  const cliente=document.getElementById('an-cliente')?.value||'';
+  const incluirHistorico=document.getElementById('an-historico')?.checked;
+  const todasOrdenes=incluirHistorico?[...DB.ordenes,...DB.historico.ordenes]:DB.ordenes;
+  let ordenes=todasOrdenes.filter(o=>enPeriodo(o['Fecha'],periodo));
+  if(cliente)ordenes=ordenes.filter(o=>o['Cliente']===cliente);
+  const nordenesSet=new Set(ordenes.map(o=>String(o['N° Orden'])));
+  const fechaPorOrden={},clientePorOrden={};
+  ordenes.forEach(o=>{
+    fechaPorOrden[String(o['N° Orden'])]=o['Fecha'];
+    clientePorOrden[String(o['N° Orden'])]=o['Cliente'];
+  });
+
+  const todosDetalles=incluirHistorico?[...DB.detalles,...DB.historico.detalles]:DB.detalles;
+  const lineas=todosDetalles.filter(d=>nordenesSet.has(String(d['N° Orden']))&&norm(d['Producto']||'')===norm(nombreProducto));
+
+  if(!lineas.length){cont.innerHTML='<div class="empty">Sin ventas de este producto en el periodo seleccionado.</div>';return;}
+
+  const conPrecio=lineas.map(l=>({
+    precio:Number(l['Precio Neto Unit.'])||0,
+    cantidad:Number(l['Cantidad'])||0,
+    nOrden:l['N° Orden'],
+    cliente:clientePorOrden[String(l['N° Orden'])]||'—',
+    fecha:fechaPorOrden[String(l['N° Orden'])]||l['Fecha']
+  }));
+
+  const max=conPrecio.reduce((a,b)=>b.precio>a.precio?b:a);
+  const min=conPrecio.reduce((a,b)=>b.precio<a.precio?b:a);
+
+  // Todos los precios distintos vendidos, para dar contexto completo (no solo extremos)
+  const porPrecio={};
+  conPrecio.forEach(l=>{
+    if(!porPrecio[l.precio])porPrecio[l.precio]={clientes:new Set(),cantidadTotal:0};
+    porPrecio[l.precio].clientes.add(l.cliente);
+    porPrecio[l.precio].cantidadTotal+=l.cantidad;
+  });
+  const preciosOrdenados=Object.keys(porPrecio).map(Number).sort((a,b)=>b-a);
+
+  cont.innerHTML=`
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <div style="flex:1;min-width:150px;background:#f0fdf4;border-radius:8px;padding:10px;">
+        <div style="font-size:11px;color:#1D9E75;font-weight:700;">💰 MÁS CARO</div>
+        <div style="font-size:18px;font-weight:700;color:#1D9E75;">${fmtCLP(max.precio)}</div>
+        <div style="font-size:12px;color:#555;">${max.cliente} — ${fechaCorta(max.fecha)} — N°${max.nOrden}</div>
+      </div>
+      <div style="flex:1;min-width:150px;background:#fff3f0;border-radius:8px;padding:10px;">
+        <div style="font-size:11px;color:#c0392b;font-weight:700;">🔻 MÁS BARATO</div>
+        <div style="font-size:18px;font-weight:700;color:#c0392b;">${fmtCLP(min.precio)}</div>
+        <div style="font-size:12px;color:#555;">${min.cliente} — ${fechaCorta(min.fecha)} — N°${min.nOrden}</div>
+      </div>
+    </div>
+    ${preciosOrdenados.length>1?`
+    <div style="font-size:11px;font-weight:700;color:#555;margin-bottom:6px;">Todos los precios distintos vendidos en el periodo:</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Precio</th><th>Cliente(s)</th><th style="text-align:right;">Cant. total</th></tr></thead>
+      <tbody>${preciosOrdenados.map(p=>`<tr>
+        <td style="font-weight:700;">${fmtCLP(p)}</td>
+        <td style="font-size:12px;">${[...porPrecio[p].clientes].join(', ')}</td>
+        <td style="text-align:right;">${porPrecio[p].cantidadTotal}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`:`<p class="hint">Solo se vendió a un único precio en este periodo.</p>`}`;
 }
 
 function renderAnalisis(mostrarTodoDetalle){
