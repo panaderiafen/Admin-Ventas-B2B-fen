@@ -1143,9 +1143,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <input type="hidden" id="np-area-fen"/>
     <label>Nombre</label><input type="text" id="np-nom"/>
     <label>Precio Base</label><input type="number" id="np-precio" placeholder="0"/>
-    <label>Categoría</label><input type="text" id="np-cat" placeholder="PANADERÍA, BOLLERÍA..."/>
+    <label>Categoría</label>
+    <select id="np-cat-select" onchange="onCategoriaSelectChange('np')"></select>
+    <input type="text" id="np-cat" placeholder="Nueva categoría..." style="display:none;margin-top:6px;"/>
     <div class="modal-btns">
-      <button class="btn btn-primary" style="flex:1;" onclick="guardarProducto()">Guardar en Sheets</button>
+      <button class="btn btn-primary" style="flex:1;" onclick="guardarProducto(this)">Guardar en Sheets</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-prod')">Cancelar</button>
     </div>
   </div>
@@ -1160,7 +1162,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <label>Nombre</label><input type="text" id="ep-nom"/>
     <p class="hint" style="margin-top:-2px;">Si cambias el nombre, las ventas ya registradas con el nombre anterior <strong>no se actualizan solas</strong> — quedan como estaban (mismo criterio que ya usa toda la app). Usa la reconciliación histórica en Config si necesitas unificarlas.</p>
     <label>Precio Base</label><input type="number" id="ep-precio" placeholder="0"/>
-    <label>Categoría</label><input type="text" id="ep-cat" placeholder="PANADERÍA, BOLLERÍA..."/>
+    <label>Categoría</label>
+    <select id="ep-cat-select" onchange="onCategoriaSelectChange('ep')"></select>
+    <input type="text" id="ep-cat" placeholder="Nueva categoría..." style="display:none;margin-top:6px;"/>
     <label>Vínculo con fën-producción</label>
     <div id="ep-vinculo" style="background:#f7f9fc;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:4px;"></div>
     <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="cambiarVinculoDesdeEdicion()">🥐 Cambiar vínculo</button>
@@ -4725,6 +4729,7 @@ function renderProductos(){
 function abrirNuevoProducto(){
   ['np-nom','np-precio','np-cat','np-id-receta','np-area-fen'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('np-aviso-receta').classList.add('hidden');
+  poblarSelectCategoria('np','');
   openModal('modal-prod');
 }
 
@@ -4737,20 +4742,25 @@ function abrirNuevoProductoDesdeReceta(idReceta){
   document.getElementById('np-id-receta').value=receta.ID_receta;
   document.getElementById('np-area-fen').value=receta.area||'';
   document.getElementById('np-aviso-receta').classList.remove('hidden');
+  poblarSelectCategoria('np','');
   openModal('modal-prod');
 }
 
-async function guardarProducto(){
+async function guardarProducto(btn){
   const nom=document.getElementById('np-nom').value.trim();
   if(!nom){showToast('Ingresa el nombre','err');return;}
+  if(btn&&btn.disabled)return; // ya se está procesando, ignorar clics extra
+  const yaExiste=DB.productos.some(p=>norm(p['Nombre'])===norm(nom));
+  if(yaExiste){showToast('Ya existe un producto con ese nombre — usa "Editar producto" en vez de crear uno nuevo.','err');return;}
   const idReceta=document.getElementById('np-id-receta').value;
   const areaFen=document.getElementById('np-area-fen').value;
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
   showToast('Guardando producto en Sheets...','loading');
   try{
     await gsCall('addProducto',{
       nombre:nom,
       precio:parseFloat(document.getElementById('np-precio').value)||0,
-      categoria:document.getElementById('np-cat').value.trim()
+      categoria:valorCategoriaSeleccionada('np')
     });
     // Si el producto se creó desde una receta de fën, lo vinculamos de una vez
     // (mismo mecanismo que el picker de la sección Productos).
@@ -4763,7 +4773,10 @@ async function guardarProducto(){
     ['np-nom','np-precio','np-cat','np-id-receta','np-area-fen'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('np-aviso-receta').classList.add('hidden');
     if(typeof renderRecetasSinProductoB2B==='function')renderRecetasSinProductoB2B();
-  }catch(e){showToast('Error: '+e.message,'err');}
+  }catch(e){showToast('Error: '+e.message,'err');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Guardar en Sheets';}
+  }
 }
 
 // ─── EDITAR PRODUCTO ──────────────────────
@@ -4773,7 +4786,7 @@ function abrirEditarProducto(nombreActual){
   document.getElementById('ep-nombre-actual').value=nombreActual;
   document.getElementById('ep-nom').value=p['Nombre']||'';
   document.getElementById('ep-precio').value=p['Precio Base']||'';
-  document.getElementById('ep-cat').value=p['Categoría']||'';
+  poblarSelectCategoria('ep',p['Categoría']||'');
   const idReceta=p['ID_receta_fen'];
   const areaFen=p['Área (fën)'];
   const vinculoDiv=document.getElementById('ep-vinculo');
@@ -4789,6 +4802,45 @@ function cambiarVinculoDesdeEdicion(){
   abrirVincularFen(nombreActual);
 }
 
+// ─── SELECT DE CATEGORÍA (con opción de escribir una nueva) ──
+function categoriasExistentes(){
+  return [...new Set(DB.productos.map(p=>String(p['Categoría']||'').trim()).filter(Boolean))].sort();
+}
+function poblarSelectCategoria(prefijo,valorActual){
+  const sel=document.getElementById(prefijo+'-cat-select');
+  const input=document.getElementById(prefijo+'-cat');
+  const cats=categoriasExistentes();
+  const opciones=['<option value="">Sin categoría</option>']
+    .concat(cats.map(c=>`<option value="${c.replace(/"/g,'&quot;')}">${c}</option>`))
+    .concat(['<option value="__nueva__">➕ Nueva categoría...</option>']);
+  sel.innerHTML=opciones.join('');
+  if(valorActual&&cats.includes(valorActual)){
+    sel.value=valorActual;
+    input.style.display='none';input.value='';
+  }else if(valorActual){
+    // Categoría que ya no está entre las existentes (caso raro) — la mostramos como texto libre
+    sel.value='__nueva__';
+    input.style.display='block';input.value=valorActual;
+  }else{
+    sel.value='';
+    input.style.display='none';input.value='';
+  }
+}
+function onCategoriaSelectChange(prefijo){
+  const sel=document.getElementById(prefijo+'-cat-select');
+  const input=document.getElementById(prefijo+'-cat');
+  if(sel.value==='__nueva__'){
+    input.style.display='block';input.value='';input.focus();
+  }else{
+    input.style.display='none';input.value='';
+  }
+}
+function valorCategoriaSeleccionada(prefijo){
+  const sel=document.getElementById(prefijo+'-cat-select');
+  if(sel.value==='__nueva__')return document.getElementById(prefijo+'-cat').value.trim();
+  return sel.value;
+}
+
 async function guardarEdicionProducto(){
   const nombreActual=document.getElementById('ep-nombre-actual').value;
   const nombreNuevo=document.getElementById('ep-nom').value.trim();
@@ -4799,7 +4851,7 @@ async function guardarEdicionProducto(){
       nombreActual,
       nombreNuevo,
       precio:parseFloat(document.getElementById('ep-precio').value)||0,
-      categoria:document.getElementById('ep-cat').value.trim()
+      categoria:valorCategoriaSeleccionada('ep')
     });
     closeModal('modal-editar-producto');
     await syncAll();
