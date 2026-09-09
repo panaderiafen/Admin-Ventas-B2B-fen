@@ -979,6 +979,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <p style="font-size:11px;color:#999;margin-top:12px;">Después de generarla por primera vez, hay un paso manual único: en Google Sheets, ve a la pestaña "VentasMensualesFenB2B" → Archivo → Compartir → Publicar en la web → selecciona esa pestaña, formato CSV. Ese paso no se puede automatizar desde acá, pero solo hace falta hacerlo una vez — después el link publicado se actualiza solo cada vez que generes de nuevo.</p>
   </div>
   <div class="card">
+    <div class="card-title">✅ Total neto mensual (fuente de verdad)</div>
+    <p style="font-size:13px;color:#555;margin-bottom:12px;">Genera una pestaña con un solo número por mes: el Total Neto real de todas las órdenes de ese mes, tal cual está en B2B — sin depender de qué productos estén vinculados a una receta de fën. Sirve para que fën-producción verifique que la suma de "Ventas mensuales por receta" efectivamente cuadra con el total real.</p>
+    <button class="btn btn-secondary" onclick="sincronizarVentasMensualesTotalB2B()">📤 Generar / actualizar</button>
+    <div id="ventastotal-res" style="margin-top:12px;"></div>
+    <p style="font-size:11px;color:#999;margin-top:12px;">Mismo paso manual único de publicar como CSV, esta vez sobre la pestaña "VentasMensualesTotalB2B".</p>
+  </div>
+  <div class="card">
+    <div class="card-title">💰 Cobros mensuales (flujo de caja)</div>
+    <p style="font-size:13px;color:#555;margin-bottom:12px;">Genera una pestaña con el monto realmente cobrado cada mes — usando la fecha efectiva de cada pago (abonos parciales con su propia fecha, o el pago completo cuando aplica), no la fecha de venta ni de factura. Pensado para proyectar flujo de caja real.</p>
+    <button class="btn btn-secondary" onclick="sincronizarCobrosMensualesB2B()">📤 Generar / actualizar</button>
+    <div id="cobrosmensuales-res" style="margin-top:12px;"></div>
+    <p style="font-size:11px;color:#999;margin-top:12px;">Mismo paso manual único de publicar como CSV, esta vez sobre la pestaña "CobrosMensualesB2B".</p>
+  </div>
+  <div class="card">
     <div class="card-title">🔗 Reconciliación de nombres históricos</div>
     <p style="font-size:13px;color:#555;margin-bottom:12px;">Revisa un cliente y un mes a la vez para emparejar nombres de productos antiguos con la receta vigente de fën. Nunca se toca el histórico en bloque — cada cambio es puntual, acotado a ese cliente+mes, y con vista previa antes de aplicar.</p>
     <div style="background:#fff3cd;border-radius:8px;padding:10px 12px;font-size:12px;color:#856404;margin-bottom:14px;">
@@ -1764,6 +1778,38 @@ async function sincronizarVentasMensualesFen(){
         res.avisoHuerfanas.map(h=>`— "${h.producto}": ${h.filas} línea(s), ${fmtCLP(h.monto)}, meses: ${h.meses.join(', ')}`).join('<br>')+`</div>`;
     }
     cont.innerHTML=html;
+    showToast('✅ Listo','success');
+  }catch(e){
+    cont.innerHTML=`<p class="hint error">⚠️ Error: ${e.message}</p>`;
+    showToast('Error: '+e.message,'err');
+  }
+}
+
+// ─── TOTAL NETO MENSUAL (fuente de verdad) ───
+async function sincronizarVentasMensualesTotalB2B(){
+  const cont=document.getElementById('ventastotal-res');
+  cont.innerHTML='<div class="hint">Generando...</div>';
+  showToast('Generando total neto mensual...','loading');
+  try{
+    const res=await gsCall('generarVentasMensualesTotalB2B');
+    if(res.error){cont.innerHTML=`<p class="hint error">⚠️ ${res.error}</p>`;showToast('Error','err');return;}
+    cont.innerHTML=`<div class="hint ok">✅ ${res.filasEscritas} mes(es) escritos en la pestaña "VentasMensualesTotalB2B".</div>`;
+    showToast('✅ Listo','success');
+  }catch(e){
+    cont.innerHTML=`<p class="hint error">⚠️ Error: ${e.message}</p>`;
+    showToast('Error: '+e.message,'err');
+  }
+}
+
+// ─── COBROS MENSUALES (flujo de caja) ───
+async function sincronizarCobrosMensualesB2B(){
+  const cont=document.getElementById('cobrosmensuales-res');
+  cont.innerHTML='<div class="hint">Generando...</div>';
+  showToast('Generando cobros mensuales...','loading');
+  try{
+    const res=await gsCall('generarCobrosMensualesB2B');
+    if(res.error){cont.innerHTML=`<p class="hint error">⚠️ ${res.error}</p>`;showToast('Error','err');return;}
+    cont.innerHTML=`<div class="hint ok">✅ ${res.filasEscritas} mes(es) escritos en la pestaña "CobrosMensualesB2B".</div>`;
     showToast('✅ Listo','success');
   }catch(e){
     cont.innerHTML=`<p class="hint error">⚠️ Error: ${e.message}</p>`;
