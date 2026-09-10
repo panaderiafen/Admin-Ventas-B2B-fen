@@ -3991,8 +3991,22 @@ function renderAnalisis(mostrarTodoDetalle){
       <div class="resumen-row" style="font-size:13px;border-top:1px solid #ddd;margin-top:5px;padding-top:7px;"><span style="font-weight:700;">Pendiente de cobro</span><span style="color:#e74c3c;font-weight:700;">${fmtCLP(totalPendiente)}</span></div>
     </div>`;
 
-  // ─── CAJA REAL DEL PERIODO (según Fecha Pago, no Fecha de venta) ───
-  let ordenesPagadas=todasOrdenes.filter(o=>o['Fecha Pago']&&parseFecha(o['Fecha Pago'])&&enPeriodo(o['Fecha Pago'],periodo));
+  // ─── CAJA REAL DEL PERIODO (según fecha real de cada pago) ───
+  // Cualquier folio con AL MENOS UN abono registrado (en cualquier momento,
+  // sin importar el mes) se cuenta siempre a través de sus abonos, cada uno
+  // en su propia fecha — nunca por "Fecha Pago". Antes se decidía esto según
+  // si el folio estaba PAGADO *hoy*, lo que hacía desaparecer pagos reales de
+  // folios que se completaron recién en un mes posterior (ej. un abono en
+  // agosto de un folio que terminó de pagarse en septiembre).
+  const foliosConAbono=new Set(
+    (DB.abonos||[]).map(a=>String(a['Folio SII']||'').trim()).filter(Boolean)
+  );
+
+  let ordenesPagadas=todasOrdenes.filter(o=>{
+    const folio=String(o['Folio SII']||'').trim();
+    if(folio&&foliosConAbono.has(folio))return false; // se cuenta vía abonos, no acá
+    return o['Fecha Pago']&&parseFecha(o['Fecha Pago'])&&enPeriodo(o['Fecha Pago'],periodo);
+  });
   if(cliente)ordenesPagadas=ordenesPagadas.filter(o=>o['Cliente']===cliente);
 
   let cajaEnMes=0,cajaVencida=0;
@@ -4014,13 +4028,8 @@ function renderAnalisis(mostrarTodoDetalle){
     }
   });
 
-  // Abonos parciales dentro del periodo, de folios que TODAVÍA no llegan a
-  // PAGADO — si ya llegaron a PAGADO, ese folio ya quedó contado arriba por
-  // su Fecha Pago completa, y sumarlo de nuevo acá sería doble conteo.
-  const foliosPagados=new Set(
-    todasOrdenes.filter(o=>String(o['Estado Pago']||'').toUpperCase().includes('PAGADO'))
-      .map(o=>String(o['Folio SII']||'').trim()).filter(Boolean)
-  );
+  // Todos los abonos del periodo, de folios con abono (completados o no) —
+  // cada uno con su propia fecha real, sin importar el estado actual del folio.
   const clientePorFolio={};
   todasOrdenes.forEach(o=>{
     const f=String(o['Folio SII']||'').trim();
@@ -4030,7 +4039,7 @@ function renderAnalisis(mostrarTodoDetalle){
   const abonosParcialesDetalle=[];
   (DB.abonos||[]).forEach(a=>{
     const folio=String(a['Folio SII']||'').trim();
-    if(!folio||foliosPagados.has(folio))return;
+    if(!folio)return;
     const fechaAbono=parseFecha(a['Fecha']);
     if(!fechaAbono||!enPeriodo(fechaAbono,periodo))return;
     if(cliente&&clientePorFolio[folio]!==cliente)return;
@@ -4050,7 +4059,7 @@ function renderAnalisis(mostrarTodoDetalle){
       let html=`<div class="resumen-box">
         <div class="resumen-row"><span>✅ Cobro del periodo (venta y pago mismo mes)</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(cajaEnMes)}</span></div>
         <div class="resumen-row"><span>⚠️ Cobro de periodo anterior</span><span style="color:#c08a00;font-weight:700;">${fmtCLP(cajaVencida)}</span></div>
-        <div class="resumen-row"><span>🔸 Abonos parciales (folios aún no saldados)</span><span style="color:#8a5c00;font-weight:700;">${fmtCLP(cajaAbonosParciales)}</span></div>
+        <div class="resumen-row"><span>🔸 Pagos vía abono (cada uno en su fecha real)</span><span style="color:#8a5c00;font-weight:700;">${fmtCLP(cajaAbonosParciales)}</span></div>
         <div class="resumen-row total"><span>Total ingresado en el periodo</span><span>${fmtCLP(totalCaja)}</span></div>
       </div>`;
       if(abonosParcialesDetalle.length){
