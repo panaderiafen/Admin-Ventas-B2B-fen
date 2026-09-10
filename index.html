@@ -993,6 +993,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <p style="font-size:11px;color:#999;margin-top:12px;">Mismo paso manual único de publicar como CSV, esta vez sobre la pestaña "CobrosMensualesB2B".</p>
   </div>
   <div class="card">
+    <div class="card-title">🔍 Diagnóstico de cobros de un mes</div>
+    <p style="font-size:13px;color:#555;margin-bottom:12px;">Muestra línea por línea qué abonos y qué órdenes está sumando "Cobros mensuales" para el mes que elijas — útil para comparar contra la tarjeta "Caja real del periodo" de Análisis y encontrar diferencias puntuales.</p>
+    <label>Mes</label>
+    <input type="month" id="diag-cobros-mes"/>
+    <button class="btn btn-secondary" style="margin-top:10px;" onclick="verDiagnosticoCobrosMes()">🔍 Ver detalle</button>
+    <div id="diag-cobros-res" style="margin-top:12px;"></div>
+  </div>
+  <div class="card">
     <div class="card-title">🔗 Reconciliación de nombres históricos</div>
     <p style="font-size:13px;color:#555;margin-bottom:12px;">Revisa un cliente y un mes a la vez para emparejar nombres de productos antiguos con la receta vigente de fën. Nunca se toca el histórico en bloque — cada cambio es puntual, acotado a ese cliente+mes, y con vista previa antes de aplicar.</p>
     <div style="background:#fff3cd;border-radius:8px;padding:10px 12px;font-size:12px;color:#856404;margin-bottom:14px;">
@@ -1810,6 +1818,41 @@ async function sincronizarCobrosMensualesB2B(){
     const res=await gsCall('generarCobrosMensualesB2B');
     if(res.error){cont.innerHTML=`<p class="hint error">⚠️ ${res.error}</p>`;showToast('Error','err');return;}
     cont.innerHTML=`<div class="hint ok">✅ ${res.filasEscritas} mes(es) escritos en la pestaña "CobrosMensualesB2B".</div>`;
+    showToast('✅ Listo','success');
+  }catch(e){
+    cont.innerHTML=`<p class="hint error">⚠️ Error: ${e.message}</p>`;
+    showToast('Error: '+e.message,'err');
+  }
+}
+
+async function verDiagnosticoCobrosMes(){
+  const mes=document.getElementById('diag-cobros-mes').value;
+  if(!mes){showToast('Elige un mes','err');return;}
+  const cont=document.getElementById('diag-cobros-res');
+  cont.innerHTML='<div class="hint">Consultando...</div>';
+  showToast('Consultando...','loading');
+  try{
+    const res=await gsCall('diagnosticoCobrosMes',{mes});
+    if(res.error){cont.innerHTML=`<p class="hint error">⚠️ ${res.error}</p>`;showToast('Error','err');return;}
+    let html=`<div class="resumen-box">
+      <div class="resumen-row"><span>Vía abonos</span><span style="font-weight:700;">${fmtCLP(res.totalAbonos)}</span></div>
+      <div class="resumen-row"><span>Vía pago directo (Fecha Pago)</span><span style="font-weight:700;">${fmtCLP(res.totalDirectas)}</span></div>
+      <div class="resumen-row total"><span>Total del mes</span><span>${fmtCLP(res.totalGeneral)}</span></div>
+    </div>`;
+
+    html+=`<div style="font-size:11px;font-weight:800;color:#003a79;margin:14px 0 6px;">ABONOS CONTADOS (${res.abonos.length})</div>`;
+    html+=res.abonos.length?`<div class="table-wrap"><table>
+      <thead><tr><th>Folio</th><th>Fecha</th><th style="text-align:right;">Monto</th></tr></thead>
+      <tbody>${res.abonos.map(a=>`<tr><td>${a.folio}</td><td>${fechaCorta(a.fecha)}</td><td style="text-align:right;">${fmtCLP(a.monto)}</td></tr>`).join('')}</tbody>
+    </table></div>`:'<div class="empty">Ninguno</div>';
+
+    html+=`<div style="font-size:11px;font-weight:800;color:#003a79;margin:14px 0 6px;">ÓRDENES PAGADAS DIRECTAS CONTADAS (${res.ordenesDirectas.length})</div>`;
+    html+=res.ordenesDirectas.length?`<div class="table-wrap"><table>
+      <thead><tr><th>N° Orden</th><th>Folio</th><th>Cliente</th><th>Fecha Pago</th><th style="text-align:right;">Total</th><th>Hoja</th></tr></thead>
+      <tbody>${res.ordenesDirectas.map(o=>`<tr><td>${o.nOrden}</td><td>${o.folio||'—'}</td><td>${o.cliente||'—'}</td><td>${fechaCorta(o.fechaPago)}</td><td style="text-align:right;">${fmtCLP(o.total)}</td><td style="font-size:10px;color:#999;">${o.hoja}</td></tr>`).join('')}</tbody>
+    </table></div>`:'<div class="empty">Ninguna</div>';
+
+    cont.innerHTML=html;
     showToast('✅ Listo','success');
   }catch(e){
     cont.innerHTML=`<p class="hint error">⚠️ Error: ${e.message}</p>`;
