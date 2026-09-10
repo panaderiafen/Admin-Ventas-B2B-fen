@@ -4013,19 +4013,53 @@ function renderAnalisis(mostrarTodoDetalle){
       vencidoPorMesOrigen[mesVenta].ordenes.push(o);
     }
   });
-  const totalCaja=cajaEnMes+cajaVencida;
+
+  // Abonos parciales dentro del periodo, de folios que TODAVÍA no llegan a
+  // PAGADO — si ya llegaron a PAGADO, ese folio ya quedó contado arriba por
+  // su Fecha Pago completa, y sumarlo de nuevo acá sería doble conteo.
+  const foliosPagados=new Set(
+    todasOrdenes.filter(o=>String(o['Estado Pago']||'').toUpperCase().includes('PAGADO'))
+      .map(o=>String(o['Folio SII']||'').trim()).filter(Boolean)
+  );
+  const clientePorFolio={};
+  todasOrdenes.forEach(o=>{
+    const f=String(o['Folio SII']||'').trim();
+    if(f)clientePorFolio[f]=o['Cliente'];
+  });
+  let cajaAbonosParciales=0;
+  const abonosParcialesDetalle=[];
+  (DB.abonos||[]).forEach(a=>{
+    const folio=String(a['Folio SII']||'').trim();
+    if(!folio||foliosPagados.has(folio))return;
+    const fechaAbono=parseFecha(a['Fecha']);
+    if(!fechaAbono||!enPeriodo(fechaAbono,periodo))return;
+    if(cliente&&clientePorFolio[folio]!==cliente)return;
+    const monto=Number(a['Monto'])||0;
+    cajaAbonosParciales+=monto;
+    abonosParcialesDetalle.push({folio,fecha:fechaAbono,monto,cliente:clientePorFolio[folio]||'—'});
+  });
+
+  const totalCaja=cajaEnMes+cajaVencida+cajaAbonosParciales;
   const gruposVencido=Object.keys(vencidoPorMesOrigen).sort().reverse().map(k=>vencidoPorMesOrigen[k]);
 
   const cajaEl=document.getElementById('an-caja');
   if(cajaEl){
-    if(!ordenesPagadas.length){
+    if(!ordenesPagadas.length&&!abonosParcialesDetalle.length){
       cajaEl.innerHTML='<div class="empty">Sin pagos recibidos en este periodo</div>';
     }else{
       let html=`<div class="resumen-box">
         <div class="resumen-row"><span>✅ Cobro del periodo (venta y pago mismo mes)</span><span style="color:#1D9E75;font-weight:700;">${fmtCLP(cajaEnMes)}</span></div>
         <div class="resumen-row"><span>⚠️ Cobro de periodo anterior</span><span style="color:#c08a00;font-weight:700;">${fmtCLP(cajaVencida)}</span></div>
+        <div class="resumen-row"><span>🔸 Abonos parciales (folios aún no saldados)</span><span style="color:#8a5c00;font-weight:700;">${fmtCLP(cajaAbonosParciales)}</span></div>
         <div class="resumen-row total"><span>Total ingresado en el periodo</span><span>${fmtCLP(totalCaja)}</span></div>
       </div>`;
+      if(abonosParcialesDetalle.length){
+        html+=`<details style="margin-top:12px;">
+          <summary style="cursor:pointer;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;padding:4px 0;">Detalle de abonos parciales</summary>
+          <div style="margin-top:6px;">`+
+          abonosParcialesDetalle.map(a=>`<div class="oi-row"><span class="oi-label">${fechaCorta(a.fecha)} — Folio ${a.folio} — ${a.cliente}</span><span class="oi-value">${fmtCLP(a.monto)}</span></div>`).join('')+
+          `</div></details>`;
+      }
       if(gruposVencido.length){
         html+=`<details style="margin-top:12px;">
           <summary style="cursor:pointer;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;padding:4px 0;">Origen del cobro de periodos anteriores</summary>
