@@ -1388,12 +1388,12 @@ async function cargarEstadisticas() {
       const borderColor = ok ? '#1D9E75' : '#ffc107';
       let detalle = '';
       if (!ok) {
-        if (data.soloEnDetalle.length) detalle += `<div style="font-size:11px;color:#856404;margin-top:4px;">En Detalle pero no en Resumen: ${data.soloEnDetalle.slice(0,5).join(', ')}${data.soloEnDetalle.length>5?' ...':''}</div>`;
-        if (data.soloEnResumen.length) detalle += `<div style="font-size:11px;color:#856404;margin-top:2px;">En Resumen pero no en Detalle: ${data.soloEnResumen.slice(0,5).join(', ')}${data.soloEnResumen.length>5?' ...':''}</div>`;
+        if (data.soloEnDetalle.length) detalle += `<div style="font-size:11px;color:#856404;margin-top:4px;">N° de orden con líneas en Detalle pero SIN fila en Resumen: ${data.soloEnDetalle.map(n=>'N°'+n).slice(0,5).join(', ')}${data.soloEnDetalle.length>5?' ...':''}</div>`;
+        if (data.soloEnResumen.length) detalle += `<div style="font-size:11px;color:#856404;margin-top:2px;">N° de orden con fila en Resumen pero SIN líneas en Detalle: ${data.soloEnResumen.map(n=>'N°'+n).slice(0,5).join(', ')}${data.soloEnResumen.length>5?' ...':''}</div>`;
       }
       return `<div style="background:${bgColor};border:1px solid ${borderColor};border-radius:8px;padding:10px 12px;margin-bottom:8px;">
         <div style="font-size:12px;font-weight:700;color:#003a79;margin-bottom:4px;">${titulo} ${icono}</div>
-        <div style="font-size:13px;color:#333;">Resumen: <strong>${data.resumen}</strong> órdenes &nbsp;·&nbsp; Detalle: <strong>${data.detalle}</strong> filas</div>
+        <div style="font-size:13px;color:#333;">Resumen: <strong>${data.resumen}</strong> órdenes &nbsp;·&nbsp; Detalle: <strong>${data.detalle}</strong> órdenes distintas con líneas</div>
         ${ok ? '' : detalle}
       </div>`;
     }
@@ -1995,7 +1995,13 @@ async function generarOrden(btn){
     document.getElementById('oc-cliente').value='';
     if(btn){btn.disabled=false;btn.textContent='Generar Orden de Venta';}
   }catch(e){
-    showToast('Error: '+e.message,'err');
+    // Guardado de una orden = acción crítica. Un toast que desaparece solo
+    // no es suficiente acá — si se avisa mal, se puede terminar enviando al
+    // cliente un PDF de una orden que en realidad no quedó bien guardada.
+    // Por eso esto se corta con un aviso bloqueante que hay que cerrar a mano,
+    // y el formulario NO se limpia (para no perder lo que se estaba cargando).
+    showToast('❌ No se guardó la orden','err',6000);
+    alert('⚠️ La orden NO se guardó correctamente.\n\nNo se generó el PDF — no lo envíes al cliente.\n\nDetalle: '+e.message+'\n\nRevisa e intenta de nuevo.');
     if(btn){btn.disabled=false;btn.textContent='Generar Orden de Venta';}
   }
 }
@@ -4312,10 +4318,11 @@ async function confirmarPagoRapido() {
   const btn = document.getElementById('btn-pr-confirmar');
   btn.disabled = true; btn.textContent = '⏳ Guardando...';
   try {
-    await gsCall('registrarPago', { nOrden, fechaPago: estado === 'PENDIENTE' ? '' : fechaPago, estado });
+    const resPago = await gsCall('registrarPago', { nOrden, fechaPago: estado === 'PENDIENTE' ? '' : fechaPago, estado });
     await syncAll();
     showToast('✅ Pago registrado', 'success');
     closeModal('modal-pago-rapido');
+    if(resPago && resPago.advertencia) alert('⚠️ '+resPago.advertencia);
   } catch(e) { showToast('Error: ' + e.message, 'err'); }
   finally { btn.disabled = false; btn.textContent = 'Confirmar pago'; }
 }
@@ -4331,15 +4338,17 @@ async function registrarPago(){
   const fechaFinal=estado==='PENDIENTE'?(fechaPago||''):fechaPago;
   showToast('Registrando en Sheets...','loading');
   try{
+    let resPago;
     if(nordenes.length===1){
-      await gsCall('registrarPago',{nOrden:nordenes[0],fechaPago:fechaFinal,estado});
+      resPago=await gsCall('registrarPago',{nOrden:nordenes[0],fechaPago:fechaFinal,estado});
     }else{
-      await gsCall('registrarPago',{nordenes,fechaPago:fechaFinal,estado});
+      resPago=await gsCall('registrarPago',{nordenes,fechaPago:fechaFinal,estado});
     }
     await syncAll();
     showToast(estado==='PENDIENTE'?'✅ Orden(es) vueltas a PENDIENTE':`✅ Pago registrado (${nordenes.length} orden${nordenes.length>1?'es':''})`, 'success');
     ['pg-buscar','pg-ref','pg-fecha'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('pg-estado').value='';
+    if(resPago && resPago.advertencia) alert('⚠️ '+resPago.advertencia);
     document.getElementById('pg-key').value='';
     document.getElementById('pg-res').textContent='';
   }catch(e){showToast('Error: '+e.message,'err');}
