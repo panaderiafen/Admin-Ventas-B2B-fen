@@ -590,7 +590,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
   <div id="ord-nueva">
     <div class="card">
-      <div class="card-title">📋 Nueva Orden de Compra</div>
+      <div class="card-title">📋 Nueva Orden de Venta</div>
 
       <label>Fecha de entrega</label>
       <input type="date" id="oc-fecha"/>
@@ -616,7 +616,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       <label>Notas</label>
       <textarea id="oc-notas" placeholder="Observaciones..."></textarea>
 
-      <button class="btn btn-primary btn-full" id="oc-btn-generar" style="margin-top:14px;" onclick="generarOrden(this)">Generar Orden de Compra</button>
+      <button class="btn btn-primary btn-full" id="oc-btn-generar" style="margin-top:14px;" onclick="generarOrden(this)">Generar Orden de Venta</button>
     </div>
   </div>
 
@@ -1993,14 +1993,14 @@ async function generarOrden(btn){
     await syncAll();
     initNuevaOrden();
     document.getElementById('oc-cliente').value='';
-    if(btn){btn.disabled=false;btn.textContent='Generar Orden de Compra';}
+    if(btn){btn.disabled=false;btn.textContent='Generar Orden de Venta';}
   }catch(e){
     showToast('Error: '+e.message,'err');
-    if(btn){btn.disabled=false;btn.textContent='Generar Orden de Compra';}
+    if(btn){btn.disabled=false;btn.textContent='Generar Orden de Venta';}
   }
 }
 
-// ─── PDF ORDEN DE COMPRA ─────────────────
+// ─── PDF ORDEN DE VENTA ─────────────────
 function generarPDFOrden(nOrden,fecha,cliData,lineas,sub,notas,cambiosOriginales,historialEdiciones){
   cambiosOriginales=cambiosOriginales||{};
   historialEdiciones=historialEdiciones||[];
@@ -2020,7 +2020,7 @@ function generarPDFOrden(nOrden,fecha,cliData,lineas,sub,notas,cambiosOriginales
     return `<tr><td>${l.producto}${notaHtml}</td><td style="text-align:center;">${cantHtml}</td><td style="text-align:right;">${fmtCLP(l.precioUnit)}</td><td style="text-align:right;">${fmtCLP(Math.round(l.cantidad*l.precioUnit))}</td></tr>`;
   }).join('');
   const docHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Orden de Compra N\xb0 ${numStr}</title>
+<title>Orden de Venta N\xb0 ${numStr}</title>
 <style>
   500;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -2046,6 +2046,7 @@ function generarPDFOrden(nOrden,fecha,cliData,lineas,sub,notas,cambiosOriginales
   .tot-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:#444;font-family:Arial,sans-serif;}
   .tot-total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;color:#003a79;border-top:2px solid #003a79;padding-top:9px;margin-top:6px;}
   .footer{display:flex;justify-content:space-between;font-size:10px;color:#777;margin-top:32px;border-top:1px solid #e0e0e0;padding-top:14px;font-family:Arial,sans-serif;letter-spacing:0.5px;}
+  .nota{font-size:10px;color:#999;margin-top:18px;text-align:center;font-family:Arial,sans-serif;}
   .footer strong{color:#003a79;}
   .notas-box{background:#f5f7ff;border-left:3px solid #003a79;padding:10px 14px;margin-bottom:16px;font-size:12px;font-family:Arial,sans-serif;color:#444;}
 </style>
@@ -2053,7 +2054,7 @@ function generarPDFOrden(nOrden,fecha,cliData,lineas,sub,notas,cambiosOriginales
 <div class="header">
   <div class="logo"><img src="${LOGO}" alt="Logo Fen"/></div>
   <div class="title-area">
-    <div class="oc-title">Orden de Compra</div>
+    <div class="oc-title">Orden de Venta</div>
     <div class="oc-num">N\xb0 ${numStr}</div>
     <div class="oc-info">Ainavillo 764, Concepci\xf3n<br>+56 9 4147 3683<br>panaderiafen@gmail.com</div>
   </div>
@@ -2100,6 +2101,7 @@ ${historialEdiciones.length?`<div style="margin-top:22px;">
   <span><strong>F\u00cbN</strong> \xb7 PANADER\xcdA MASA MADRE \xb7 CAFETER\xcdA</span>
   <span>WWW.PANADERIAFEN.CL \xb7 @PANADERIAFEN</span>
 </div>
+<p class="nota">Documento interno de pedido \u2014 no v\xe1lido como comprobante tributario.</p>
 </body></html>`;
   const nombreArchivo='Orden_'+numStr+'_'+(cliData?.['Nombre']||'cliente').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf';
   generarYDescargarPDF(docHtml,nombreArchivo);
@@ -4754,7 +4756,7 @@ ${usaDetalles?`<table>
   <span><strong>F\u00cbN</strong> \xb7 PANADER\xcdA MASA MADRE \xb7 CAFETER\xcdA</span>
   <span>WWW.PANADERIAFEN.CL \xb7 @PANADERIAFEN</span>
 </div>
-<p class="nota">Documento de referencia para facturaci\xf3n. No constituye una orden de compra ni una factura electr\xf3nica.</p>
+<p class="nota">Documento de referencia para facturaci\xf3n. No constituye una factura electr\xf3nica.<br>Documento interno de pedido — no v\xe1lido como comprobante tributario.</p>
 </body></html>`;
   const clienteSlug=(cli||'cliente').replace(/[^a-zA-Z0-9]+/g,'_');
   const nombreArchivo='resumen_ordenes_'+clienteSlug+'_'+fechaDesde.slice(0,10)+'_al_'+fechaHasta.slice(0,10)+'.pdf';
