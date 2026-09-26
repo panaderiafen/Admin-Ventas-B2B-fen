@@ -3519,12 +3519,31 @@ function _cbFechaISO(v){
 // Cartola "Histórica de Chequera Electrónica": la hoja Movimientos trae fechas
 // sin año ('DD/MM'). El año se infiere desde 'Fecha Inicio' en la hoja Resumen.
 function _cbFechaInicioResumen(wb){
+  return _cbCampoResumen(wb,'Fecha Inicio');
+}
+// Extrae el valor de un campo "etiqueta / valor" de la hoja Resumen (misma
+// fila, etiqueta en la primera celda, valor en alguna celda posterior).
+function _cbCampoResumen(wb,etiqueta){
   if(!wb.SheetNames.includes('Resumen'))return null;
   const filas=XLSX.utils.sheet_to_json(wb.Sheets['Resumen'],{header:1,defval:''});
   for(const fila of filas){
-    if(String(fila[0]||'').trim().toLowerCase()==='fecha inicio'){
+    if(String(fila[0]||'').trim().toLowerCase()===etiqueta.toLowerCase()){
       const val=fila.find((c,i)=>i>0&&String(c||'').trim());
       if(val)return String(val).trim();
+    }
+  }
+  return null;
+}
+// La cartola "en línea" no trae Fecha Inicio/Final — trae, cuando incluye
+// hoja Resumen, un campo de texto libre tipo "Fecha  - Hora   26/09/2026-17:15"
+// con el momento exacto en que se generó esa descarga. Eso la identifica.
+function _cbFechaHoraGeneracion(wb){
+  if(!wb.SheetNames.includes('Resumen'))return null;
+  const filas=XLSX.utils.sheet_to_json(wb.Sheets['Resumen'],{header:1,defval:''});
+  for(const fila of filas){
+    for(const celda of fila){
+      const m=String(celda||'').match(/Fecha\s*-\s*Hora\s+(\d{2}\/\d{2}\/\d{4})-(\d{2}:\d{2})/);
+      if(m)return m[1]+' '+m[2];
     }
   }
   return null;
@@ -3568,6 +3587,7 @@ async function procesarCartolaArchivo(input){
     const wb=XLSX.read(buf,{type:'array',cellDates:true});
 
     let filas=[];
+    let identificador='';
     if(wb.SheetNames.includes('Movimientos')){
       // Cartola Histórica de Chequera Electrónica (BancoEstado)
       const fechaInicio=_cbFechaInicioResumen(wb);
@@ -3584,6 +3604,9 @@ async function procesarCartolaArchivo(input){
         status.textContent='❌ No se pudo determinar el año de las fechas (falta "Fecha Inicio" en la hoja Resumen). Revisa el archivo.';
         return;
       }
+      const nCartola=_cbCampoResumen(wb,'N° Cartola');
+      const fechaFinal=_cbCampoResumen(wb,'Fecha Final');
+      identificador='Histórica N°'+(nCartola||'?')+' ('+(fechaInicio||'?')+' a '+(fechaFinal||'?')+')';
     }else{
       // Cartola en línea
       const nombreHoja=wb.SheetNames.includes('Registros')?'Registros':wb.SheetNames[0];
@@ -3596,14 +3619,26 @@ async function procesarCartolaArchivo(input){
         abonos:_cbMontoDesdeTexto(r['Abonos']),
         saldo:_cbMontoDesdeTexto(r['Saldo'])
       })).filter(f=>f.descripcion);
+      const fechaHora=_cbFechaHoraGeneracion(wb);
+      if(fechaHora){
+        identificador='En línea generada '+fechaHora;
+      }else{
+        const fechas=filas.map(f=>f.fecha).filter(Boolean).sort();
+        identificador='En línea ('+(fechas[0]||'?')+' a '+(fechas[fechas.length-1]||'?')+')';
+      }
     }
 
     status.textContent='Procesando '+filas.length+' filas con el sistema...';
-    const res=await gsCall('procesarCartolaBancaria',{filas});
+    const res=await gsCall('procesarCartolaBancaria',{filas,identificador});
     _cbResultado=res.resultado;
     _cbSeleccion={};
     _cbConfirmados=new Set();
     status.textContent='✅ Listo — '+filas.length+' filas leídas ('+_cbResultado.ignorados+' ignoradas, '+_cbResultado.yaProcesados+' ya procesadas antes).';
+    if(res.drive&&res.drive.url){
+      status.innerHTML+=' · <a href="'+res.drive.url+'" target="_blank">📁 Ver copia guardada en Drive</a>';
+    }else if(res.drive&&res.drive.error){
+      status.innerHTML+=' · <span style="color:#c0392b;">⚠️ '+res.drive.error+'</span>';
+    }
     renderCbResultados();
   }catch(e){
     status.textContent='❌ Error al procesar: '+e.message;
