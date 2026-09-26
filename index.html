@@ -3516,6 +3516,30 @@ function _cbFechaISO(v){
   return s;
 }
 
+// Cartola "Histórica de Chequera Electrónica": la hoja Movimientos trae fechas
+// sin año ('DD/MM'). El año se infiere desde 'Fecha Inicio' en la hoja Resumen.
+function _cbFechaInicioResumen(wb){
+  if(!wb.SheetNames.includes('Resumen'))return null;
+  const filas=XLSX.utils.sheet_to_json(wb.Sheets['Resumen'],{header:1,defval:''});
+  for(const fila of filas){
+    if(String(fila[0]||'').trim().toLowerCase()==='fecha inicio'){
+      const val=fila.find((c,i)=>i>0&&String(c||'').trim());
+      if(val)return String(val).trim();
+    }
+  }
+  return null;
+}
+function _cbFechaConAnio(fechaDDMM, fechaInicioDDMMYYYY){
+  const mDia=String(fechaDDMM).trim().match(/^(\d{1,2})\/(\d{1,2})$/);
+  if(!mDia||!fechaInicioDDMMYYYY)return '';
+  const [,d,m]=mDia;
+  const mIni=String(fechaInicioDDMMYYYY).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(!mIni)return '';
+  const mesInicio=Number(mIni[2]), anioInicio=Number(mIni[3]);
+  const anio=Number(m)<mesInicio?anioInicio+1:anioInicio; // el periodo cruzó de diciembre a enero
+  return anio+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+}
+
 let _xlsxCargando=null;
 function _cargarXLSX(){
   if(window.XLSX)return Promise.resolve();
@@ -3542,18 +3566,37 @@ async function procesarCartolaArchivo(input){
     status.textContent='Leyendo archivo...';
     const buf=await file.arrayBuffer();
     const wb=XLSX.read(buf,{type:'array',cellDates:true});
-    const nombreHoja=wb.SheetNames.includes('Registros')?'Registros':wb.SheetNames[0];
-    const ws=wb.Sheets[nombreHoja];
-    const filasRaw=XLSX.utils.sheet_to_json(ws,{defval:''});
-    if(!filasRaw.length){status.textContent='⚠️ El archivo no tiene filas de datos.';return;}
 
-    const filas=filasRaw.map(r=>({
-      fecha:_cbFechaISO(r['Fecha']),
-      descripcion:String(r['Descripción']||r['Descripcion']||'').trim(),
-      cargos:_cbMontoDesdeTexto(r['Cargos']),
-      abonos:_cbMontoDesdeTexto(r['Abonos']),
-      saldo:_cbMontoDesdeTexto(r['Saldo'])
-    })).filter(f=>f.descripcion);
+    let filas=[];
+    if(wb.SheetNames.includes('Movimientos')){
+      // Cartola Histórica de Chequera Electrónica (BancoEstado)
+      const fechaInicio=_cbFechaInicioResumen(wb);
+      const filasRaw=XLSX.utils.sheet_to_json(wb.Sheets['Movimientos'],{defval:''});
+      if(!filasRaw.length){status.textContent='⚠️ El archivo no tiene filas de datos.';return;}
+      filas=filasRaw.map(r=>({
+        fecha:fechaInicio?_cbFechaConAnio(r['Fecha'],fechaInicio):'',
+        descripcion:String(r['Descripción']||r['Descripcion']||'').trim(),
+        cargos:_cbMontoDesdeTexto(r['Cheques / Cargos']),
+        abonos:_cbMontoDesdeTexto(r['Depósitos / Abonos']),
+        saldo:_cbMontoDesdeTexto(r['Saldo'])
+      })).filter(f=>f.descripcion);
+      if(filas.some(f=>f.abonos>0&&!f.fecha)){
+        status.textContent='❌ No se pudo determinar el año de las fechas (falta "Fecha Inicio" en la hoja Resumen). Revisa el archivo.';
+        return;
+      }
+    }else{
+      // Cartola en línea
+      const nombreHoja=wb.SheetNames.includes('Registros')?'Registros':wb.SheetNames[0];
+      const filasRaw=XLSX.utils.sheet_to_json(wb.Sheets[nombreHoja],{defval:''});
+      if(!filasRaw.length){status.textContent='⚠️ El archivo no tiene filas de datos.';return;}
+      filas=filasRaw.map(r=>({
+        fecha:_cbFechaISO(r['Fecha']),
+        descripcion:String(r['Descripción']||r['Descripcion']||'').trim(),
+        cargos:_cbMontoDesdeTexto(r['Cargos']),
+        abonos:_cbMontoDesdeTexto(r['Abonos']),
+        saldo:_cbMontoDesdeTexto(r['Saldo'])
+      })).filter(f=>f.descripcion);
+    }
 
     status.textContent='Procesando '+filas.length+' filas con el sistema...';
     const res=await gsCall('procesarCartolaBancaria',{filas});
