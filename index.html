@@ -543,7 +543,6 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 //# sourceMappingURL=jspdf.umd.min.js.map
 
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -3517,14 +3516,30 @@ function _cbFechaISO(v){
   return s;
 }
 
+let _xlsxCargando=null;
+function _cargarXLSX(){
+  if(window.XLSX)return Promise.resolve();
+  if(_xlsxCargando)return _xlsxCargando;
+  _xlsxCargando=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>resolve();
+    s.onerror=()=>{_xlsxCargando=null;reject(new Error('No se pudo cargar la librería para leer Excel (revisa tu conexión)'));};
+    document.head.appendChild(s);
+  });
+  return _xlsxCargando;
+}
+
 async function procesarCartolaArchivo(input){
   const file=input.files&&input.files[0];
   if(!file)return;
   const status=document.getElementById('cb-status');
   const cont=document.getElementById('cb-resultados');
   cont.innerHTML='';
-  status.textContent='Leyendo archivo...';
+  status.textContent='Cargando lector de Excel...';
   try{
+    await _cargarXLSX();
+    status.textContent='Leyendo archivo...';
     const buf=await file.arrayBuffer();
     const wb=XLSX.read(buf,{type:'array',cellDates:true});
     const nombreHoja=wb.SheetNames.includes('Registros')?'Registros':wb.SheetNames[0];
