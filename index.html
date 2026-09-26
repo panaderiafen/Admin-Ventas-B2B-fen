@@ -4892,7 +4892,7 @@ async function guardarEdicionCliente(btn){
   if(!nombreNuevo){showToast('El nombre no puede quedar vacío','err');return;}
   const rut=document.getElementById('ec-cli-rut').value.trim();
   if(!rut){showToast('El RUT es obligatorio','err');return;}
-  const renombrando=norm(nombreNuevo)!==norm(_editandoCliente);
+  const renombrando=nombreNuevo!==_editandoCliente; // exacto: un cambio de solo mayúsculas también cuenta
   if(renombrando && !confirm('Vas a renombrar "'+_editandoCliente+'" a "'+nombreNuevo+'".\n\nEsto actualiza automáticamente todas las órdenes y precios especiales ya guardados de este cliente. ¿Continuar?')) return;
   if(btn){btn.disabled=true;btn.textContent='Guardando...';}
   showToast('Guardando cambios en Sheets...','loading');
