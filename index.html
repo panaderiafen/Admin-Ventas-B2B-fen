@@ -3345,7 +3345,11 @@ function abonadoFolio(folio){
   return DB.abonos.filter(a=>norm(a['Folio SII']||'')===norm(folio)).reduce((s,a)=>s+(Number(a['Monto'])||0),0);
 }
 function saldoFolio(folio){
-  return Math.max(0, totalFolio(folio)-abonadoFolio(folio));
+  // Redondeado al peso: en Chile no hay centavos, así que un resto menor a
+  // $1 (típico de sumar montos con decimales en JS, ej. 0.1+0.2!==0.3) es
+  // un artefacto de redondeo, no plata pendiente real — sin esto, un folio
+  // ya saldado podía mostrarse como "Saldo $0" en rojo en vez de "Pagado".
+  return Math.max(0, Math.round(totalFolio(folio)-abonadoFolio(folio)));
 }
 // Saldo pendiente real de una orden. Prioriza el campo "Estado Pago" (ya sea
 // que se haya pagado por la vía simple o por abonos): si dice PAGADO, el saldo
