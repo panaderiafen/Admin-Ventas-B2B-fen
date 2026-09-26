@@ -3653,10 +3653,15 @@ function renderCbResultados(){
       const sel=_cbSeleccion[key]||{asignaciones:[]};
       const foliosMarcados=sel.asignaciones.map(a=>a.folio);
       const totalMarcado=sel.asignaciones.reduce((s,a)=>s+a.monto,0);
+      const yaPagado=item.folioYaPagado;
       return `
       <div class="check-row" style="border-left:3px solid #d68910;flex-direction:column;align-items:stretch;">
         <div style="font-size:13px;font-weight:600;color:#003a79;">${item.cliente} — ${fmtCLP(item.monto)}</div>
         <div style="font-size:11.5px;color:#888;">${fechaCorta(item.fecha)} · ${item.descripcion}</div>
+        ${yaPagado?`
+        <div style="margin:6px 0;font-size:12px;color:#1D9E75;">✔️ Este monto coincide con el Folio ${yaPagado.folio}, ya marcado como pagado${yaPagado.fechaPago?' el '+fechaCorta(yaPagado.fechaPago):''}. Probablemente ya se registró por otra vía.</div>
+        <button class="btn btn-secondary btn-sm" style="align-self:flex-end;" onclick="marcarRevisadoCb('${key}','${yaPagado.folio}')">Marcar como revisado</button>
+        `:`
         <div style="margin:6px 0;">
           ${(item.foliosPendientes||[]).map(f=>`
             <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;padding:3px 0;">
@@ -3665,7 +3670,11 @@ function renderCbResultados(){
             </label>`).join('')||'<span class="hint">Este cliente no tiene folios pendientes.</span>'}
         </div>
         <div style="font-size:11.5px;color:${totalMarcado===item.monto?'#1D9E75':'#c0392b'};">Marcado: ${fmtCLP(totalMarcado)} de ${fmtCLP(item.monto)}</div>
-        <button class="btn btn-primary btn-sm" style="margin-top:6px;align-self:flex-end;" onclick="confirmarCb('${key}')" ${sel.asignaciones.length?'':'disabled'}>Confirmar</button>
+        <div style="display:flex;gap:8px;margin-top:6px;justify-content:flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="marcarRevisadoCb('${key}')">Marcar como revisado</button>
+          <button class="btn btn-primary btn-sm" onclick="confirmarCb('${key}')" ${sel.asignaciones.length?'':'disabled'}>Confirmar</button>
+        </div>
+        `}
       </div>`;
     }).join('');
   }
@@ -3677,6 +3686,7 @@ function renderCbResultados(){
       if(_cbConfirmados.has(key))return '';
       const sel=_cbSeleccion[key]||{cliente:'',asignaciones:[]};
       const foliosCliente=sel.cliente?_cbFoliosPendientesDeCliente(sel.cliente):[];
+      const yaPagado=sel.cliente?_cbFolioPagadoCoincide(sel.cliente,item.monto):null;
       const foliosMarcados=sel.asignaciones.map(a=>a.folio);
       const totalMarcado=sel.asignaciones.reduce((s,a)=>s+a.monto,0);
       return `
@@ -3688,7 +3698,10 @@ function renderCbResultados(){
           <option value="">Seleccionar cliente...</option>
           ${DB.clientes.map(c=>`<option value="${c['Nombre'].replace(/"/g,'&quot;')}" ${sel.cliente===c['Nombre']?'selected':''}>${c['Nombre']}</option>`).join('')}
         </select>
-        ${sel.cliente?`
+        ${sel.cliente?(yaPagado?`
+        <div style="margin:6px 0;font-size:12px;color:#1D9E75;">✔️ Este monto coincide con el Folio ${yaPagado.folio} de ${sel.cliente}, ya marcado como pagado${yaPagado.fechaPago?' el '+fechaCorta(yaPagado.fechaPago):''}.</div>
+        <button class="btn btn-secondary btn-sm" style="align-self:flex-end;" onclick="marcarRevisadoCb('${key}','${yaPagado.folio}')">Marcar como revisado</button>
+        `:`
         <div style="margin:6px 0;">
           ${foliosCliente.length?foliosCliente.map(f=>`
             <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;padding:3px 0;">
@@ -3697,8 +3710,11 @@ function renderCbResultados(){
             </label>`).join(''):'<span class="hint">Este cliente no tiene folios pendientes.</span>'}
         </div>
         <div style="font-size:11.5px;color:${totalMarcado===item.monto?'#1D9E75':'#c0392b'};">Marcado: ${fmtCLP(totalMarcado)} de ${fmtCLP(item.monto)}</div>
-        `:''}
-        <button class="btn btn-primary btn-sm" style="margin-top:6px;align-self:flex-end;" onclick="confirmarCb('${key}')" ${sel.asignaciones.length?'':'disabled'}>Confirmar</button>
+        <div style="display:flex;gap:8px;margin-top:6px;justify-content:flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="marcarRevisadoCb('${key}')">Marcar como revisado</button>
+          <button class="btn btn-primary btn-sm" onclick="confirmarCb('${key}')" ${sel.asignaciones.length?'':'disabled'}>Confirmar</button>
+        </div>
+        `):''}
       </div>`;
     }).join('');
   }
@@ -3717,6 +3733,24 @@ function _cbFoliosPendientesDeCliente(cliente){
     folios[folio]=true;
   });
   return Object.keys(folios).map(f=>({folio:f,saldo:saldoFolio(f)})).filter(f=>f.saldo>0);
+}
+
+// Busca si el monto coincide con un folio de este cliente que YA está pagado
+// (típico: el pago se registró manualmente antes de tener conciliación
+// bancaria). Sirve para avisar en vez de simplemente decir "sin pendientes".
+function _cbFolioPagadoCoincide(cliente,monto){
+  const porFolio={};
+  DB.ordenes.forEach(o=>{
+    if(norm(o['Cliente'])!==norm(cliente))return;
+    const folio=String(o['Folio SII']||'').trim();
+    if(!folio||folio.toUpperCase()==='PENDIENTE')return;
+    const estado=String(o['Estado Pago']||'').toUpperCase();
+    if(!porFolio[folio])porFolio[folio]={total:0,pagado:false,fechaPago:o['Fecha Pago']};
+    porFolio[folio].total+=Number(o['Total'])||0;
+    if(estado.indexOf('PAGADO')!==-1)porFolio[folio].pagado=true;
+  });
+  const match=Object.keys(porFolio).find(f=>porFolio[f].pagado&&Math.round(porFolio[f].total)===Math.round(monto));
+  return match?{folio:match,fechaPago:porFolio[match].fechaPago}:null;
 }
 
 function _cbItem(key){
@@ -3759,12 +3793,41 @@ async function confirmarCb(key){
       huella:item.huella,
       fecha:item.fecha,
       descripcion:item.descripcion,
+      monto:item.monto,
       asignaciones,
       clienteNombre
     });
     _cbConfirmados.add(key);
     showToast('✅ Pago conciliado','success');
     await syncAll();
+    renderCbResultados();
+  }catch(e){
+    showToast('Error: '+e.message,'err');
+  }
+}
+
+// Para movimientos que ya se explican por otra vía (pago registrado antes de
+// tener conciliación, anticipo de pedidos aún no facturados, etc.): no
+// registra pago ni abono, solo deja constancia de que ya se revisó para que
+// no vuelva a aparecer.
+async function marcarRevisadoCb(key,folioReferencia){
+  const item=_cbItem(key);
+  if(!item)return;
+  const sel=_cbSeleccion[key]||{};
+  const clienteNombre=key.startsWith('sin-')?(sel.cliente||null):(item.cliente||null);
+  showToast('Marcando como revisado...','loading');
+  try{
+    await gsCall('confirmarConciliacion',{
+      huella:item.huella,
+      fecha:item.fecha,
+      descripcion:item.descripcion,
+      monto:item.monto,
+      soloRevisado:true,
+      folioReferencia:folioReferencia||'',
+      clienteNombre
+    });
+    _cbConfirmados.add(key);
+    showToast('✅ Marcado como revisado','success');
     renderCbResultados();
   }catch(e){
     showToast('Error: '+e.message,'err');
