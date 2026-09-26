@@ -3584,6 +3584,7 @@ async function cargarConciliacionPendiente(){
     _cbResultado=res.resultado;
     _cbSeleccion={};
     _cbConfirmados=new Set();
+    _cbOrigenUltimoRender='pendientes';
     const status=document.getElementById('cb-status');
     if(status)status.textContent=total?total+' movimiento(s) pendiente(s) de revisión de cartolas ya procesadas.':'';
     renderCbResultados();
@@ -3652,6 +3653,7 @@ async function procesarCartolaArchivo(input){
     _cbResultado=res.resultado;
     _cbSeleccion={};
     _cbConfirmados=new Set();
+    _cbOrigenUltimoRender='archivo';
     status.textContent='✅ Listo — '+filas.length+' filas leídas ('+_cbResultado.ignorados+' ignoradas, '+_cbResultado.yaProcesados+' ya procesadas antes).';
     if(res.drive&&res.drive.url){
       status.innerHTML+=' · <a href="'+res.drive.url+'" target="_blank">📁 Ver copia guardada en Drive</a>';
@@ -3666,6 +3668,7 @@ async function procesarCartolaArchivo(input){
   }
 }
 
+let _cbOrigenUltimoRender='pendientes'; // 'archivo' = se acaba de procesar un Excel recién subido; 'pendientes' = se cargó lo que quedó guardado de antes
 function renderCbResultados(){
   const cont=document.getElementById('cb-resultados');
   if(!_cbResultado){cont.innerHTML='';return;}
@@ -3675,7 +3678,9 @@ function renderCbResultados(){
   const pendientesSin=sinIdentificar.filter((_,i)=>!_cbConfirmados.has('sin-'+i));
 
   if(!pendientesAuto.length&&!pendientesRevisar.length&&!pendientesSin.length){
-    cont.innerHTML='<div class="empty" style="margin-top:10px;">Todos los movimientos de esta cartola ya fueron conciliados. ✅</div>';
+    cont.innerHTML=_cbOrigenUltimoRender==='archivo'
+      ? '<div class="empty" style="margin-top:10px;">Todos los movimientos de esta cartola ya fueron conciliados. ✅</div>'
+      : '';
     return;
   }
 
