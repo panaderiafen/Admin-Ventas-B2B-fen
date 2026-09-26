@@ -1597,6 +1597,7 @@ async function syncAll() {
     showToast('✅ Sincronizado','success');
     verificarRecordatorioArchivado();
     verificarRecordatoriosFacturacion();
+    cargarConciliacionPendiente();
   } catch(e){ showToast('Error: '+e.message,'err'); }
 }
 
@@ -3571,6 +3572,24 @@ function _cargarXLSX(){
     document.head.appendChild(s);
   });
   return _xlsxCargando;
+}
+
+// Trae de vuelta la pantalla de revisión pendiente (lo que quedó sin
+// confirmar de cartolas ya procesadas), para no depender de tener el Excel
+// original a mano si se sale de la app y vuelve después.
+async function cargarConciliacionPendiente(){
+  try{
+    const res=await gsCall('getConciliacionPendiente',{});
+    const total=(res.resultado.auto||[]).length+(res.resultado.revisar||[]).length+(res.resultado.sinIdentificar||[]).length;
+    _cbResultado=res.resultado;
+    _cbSeleccion={};
+    _cbConfirmados=new Set();
+    const status=document.getElementById('cb-status');
+    if(status)status.textContent=total?total+' movimiento(s) pendiente(s) de revisión de cartolas ya procesadas.':'';
+    renderCbResultados();
+  }catch(e){
+    // silencioso — si falla, el usuario simplemente no ve pendientes hasta subir un archivo
+  }
 }
 
 async function procesarCartolaArchivo(input){
