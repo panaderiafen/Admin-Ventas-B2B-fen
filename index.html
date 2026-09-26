@@ -543,6 +543,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 //# sourceMappingURL=jspdf.umd.min.js.map
 
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -720,6 +721,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <!-- ═══════════════════════════════════════ PAGOS ═══ -->
 <div id="sec-pagos" class="section">
   <div class="card" id="cobranza-card" style="display:none;"></div>
+  <div class="card">
+    <div class="card-title">🏦 Conciliación bancaria</div>
+    <p style="font-size:12px;color:#666;margin-bottom:10px;">Sube la cartola (Excel) del banco. El sistema identifica los pagos de clientes y los relaciona con las facturas pendientes.</p>
+    <label>Archivo de cartola (.xlsx)</label>
+    <input type="file" id="cb-file" accept=".xlsx,.xls" onchange="procesarCartolaArchivo(this)"/>
+    <div id="cb-status" class="hint"></div>
+    <div id="cb-resultados"></div>
+  </div>
   <div class="card">
     <div class="card-title">➕ Registrar pago</div>
     <label>Buscar por Folio SII, N° orden o cliente</label>
@@ -3483,6 +3492,224 @@ function renderCobranza(){
     <div style="margin-top:10px;padding-top:10px;border-top:1.5px solid #003a79;text-align:right;">
       <span style="color:#003a79;font-size:15px;">Total por cobrar: ${fmtCLP(totalGeneral)}</span>
     </div>`;
+}
+
+// ─── CONCILIACIÓN BANCARIA ────────────────────
+let _cbResultado=null; // { auto:[], revisar:[], sinIdentificar:[], ignorados, yaProcesados }
+let _cbSeleccion={};   // índice(string) -> { cliente, asignaciones:[{folio,monto}] }
+let _cbConfirmados=new Set(); // huellas ya confirmadas en esta sesión de pantalla
+
+function _cbMontoDesdeTexto(v){
+  if(v===null||v===undefined||v==='')return 0;
+  if(typeof v==='number')return v;
+  const s=String(v).replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(',','.');
+  const n=parseFloat(s);
+  return isNaN(n)?0:Math.round(n);
+}
+function _cbFechaISO(v){
+  if(v===null||v===undefined||v==='')return '';
+  if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+  const s=String(v).trim();
+  const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  const m2=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m2) return s.slice(0,10);
+  return s;
+}
+
+async function procesarCartolaArchivo(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  const status=document.getElementById('cb-status');
+  const cont=document.getElementById('cb-resultados');
+  cont.innerHTML='';
+  status.textContent='Leyendo archivo...';
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',cellDates:true});
+    const nombreHoja=wb.SheetNames.includes('Registros')?'Registros':wb.SheetNames[0];
+    const ws=wb.Sheets[nombreHoja];
+    const filasRaw=XLSX.utils.sheet_to_json(ws,{defval:''});
+    if(!filasRaw.length){status.textContent='⚠️ El archivo no tiene filas de datos.';return;}
+
+    const filas=filasRaw.map(r=>({
+      fecha:_cbFechaISO(r['Fecha']),
+      descripcion:String(r['Descripción']||r['Descripcion']||'').trim(),
+      cargos:_cbMontoDesdeTexto(r['Cargos']),
+      abonos:_cbMontoDesdeTexto(r['Abonos']),
+      saldo:_cbMontoDesdeTexto(r['Saldo'])
+    })).filter(f=>f.descripcion);
+
+    status.textContent='Procesando '+filas.length+' filas con el sistema...';
+    const res=await gsCall('procesarCartolaBancaria',{filas});
+    _cbResultado=res.resultado;
+    _cbSeleccion={};
+    _cbConfirmados=new Set();
+    status.textContent='✅ Listo — '+filas.length+' filas leídas ('+_cbResultado.ignorados+' ignoradas, '+_cbResultado.yaProcesados+' ya procesadas antes).';
+    renderCbResultados();
+  }catch(e){
+    status.textContent='❌ Error al procesar: '+e.message;
+  }finally{
+    input.value='';
+  }
+}
+
+function renderCbResultados(){
+  const cont=document.getElementById('cb-resultados');
+  if(!_cbResultado){cont.innerHTML='';return;}
+  const {auto,revisar,sinIdentificar}=_cbResultado;
+  const pendientesAuto=auto.filter((_,i)=>!_cbConfirmados.has('auto-'+i));
+  const pendientesRevisar=revisar.filter((_,i)=>!_cbConfirmados.has('revisar-'+i));
+  const pendientesSin=sinIdentificar.filter((_,i)=>!_cbConfirmados.has('sin-'+i));
+
+  if(!pendientesAuto.length&&!pendientesRevisar.length&&!pendientesSin.length){
+    cont.innerHTML='<div class="empty" style="margin-top:10px;">Todos los movimientos de esta cartola ya fueron conciliados. ✅</div>';
+    return;
+  }
+
+  let html='';
+
+  if(pendientesAuto.length){
+    html+=`<div style="margin-top:14px;font-size:12px;font-weight:700;color:#1D9E75;">✅ Identificados automáticamente (${pendientesAuto.length})</div>`;
+    html+=auto.map((item,i)=>{
+      const key='auto-'+i;
+      if(_cbConfirmados.has(key))return '';
+      const detalleFolios=item.asignaciones.map(a=>'Folio '+a.folio+': '+fmtCLP(a.monto)).join(' + ');
+      return `
+      <div class="check-row" style="border-left:3px solid #1D9E75;">
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;color:#003a79;">${item.cliente} — ${fmtCLP(item.monto)}</div>
+          <div style="font-size:11.5px;color:#888;">${fechaCorta(item.fecha)} · ${item.descripcion}</div>
+          <div style="font-size:11.5px;color:#1D9E75;margin-top:2px;">${detalleFolios}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="confirmarCb('${key}')">Confirmar</button>
+      </div>`;
+    }).join('');
+  }
+
+  if(pendientesRevisar.length){
+    html+=`<div style="margin-top:14px;font-size:12px;font-weight:700;color:#d68910;">⚠️ Cliente identificado, monto no calza exacto (${pendientesRevisar.length})</div>`;
+    html+=revisar.map((item,i)=>{
+      const key='revisar-'+i;
+      if(_cbConfirmados.has(key))return '';
+      const sel=_cbSeleccion[key]||{asignaciones:[]};
+      const foliosMarcados=sel.asignaciones.map(a=>a.folio);
+      const totalMarcado=sel.asignaciones.reduce((s,a)=>s+a.monto,0);
+      return `
+      <div class="check-row" style="border-left:3px solid #d68910;flex-direction:column;align-items:stretch;">
+        <div style="font-size:13px;font-weight:600;color:#003a79;">${item.cliente} — ${fmtCLP(item.monto)}</div>
+        <div style="font-size:11.5px;color:#888;">${fechaCorta(item.fecha)} · ${item.descripcion}</div>
+        <div style="margin:6px 0;">
+          ${(item.foliosPendientes||[]).map(f=>`
+            <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;padding:3px 0;">
+              <input type="checkbox" ${foliosMarcados.includes(f.folio)?'checked':''} onchange="toggleFolioCb('${key}','${f.folio}',${f.saldo})"/>
+              Folio ${f.folio} — saldo ${fmtCLP(f.saldo)} ${f.fecha?'('+fechaCorta(f.fecha)+')':''}
+            </label>`).join('')||'<span class="hint">Este cliente no tiene folios pendientes.</span>'}
+        </div>
+        <div style="font-size:11.5px;color:${totalMarcado===item.monto?'#1D9E75':'#c0392b'};">Marcado: ${fmtCLP(totalMarcado)} de ${fmtCLP(item.monto)}</div>
+        <button class="btn btn-primary btn-sm" style="margin-top:6px;align-self:flex-end;" onclick="confirmarCb('${key}')" ${sel.asignaciones.length?'':'disabled'}>Confirmar</button>
+      </div>`;
+    }).join('');
+  }
+
+  if(pendientesSin.length){
+    html+=`<div style="margin-top:14px;font-size:12px;font-weight:700;color:#c0392b;">❓ Sin identificar (${pendientesSin.length})</div>`;
+    html+=sinIdentificar.map((item,i)=>{
+      const key='sin-'+i;
+      if(_cbConfirmados.has(key))return '';
+      const sel=_cbSeleccion[key]||{cliente:'',asignaciones:[]};
+      const foliosCliente=sel.cliente?_cbFoliosPendientesDeCliente(sel.cliente):[];
+      const foliosMarcados=sel.asignaciones.map(a=>a.folio);
+      const totalMarcado=sel.asignaciones.reduce((s,a)=>s+a.monto,0);
+      return `
+      <div class="check-row" style="border-left:3px solid #c0392b;flex-direction:column;align-items:stretch;">
+        <div style="font-size:13px;font-weight:600;color:#003a79;">${fmtCLP(item.monto)}</div>
+        <div style="font-size:11.5px;color:#888;">${fechaCorta(item.fecha)} · ${item.descripcion}</div>
+        <label style="margin-top:6px;">Cliente</label>
+        <select onchange="elegirClienteCb('${key}',this.value)">
+          <option value="">Seleccionar cliente...</option>
+          ${DB.clientes.map(c=>`<option value="${c['Nombre'].replace(/"/g,'&quot;')}" ${sel.cliente===c['Nombre']?'selected':''}>${c['Nombre']}</option>`).join('')}
+        </select>
+        ${sel.cliente?`
+        <div style="margin:6px 0;">
+          ${foliosCliente.length?foliosCliente.map(f=>`
+            <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;padding:3px 0;">
+              <input type="checkbox" ${foliosMarcados.includes(f.folio)?'checked':''} onchange="toggleFolioCb('${key}','${f.folio}',${f.saldo})"/>
+              Folio ${f.folio} — saldo ${fmtCLP(f.saldo)}
+            </label>`).join(''):'<span class="hint">Este cliente no tiene folios pendientes.</span>'}
+        </div>
+        <div style="font-size:11.5px;color:${totalMarcado===item.monto?'#1D9E75':'#c0392b'};">Marcado: ${fmtCLP(totalMarcado)} de ${fmtCLP(item.monto)}</div>
+        `:''}
+        <button class="btn btn-primary btn-sm" style="margin-top:6px;align-self:flex-end;" onclick="confirmarCb('${key}')" ${sel.asignaciones.length?'':'disabled'}>Confirmar</button>
+      </div>`;
+    }).join('');
+  }
+
+  cont.innerHTML=html;
+}
+
+function _cbFoliosPendientesDeCliente(cliente){
+  const folios={};
+  DB.ordenes.forEach(o=>{
+    const estado=String(o['Estado Pago']||'').toUpperCase();
+    const folio=String(o['Folio SII']||'').trim();
+    if(norm(o['Cliente'])!==norm(cliente))return;
+    if(!folio||folio.toUpperCase()==='PENDIENTE')return;
+    if(estado.indexOf('PAGADO')!==-1)return;
+    folios[folio]=true;
+  });
+  return Object.keys(folios).map(f=>({folio:f,saldo:saldoFolio(f)})).filter(f=>f.saldo>0);
+}
+
+function _cbItem(key){
+  const [tipo,idxStr]=key.split('-');
+  const idx=Number(idxStr);
+  const fuente=tipo==='auto'?_cbResultado.auto:tipo==='revisar'?_cbResultado.revisar:_cbResultado.sinIdentificar;
+  return fuente[idx];
+}
+
+function elegirClienteCb(key,cliente){
+  _cbSeleccion[key]={cliente,asignaciones:[]};
+  renderCbResultados();
+}
+
+function toggleFolioCb(key,folio,saldo){
+  if(!_cbSeleccion[key])_cbSeleccion[key]={asignaciones:[]};
+  const sel=_cbSeleccion[key];
+  const i=sel.asignaciones.findIndex(a=>a.folio===folio);
+  if(i>=0)sel.asignaciones.splice(i,1);
+  else sel.asignaciones.push({folio,monto:saldo});
+  renderCbResultados();
+}
+
+async function confirmarCb(key){
+  const item=_cbItem(key);
+  if(!item)return;
+  let asignaciones,clienteNombre=null;
+  if(key.startsWith('auto-')){
+    asignaciones=item.asignaciones;
+  }else{
+    const sel=_cbSeleccion[key];
+    if(!sel||!sel.asignaciones.length){showToast('Selecciona al menos un folio','err');return;}
+    asignaciones=sel.asignaciones;
+    if(key.startsWith('sin-'))clienteNombre=sel.cliente;
+  }
+  showToast('Registrando conciliación...','loading');
+  try{
+    await gsCall('confirmarConciliacion',{
+      huella:item.huella,
+      fecha:item.fecha,
+      descripcion:item.descripcion,
+      asignaciones,
+      clienteNombre
+    });
+    _cbConfirmados.add(key);
+    showToast('✅ Pago conciliado','success');
+    await syncAll();
+    renderCbResultados();
+  }catch(e){
+    showToast('Error: '+e.message,'err');
+  }
 }
 
 // Desde la tarjeta de Cobranza, lleva directo al formulario de Registrar pago
