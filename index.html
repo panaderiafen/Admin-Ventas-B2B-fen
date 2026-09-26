@@ -3746,11 +3746,12 @@ async function confirmarCb(key){
   let asignaciones,clienteNombre=null;
   if(key.startsWith('auto-')){
     asignaciones=item.asignaciones;
+    clienteNombre=item.cliente;
   }else{
     const sel=_cbSeleccion[key];
     if(!sel||!sel.asignaciones.length){showToast('Selecciona al menos un folio','err');return;}
     asignaciones=sel.asignaciones;
-    if(key.startsWith('sin-'))clienteNombre=sel.cliente;
+    clienteNombre=key.startsWith('sin-')?sel.cliente:item.cliente;
   }
   showToast('Registrando conciliación...','loading');
   try{
