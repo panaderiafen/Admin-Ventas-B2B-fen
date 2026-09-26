@@ -1158,6 +1158,27 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   </div>
 </div>
 
+<!-- Editar cliente -->
+<div id="modal-editar-cliente" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">✏️ Editar cliente</div>
+    <label>Nombre</label>
+    <input type="text" id="ec-cli-nom"/>
+    <p style="font-size:11px;color:#999;margin:-6px 0 10px;">⚠️ Si cambias el nombre, se actualiza automáticamente en todas las órdenes y precios especiales ya guardados de este cliente (para que no queden huérfanos).</p>
+    <label>RUT</label><input type="text" id="ec-cli-rut" placeholder="77.123.456-K"/>
+    <label>Razón Social</label><input type="text" id="ec-cli-rs"/>
+    <label>Giro</label><input type="text" id="ec-cli-giro"/>
+    <label>Dirección</label><input type="text" id="ec-cli-dir"/>
+    <label>Correo</label><input type="email" id="ec-cli-email"/>
+    <label>Teléfono</label><input type="tel" id="ec-cli-tel"/>
+    <label>Contacto</label><input type="text" id="ec-cli-contacto"/>
+    <div class="modal-btns">
+      <button class="btn btn-primary" style="flex:1;" id="ec-cli-btn-guardar" onclick="guardarEdicionCliente(this)">Guardar cambios</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-editar-cliente')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Nuevo producto -->
 <div id="modal-prod" class="modal-overlay">
   <div class="modal">
@@ -4780,7 +4801,7 @@ function renderClientes(){
   const q=norm(document.getElementById('cli-q')?.value||'');
   const lista=DB.clientes.filter(c=>!q||norm(c['Nombre']).includes(q)||norm(c['RUT']||'').includes(q));
   if(!lista.length){w.innerHTML='<div class="empty">Sin clientes</div>';return;}
-  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>RUT</th><th>Giro</th><th>Contacto</th><th>Facturación</th><th>Frecuencia Pago</th></tr></thead><tbody>'+
+  w.innerHTML='<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>RUT</th><th>Giro</th><th>Contacto</th><th>Facturación</th><th>Frecuencia Pago</th><th></th></tr></thead><tbody>'+
     lista.map(c=>`<tr>
       <td><strong>${c['Nombre']}</strong><br><small style="color:#888">${c['Razón Social']||''}</small></td>
       <td>${c['RUT']||'—'}</td>
@@ -4801,6 +4822,7 @@ function renderClientes(){
           <option value="30dias" ${c['Frecuencia Pago']==='30dias'?'selected':''}>A 30 días</option>
         </select>
       </td>
+      <td><button class="btn btn-secondary btn-sm" onclick="abrirEditarCliente('${c['Nombre'].replace(/'/g,"\\'")}')">✏️ Editar</button></td>
     </tr>`).join('')+'</tbody></table></div>';
 }
 
@@ -4845,6 +4867,62 @@ async function guardarCliente(){
     showToast('✅ Cliente guardado','success');
     ['nc-nom','nc-rut','nc-rs','nc-giro','nc-dir','nc-email','nc-tel','nc-contacto'].forEach(id=>document.getElementById(id).value='');
   }catch(e){showToast('Error: '+e.message,'err');}
+}
+
+let _editandoCliente=null;
+function abrirEditarCliente(nombre){
+  const c=DB.clientes.find(x=>x['Nombre']===nombre);
+  if(!c){showToast('Cliente no encontrado','err');return;}
+  _editandoCliente=nombre;
+  document.getElementById('ec-cli-nom').value=c['Nombre']||'';
+  document.getElementById('ec-cli-rut').value=c['RUT']||'';
+  document.getElementById('ec-cli-rs').value=c['Razón Social']||'';
+  document.getElementById('ec-cli-giro').value=c['Giro']||'';
+  document.getElementById('ec-cli-dir').value=c['Dirección']||'';
+  document.getElementById('ec-cli-email').value=c['Email']||c['Correo']||'';
+  document.getElementById('ec-cli-tel').value=c['Teléfono']||'';
+  document.getElementById('ec-cli-contacto').value=c['Contacto']||'';
+  openModal('modal-editar-cliente');
+}
+
+async function guardarEdicionCliente(btn){
+  if(!_editandoCliente)return;
+  if(btn&&btn.disabled)return;
+  const nombreNuevo=document.getElementById('ec-cli-nom').value.trim();
+  if(!nombreNuevo){showToast('El nombre no puede quedar vacío','err');return;}
+  const rut=document.getElementById('ec-cli-rut').value.trim();
+  if(!rut){showToast('El RUT es obligatorio','err');return;}
+  const renombrando=norm(nombreNuevo)!==norm(_editandoCliente);
+  if(renombrando && !confirm('Vas a renombrar "'+_editandoCliente+'" a "'+nombreNuevo+'".\n\nEsto actualiza automáticamente todas las órdenes y precios especiales ya guardados de este cliente. ¿Continuar?')) return;
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  showToast('Guardando cambios en Sheets...','loading');
+  try{
+    const res=await gsCall('editarCliente',{
+      nombreActual:_editandoCliente, nombreNuevo, rut,
+      razonSocial:document.getElementById('ec-cli-rs').value.trim(),
+      giro:document.getElementById('ec-cli-giro').value.trim(),
+      dir:document.getElementById('ec-cli-dir').value.trim(),
+      email:document.getElementById('ec-cli-email').value.trim(),
+      tel:document.getElementById('ec-cli-tel').value.trim(),
+      contacto:document.getElementById('ec-cli-contacto').value.trim()
+    });
+    closeModal('modal-editar-cliente');
+    await syncAll();
+    showToast('✅ Cliente actualizado','success');
+    if(res && res.propagacion){
+      const p=res.propagacion;
+      const total=Object.values(p).reduce((s,n)=>s+n,0);
+      if(total>0){
+        alert('✅ Nombre actualizado de "'+_editandoCliente+'" a "'+nombreNuevo+'".\n\nSe propagó a:\n'+
+          Object.entries(p).filter(([,n])=>n>0).map(([hoja,n])=>'• '+hoja+': '+n).join('\n'));
+      }
+    }
+    _editandoCliente=null;
+  }catch(e){
+    showToast('Error: '+e.message,'err');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Guardar cambios';}
+  }
 }
 
 // ─── PRODUCTOS ───────────────────────────
