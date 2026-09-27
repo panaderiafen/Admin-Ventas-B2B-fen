@@ -3669,28 +3669,19 @@ async function procesarCartolaArchivo(input){
 }
 
 let _cbOrigenUltimoRender='pendientes'; // 'archivo' = se acaba de procesar un Excel recién subido; 'pendientes' = se cargó lo que quedó guardado de antes
-function renderCbResultados(){
-  const cont=document.getElementById('cb-resultados');
-  if(!_cbResultado){cont.innerHTML='';return;}
-  const {auto,revisar,sinIdentificar}=_cbResultado;
-  const pendientesAuto=auto.filter((_,i)=>!_cbConfirmados.has('auto-'+i));
-  const pendientesRevisar=revisar.filter((_,i)=>!_cbConfirmados.has('revisar-'+i));
-  const pendientesSin=sinIdentificar.filter((_,i)=>!_cbConfirmados.has('sin-'+i));
 
-  if(!pendientesAuto.length&&!pendientesRevisar.length&&!pendientesSin.length){
-    cont.innerHTML=_cbOrigenUltimoRender==='archivo'
-      ? '<div class="empty" style="margin-top:10px;">Todos los movimientos de esta cartola ya fueron conciliados. ✅</div>'
-      : '';
-    return;
-  }
-
+// Renderiza el contenido (los 3 grupos ✅/⚠️/❓) de UNA cartola, dada su
+// lista de entradas {item,key,tipo}. Se reusa dentro de cada bloque
+// colapsable de renderCbResultados.
+function _cbRenderEntradas(entradas){
+  const autoE=entradas.filter(e=>e.tipo==='auto');
+  const revisarE=entradas.filter(e=>e.tipo==='revisar');
+  const sinE=entradas.filter(e=>e.tipo==='sinIdentificar');
   let html='';
 
-  if(pendientesAuto.length){
-    html+=`<div style="margin-top:14px;font-size:12px;font-weight:700;color:#1D9E75;">✅ Identificados automáticamente (${pendientesAuto.length})</div>`;
-    html+=auto.map((item,i)=>{
-      const key='auto-'+i;
-      if(_cbConfirmados.has(key))return '';
+  if(autoE.length){
+    html+=`<div style="margin-top:10px;font-size:12px;font-weight:700;color:#1D9E75;">✅ Identificados automáticamente (${autoE.length})</div>`;
+    html+=autoE.map(({item,key})=>{
       const detalleFolios=item.asignaciones.map(a=>'Folio '+a.folio+': '+fmtCLP(a.monto)).join(' + ');
       return `
       <div class="check-row" style="border-left:3px solid #1D9E75;">
@@ -3704,11 +3695,9 @@ function renderCbResultados(){
     }).join('');
   }
 
-  if(pendientesRevisar.length){
-    html+=`<div style="margin-top:14px;font-size:12px;font-weight:700;color:#d68910;">⚠️ Cliente identificado, monto no calza exacto (${pendientesRevisar.length})</div>`;
-    html+=revisar.map((item,i)=>{
-      const key='revisar-'+i;
-      if(_cbConfirmados.has(key))return '';
+  if(revisarE.length){
+    html+=`<div style="margin-top:10px;font-size:12px;font-weight:700;color:#d68910;">⚠️ Cliente identificado, monto no calza exacto (${revisarE.length})</div>`;
+    html+=revisarE.map(({item,key})=>{
       const sel=_cbSeleccion[key]||{asignaciones:[]};
       const foliosMarcados=sel.asignaciones.map(a=>a.folio);
       const totalMarcado=sel.asignaciones.reduce((s,a)=>s+a.monto,0);
@@ -3738,11 +3727,9 @@ function renderCbResultados(){
     }).join('');
   }
 
-  if(pendientesSin.length){
-    html+=`<div style="margin-top:14px;font-size:12px;font-weight:700;color:#c0392b;">❓ Sin identificar (${pendientesSin.length})</div>`;
-    html+=sinIdentificar.map((item,i)=>{
-      const key='sin-'+i;
-      if(_cbConfirmados.has(key))return '';
+  if(sinE.length){
+    html+=`<div style="margin-top:10px;font-size:12px;font-weight:700;color:#c0392b;">❓ Sin identificar (${sinE.length})</div>`;
+    html+=sinE.map(({item,key})=>{
       const sel=_cbSeleccion[key]||{cliente:'',asignaciones:[]};
       const foliosCliente=sel.cliente?_cbFoliosPendientesDeCliente(sel.cliente):[];
       const yaPagado=sel.cliente?_cbFolioPagadoCoincide(sel.cliente,item.monto):null;
@@ -3778,7 +3765,49 @@ function renderCbResultados(){
     }).join('');
   }
 
-  cont.innerHTML=html;
+  return html;
+}
+
+// Agrupa todos los pendientes por cartola de origen (identificador) y los
+// muestra en bloques colapsables — el más reciente abierto, el resto
+// cerrado, para no ocupar toda la pantalla con cartolas ya casi resueltas.
+function renderCbResultados(){
+  const cont=document.getElementById('cb-resultados');
+  if(!_cbResultado){cont.innerHTML='';return;}
+  const {auto,revisar,sinIdentificar}=_cbResultado;
+
+  const todas=[
+    ...auto.map((item,i)=>({item,key:'auto-'+i,tipo:'auto'})),
+    ...revisar.map((item,i)=>({item,key:'revisar-'+i,tipo:'revisar'})),
+    ...sinIdentificar.map((item,i)=>({item,key:'sin-'+i,tipo:'sinIdentificar'}))
+  ].filter(e=>!_cbConfirmados.has(e.key));
+
+  if(!todas.length){
+    cont.innerHTML=_cbOrigenUltimoRender==='archivo'
+      ? '<div class="empty" style="margin-top:10px;">Todos los movimientos de esta cartola ya fueron conciliados. ✅</div>'
+      : '';
+    return;
+  }
+
+  const grupos={};
+  todas.forEach(e=>{
+    const id=e.item.identificador||'Cartola sin identificar';
+    if(!grupos[id])grupos[id]={entradas:[],fechaProcesado:e.item.fechaProcesado||''};
+    grupos[id].entradas.push(e);
+    if(e.item.fechaProcesado&&e.item.fechaProcesado>grupos[id].fechaProcesado)grupos[id].fechaProcesado=e.item.fechaProcesado;
+  });
+  const idsOrdenados=Object.keys(grupos).sort((a,b)=>grupos[b].fechaProcesado.localeCompare(grupos[a].fechaProcesado));
+
+  cont.innerHTML=idsOrdenados.map((id,gi)=>{
+    const grupo=grupos[id];
+    return `
+    <details ${gi===0?'open':''} style="margin-top:10px;border:0.5px solid #e0e0e0;border-radius:8px;overflow:hidden;">
+      <summary style="cursor:pointer;padding:10px 12px;background:#f7f9fc;font-size:13px;font-weight:700;color:#003a79;">
+        ${id} — ${grupo.entradas.length} pendiente(s)
+      </summary>
+      <div style="padding:0 12px 10px;">${_cbRenderEntradas(grupo.entradas)}</div>
+    </details>`;
+  }).join('');
 }
 
 function _cbFoliosPendientesDeCliente(cliente){
