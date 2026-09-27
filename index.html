@@ -3682,7 +3682,14 @@ function _cbRenderEntradas(entradas){
   if(autoE.length){
     html+=`<div style="margin-top:10px;font-size:12px;font-weight:700;color:#1D9E75;">✅ Identificados automáticamente (${autoE.length})</div>`;
     html+=autoE.map(({item,key})=>{
-      const detalleFolios=item.asignaciones.map(a=>'Folio '+a.folio+': '+fmtCLP(a.monto)).join(' + ');
+      const detalleFolios=item.asignaciones.map(a=>{
+        let linea='Folio '+a.folio+': '+fmtCLP(a.monto);
+        const datosFecha=[];
+        if(a.fecha)datosFecha.push('pedido '+fechaCorta(a.fecha));
+        if(a.fechaFolio)datosFecha.push('folio asignado '+fechaCorta(a.fechaFolio));
+        if(datosFecha.length)linea+=' <span style="color:#888;font-weight:400;">('+datosFecha.join(' · ')+')</span>';
+        return linea;
+      }).join(' + ');
       return `
       <div class="check-row" style="border-left:3px solid #1D9E75;">
         <div style="flex:1;">
