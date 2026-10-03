@@ -543,6 +543,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 //# sourceMappingURL=jspdf.umd.min.js.map
 
 </script>
+<style>
+/* v2.0.0 — Despacho (persona con PIN): solo Órdenes. El servidor además lo exige. */
+body.fa-rol-persona .nav-btn:not([onclick*="'ordenes'"]),
+body.fa-rol-persona [onclick*="abrirPagoRapido"],
+body.fa-rol-persona [onclick*="abrirDel("],
+body.fa-rol-persona [onclick*="abrirFolio"],
+body.fa-rol-persona [onclick*="confirmarEditarAdmin"],
+body.fa-rol-persona #archivo-banner,
+body.fa-rol-persona #fact-recordatorio { display: none !important; }
+</style>
 </head>
 <body>
 
@@ -928,6 +938,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <!-- ═══════════════════════════════════════ CONFIG ═══ -->
 <div id="sec-config" class="section">
   <div class="card">
+    <div class="card-title">🔒 Seguridad</div>
+    <div id="fa-seguridad"><p class="hint">Entra como dueño para ver esta sección.</p></div>
+  </div>
+  <div class="card">
     <div class="card-title">⚙️ Configuración</div>
     <label>URL del Web App (Google Apps Script)</label>
     <input type="text" id="cfg-url" placeholder="https://script.google.com/macros/s/.../exec"/>
@@ -1274,6 +1288,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   </div>
 </div>
 
+<!-- v2.0.0: entrada (dueño con contraseña / despacho con PIN) y conexión segura con el Apps Script (ver README) -->
+<script>window.FEN_ACCESO = { app: 'b2b', nombre: 'Ventas B2B', version: '2.0.0', conPersonas: true,
+  etiquetaPersonas: 'Personas de despacho',
+  ayudaPersonas: 'Entran con su PIN de Asistencia desde un equipo autorizado. Pueden ver y crear órdenes, y editar las que aún no tienen folio ni pago. Folios, pagos, cartolas, clientes, productos, precios, análisis y configuración quedan solo para ti.' };</script>
+<script src="fen-acceso.js?v=2.0.0"></script>
 <script>
 // ─── ESTADO ───────────────────────────────
 let GS = localStorage.getItem('fen_gs') || '';
@@ -5893,6 +5912,13 @@ function resetMulti(){
   document.getElementById('m-lista').innerHTML='';
   showToast('Formulario limpiado','success');
 }
+
+// v2.0.0: panel de Seguridad (solo dueño) en ⚙️ Config
+document.addEventListener('fen-acceso', ev => {
+  const el = document.getElementById('fa-seguridad');
+  if (ev.detail.rol === 'dueno') FenAcceso.renderSeguridad(el);
+  else el.innerHTML = '<p class="hint">Solo el dueño.</p>';
+});
 
 // ─── INIT ────────────────────────────────
 if(!GS){
